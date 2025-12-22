@@ -190,6 +190,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
       }
 
       const chunk = imageFiles.slice(i, i + chunkSize);
+      const processedChunk: InventoryItem[] = [];
 
       await Promise.all(
         chunk.map(async (file) => {
@@ -203,7 +204,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
 
             // Health Check
             if (Object.keys(tags).length < 2) {
-              newItems.push({ id: null, file: file.name, folder, source: "-", status: "stripped", fileObject: file });
+              processedChunk.push({ id: null, file: file.name, folder, source: "-", status: "stripped", fileObject: file });
               return;
             }
 
@@ -214,7 +215,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
               // Prefer the "Golden Key" (⭐) if available
               const bestMatch = findings.find((f) => f.source.includes("⭐")) || findings[0];
 
-              newItems.push({
+              processedChunk.push({
                 id: bestMatch.number,
                 file: file.name,
                 folder,
@@ -223,10 +224,10 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
                 fileObject: file,
               });
             } else {
-              newItems.push({ id: null, file: file.name, folder, source: "-", status: "no-match", fileObject: file });
+              processedChunk.push({ id: null, file: file.name, folder, source: "-", status: "no-match", fileObject: file });
             }
           } catch (err) {
-            newItems.push({
+            processedChunk.push({
               id: null,
               file: file.name,
               folder: "(unknown)",
@@ -239,8 +240,8 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
       );
 
       // Update State
-      _setInventoryItems((prev) => [...prev, ...newItems.slice(prev.length)]);
-      setInventoryItems((prev) => [...prev, ...newItems.slice(prev.length)]);
+       _setInventoryItems((prev) => [...prev, ...processedChunk]);
+      setInventoryItems((prev) => [...prev, ...processedChunk]);
       setInventoryProgress({ current: Math.min(i + chunkSize, imageFiles.length), total: imageFiles.length });
       await new Promise((r) => setTimeout(r, 0));
     }
