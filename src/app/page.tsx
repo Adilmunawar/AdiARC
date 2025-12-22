@@ -1497,7 +1497,7 @@ export default function Home() {
 
           const tokenSet = new Set(tokens);
 
-          for (const token of tokenSet) {
+          Array.from(tokenSet).forEach((token) => {
             if (!resultMap.has(token)) {
               const updated: OcrResult = {
                 mutationNumber: token,
@@ -1506,7 +1506,7 @@ export default function Home() {
               };
               resultMap.set(token, updated);
             }
-          }
+          });
 
           setOcrResults(Array.from(resultMap.values()));
         } catch (error) {
