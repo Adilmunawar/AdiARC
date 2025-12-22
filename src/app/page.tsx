@@ -96,7 +96,7 @@ export default function Home() {
             <InventoryTab setInventoryItems={setInventoryItems} />
           </TabsContent>
           <TabsContent value="server-sync">
-            <ServerSyncTab inventoryItems={inventoryItems} />
+            <ServerSyncTab />
           </TabsContent>
           <TabsContent value="local-ocr">
             <OcrTab />
