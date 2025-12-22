@@ -46,7 +46,9 @@ export async function POST(request: Request) {
         const connection = await pool.connect();
         await connection.close();
       } catch (err: any) {
-        return NextResponse.json({ success: false, error: `Connection Failed: Check Server IP, Port, or User Credentials.` }, { status: 400 });
+        // Return the *actual* error from the driver for better debugging
+        const errorMessage = err.originalError?.message || err.message || 'An unknown connection error occurred.';
+        return NextResponse.json({ success: false, error: `Connection Failed: ${errorMessage}` }, { status: 400 });
       }
 
       // Phase 2: Check if the database exists by connecting with the DB name
@@ -69,7 +71,8 @@ export async function POST(request: Request) {
       } catch (err: any) {
          if (dbPool && dbPool.connected) await dbPool.close();
          // Provide a more specific error if the connection fails at this stage
-         return NextResponse.json({ success: false, error: `Auth Successful, but could not connect to Database '${dbName}'. Check permissions or database state.` }, { status: 500 });
+         const errorMessage = err.originalError?.message || err.message || 'An unknown database connection error occurred.';
+         return NextResponse.json({ success: false, error: `Auth Successful, but could not connect to Database '${dbName}': ${errorMessage}` }, { status: 500 });
       }
     }
 
@@ -112,6 +115,8 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('API Sync Error:', error);
-    return NextResponse.json({ success: false, error: error.message || "An unexpected server error occurred." }, { status: 500 });
+    // Also improve the catch-all error to be more specific
+    const errorMessage = error.originalError?.message || error.message || "An unexpected server error occurred.";
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }
