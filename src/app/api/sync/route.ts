@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { 
-      mode, // 'test' or 'upload'
+      mode, // 'test', 'upload', or 'upload_direct'
       serverIp, 
       port,
       dbName, 
@@ -21,7 +21,6 @@ export async function POST(request: Request) {
     const parsedTimeout = connectionTimeout ? parseInt(connectionTimeout, 10) : 15000;
 
     if (mode === 'test') {
-      // Phase 1: Test network and auth without specifying a database
       const baseConfig = {
         user: dbUser,
         password: dbPassword,
@@ -35,23 +34,20 @@ export async function POST(request: Request) {
         pool: {
             max: 1,
             min: 0,
-            idleTimeoutMillis: 5000 // Close idle connections quickly for tests
+            idleTimeoutMillis: 5000
         }
       };
 
       let pool;
       try {
-        // Use a temporary connection that is closed immediately
         pool = new sql.ConnectionPool(baseConfig);
         const connection = await pool.connect();
         await connection.close();
       } catch (err: any) {
-        // Return the *actual* error from the driver for better debugging
         const errorMessage = err.originalError?.message || err.message || 'An unknown connection error occurred.';
         return NextResponse.json({ success: false, error: `Connection Failed: ${errorMessage}` }, { status: 400 });
       }
 
-      // Phase 2: Check if the database exists by connecting with the DB name
       const dbConfig = { ...baseConfig, database: dbName };
       let dbPool;
       try {
@@ -70,13 +66,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: "Server Reachable, Auth Valid, Database Exists." });
       } catch (err: any) {
          if (dbPool && dbPool.connected) await dbPool.close();
-         // Provide a more specific error if the connection fails at this stage
          const errorMessage = err.originalError?.message || err.message || 'An unknown database connection error occurred.';
          return NextResponse.json({ success: false, error: `Auth Successful, but could not connect to Database '${dbName}': ${errorMessage}` }, { status: 500 });
       }
     }
 
-    if (mode === 'upload') {
+    if (mode === 'upload' || mode === 'upload_direct') {
         const uploadConfig = {
             user: dbUser,
             password: dbPassword,
@@ -94,9 +89,13 @@ export async function POST(request: Request) {
 
         let uploadedCount = 0;
         for (const item of mutations) {
-          await pool.request()
+          const imagePath = mode === 'upload_direct'
+            ? `\\\\${serverIp}\\Images\\${item.filename}`
+            : item.file; // 'upload' mode uses the path from inventory
+
+          const result = await pool.request()
             .input('mNo', sql.VarChar, item.id)
-            .input('path', sql.VarChar, item.file)
+            .input('path', sql.VarChar, imagePath)
             .query(`
               IF NOT EXISTS (SELECT 1 FROM tbl_Mutations WHERE MutationNo = @mNo)
               BEGIN
@@ -104,7 +103,10 @@ export async function POST(request: Request) {
                 VALUES (@mNo, @path, GETDATE(), 'Uploaded via NextJS')
               END
             `);
-          uploadedCount++;
+          
+          if (result.rowsAffected[0] > 0) {
+            uploadedCount++;
+          }
         }
 
         await pool.close();
@@ -115,7 +117,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('API Sync Error:', error);
-    // Also improve the catch-all error to be more specific
     const errorMessage = error.originalError?.message || error.message || "An unexpected server error occurred.";
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }

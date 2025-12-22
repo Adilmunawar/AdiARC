@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { Database, Key, Loader2, Server, Wifi } from "lucide-react";
+import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi } from "lucide-react";
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
 type InventoryItem = {
@@ -19,7 +19,10 @@ type InventoryItem = {
   status: "valid" | "stripped" | "no-match";
   fileObject?: File;
 };
-
+type DirectUploadItem = {
+  id: string;
+  filename: string;
+};
 interface ServerSyncTabProps {
   inventoryItems: InventoryItem[];
 }
@@ -57,6 +60,11 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [isSyncingToServer, setIsSyncingToServer] = useState<boolean>(false);
   const [lastConnectionMessage, setLastConnectionMessage] = useState<string | null>(null);
+
+  // New state for direct upload
+  const [directUploadItems, setDirectUploadItems] = useState<DirectUploadItem[]>([]);
+  const [isUploadingDirectly, setIsUploadingDirectly] = useState<boolean>(false);
+  const directUploadInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveServerConfig = () => {
     try {
@@ -176,6 +184,82 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
       setIsSyncingToServer(false);
     }
   };
+
+  const handleDirectFolderSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      setDirectUploadItems([]);
+      return;
+    }
+
+    const imageFiles = Array.from(files).filter(
+      (file) => file.type.startsWith("image/") || /\.(jpg|jpeg|png|tif|tiff)$/i.test(file.name),
+    );
+
+    const parsedItems: DirectUploadItem[] = imageFiles
+      .map((file) => {
+        const match = file.name.match(/^(\d+)\..+$/);
+        if (match && match[1]) {
+          return { id: match[1], filename: file.name };
+        }
+        return null;
+      })
+      .filter((item): item is DirectUploadItem => item !== null);
+
+    setDirectUploadItems(parsedItems);
+    if (parsedItems.length > 0) {
+      toast({
+        title: "Folder Processed",
+        description: `Found ${parsedItems.length} valid mutation images to upload.`,
+      });
+    } else {
+      toast({
+        title: "No valid files found",
+        description: "Ensure image files are named with a numeric ID (e.g., 1234.jpg).",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDirectUpload = async () => {
+    if (directUploadItems.length === 0) {
+      toast({ title: "Nothing to upload", description: "Select a folder with valid images first." });
+      return;
+    }
+    setIsUploadingDirectly(true);
+
+    try {
+      const response = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "upload_direct",
+          serverIp,
+          port,
+          dbName: databaseName,
+          dbUser,
+          dbPassword,
+          encrypt,
+          trustServerCertificate,
+          connectionTimeout,
+          mutations: directUploadItems,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast({ title: "Direct Upload Complete", description: `Uploaded ${result.count} new records successfully.` });
+        setDirectUploadItems([]); // Clear list after successful upload
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      toast({ title: "Direct Upload Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsUploadingDirectly(false);
+    }
+  };
+
   const pendingUploadCount = inventoryItems.filter((item) => item.status === "valid").length;
 
   return (
@@ -204,7 +288,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
             variant={connectionStatus === "live" ? "default" : connectionStatus === "connecting" ? "secondary" : "destructive"}
             className="uppercase tracking-wide"
           >
-            {connectionStatus === "live" ? "Live" : connectionStatus === "connecting" ? "Connecting" : "Disconnected"}
+            {connectionStatus === "live" ? "Live" : connectionStatus === "connecting" ? "Disconnected" : "Disconnected"}
           </Badge>
         </div>
       </CardHeader>
@@ -334,7 +418,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 size="sm"
                 onClick={handleSaveServerConfig}
                 className="h-8 px-3 text-[11px]"
-                disabled={isTestingConnection || isSyncingToServer}
+                disabled={isTestingConnection || isSyncingToServer || isUploadingDirectly}
               >
                 Save configuration
               </Button>
@@ -342,7 +426,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 type="button"
                 size="sm"
                 onClick={handleTestServerConnection}
-                disabled={isTestingConnection}
+                disabled={isTestingConnection || isUploadingDirectly}
                 className="h-9 px-4 text-[12px] font-semibold"
               >
                 {isTestingConnection ? (
@@ -359,38 +443,83 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
             {lastConnectionMessage && <p className="pt-1 text-[11px] text-muted-foreground">{lastConnectionMessage}</p>}
           </div>
 
-          {/* Right: Sync status */}
-          <div className="space-y-4 rounded-md border border-border bg-card/70 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold">Pending uploads</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Valid mutation IDs discovered in the XMP Mutation Inventory tab.
-                </p>
+          {/* Right: Upload area */}
+          <div className="space-y-4">
+            <div className="space-y-4 rounded-md border border-border bg-card/70 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">Direct Upload</p>
+                  <p className="text-[11px] text-muted-foreground">Upload mutations directly from a folder of images.</p>
+                </div>
               </div>
-              <Badge variant="outline" className="text-xs">
-                {pendingUploadCount} pending
-              </Badge>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => directUploadInputRef.current?.click()}
+                  disabled={isUploadingDirectly || isTestingConnection}
+                >
+                  <FolderUp className="mr-2 h-4 w-4" />
+                  Select Folder to Upload
+                </Button>
+                <input
+                  ref={directUploadInputRef}
+                  type="file"
+                  multiple
+                  // @ts-ignore
+                  webkitdirectory=""
+                  directory=""
+                  className="hidden"
+                  onChange={handleDirectFolderSelect}
+                />
+              </div>
+
+              {directUploadItems.length > 0 && (
+                <div className="rounded-md border border-dashed border-primary/50 bg-primary/10 p-3 text-center text-sm font-medium text-primary-foreground">
+                  <p className="text-primary">Ready to upload {directUploadItems.length} mutations.</p>
+                </div>
+              )}
+
+              <Button
+                type="button"
+                onClick={handleDirectUpload}
+                disabled={connectionStatus !== "live" || directUploadItems.length === 0 || isUploadingDirectly}
+                className="w-full justify-center text-[13px] font-semibold"
+              >
+                {isUploadingDirectly ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Uploading to server...
+                  </span>
+                ) : (
+                  <>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Push to Database
+                  </>
+                )}
+              </Button>
             </div>
 
-            <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-[11px]">
-              <p className="font-medium mb-1">Current configuration snapshot</p>
-              <p className="text-muted-foreground">
-                Server: <span className="font-mono">{serverIp || "—"}:{port || "1433"}</span>
-              </p>
-              <p className="text-muted-foreground">
-                Database: <span className="font-mono">{databaseName || "—"}</span>
-              </p>
-              <p className="text-muted-foreground">
-                User: <span className="font-mono">{dbUser || "—"}</span>
-              </p>
-            </div>
-
-            <div className="space-y-2">
+            {/* Existing Inventory Sync Section */}
+            <div className="space-y-4 rounded-md border border-border bg-card/70 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">XMP Inventory Uploads</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Valid mutation IDs discovered in the XMP Mutation Inventory tab.
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {pendingUploadCount} pending
+                </Badge>
+              </div>
               <Button
                 type="button"
                 onClick={handleSyncToServer}
-                disabled={connectionStatus !== "live" || pendingUploadCount === 0 || isSyncingToServer || isTestingConnection}
+                disabled={
+                  connectionStatus !== "live" || pendingUploadCount === 0 || isSyncingToServer || isTestingConnection
+                }
                 className="w-full justify-center text-[13px] font-semibold"
               >
                 {isSyncingToServer ? (
@@ -399,13 +528,9 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                     Syncing to server...
                   </span>
                 ) : (
-                  "Sync to server"
+                  "Sync Inventory to Server"
                 )}
               </Button>
-              <p className="text-[11px] text-muted-foreground">
-                This web UI only drives the sync workflow. Actual SQL connections are executed by your local server proxy
-                listening on <code>/api/sync</code>.
-              </p>
             </div>
           </div>
         </section>
