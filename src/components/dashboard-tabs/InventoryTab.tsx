@@ -38,9 +38,13 @@ type InventoryFilterPreset = {
   idMax: string;
 };
 
-export function InventoryTab() {
+interface InventoryTabProps {
+  setInventoryItems: React.Dispatch<React.SetStateAction<InventoryItem[]>>;
+}
+
+export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
   const { toast } = useToast();
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [inventoryItems, _setInventoryItems] = useState<InventoryItem[]>([]);
   const [isInventoryScanning, setIsInventoryScanning] = useState(false);
   const isInventoryScanningRef = useRef<boolean>(false);
   const [inventoryProgress, setInventoryProgress] = useState<{ current: number; total: number }>({
@@ -48,6 +52,11 @@ export function InventoryTab() {
     total: 0,
   });
   const inventoryInputRef = useRef<HTMLInputElement | null>(null);
+
+  const updateInventoryItems = (newItems: InventoryItem[]) => {
+    _setInventoryItems(newItems);
+    setInventoryItems(newItems);
+  };
 
   // Inventory table UI helpers
   const [inventorySearch, setInventorySearch] = useState<string>("");
@@ -164,7 +173,7 @@ export function InventoryTab() {
 
     setIsInventoryScanning(true);
     isInventoryScanningRef.current = true;
-    setInventoryItems([]);
+    updateInventoryItems([]);
     setSelectedMutationId(null);
 
     // Filter for images
@@ -232,7 +241,7 @@ export function InventoryTab() {
       );
 
       // Update State
-      setInventoryItems((prev) => [...prev, ...newItems.slice(prev.length)]);
+      updateInventoryItems((prev) => [...prev, ...newItems.slice(prev.length)]);
       setInventoryProgress({ current: Math.min(i + chunkSize, imageFiles.length), total: imageFiles.length });
       await new Promise((r) => setTimeout(r, 0));
     }

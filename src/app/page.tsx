@@ -18,7 +18,7 @@ type InventoryItem = {
   fileObject?: File;
 };
 export default function Home() {
-  const [inventoryItems] = useState<InventoryItem[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-muted/40 to-background px-4 py-8 sm:py-10 lg:py-12">
@@ -93,7 +93,7 @@ export default function Home() {
             <WirasatTab />
           </TabsContent>
           <TabsContent value="mutation-inventory">
-            <InventoryTab />
+            <InventoryTab setInventoryItems={setInventoryItems} />
           </TabsContent>
           <TabsContent value="server-sync">
             <ServerSyncTab inventoryItems={inventoryItems} />

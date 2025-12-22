@@ -213,7 +213,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
           newItems.push({ id: bestMatch.number, filename: file.name });
         }
       } catch (err) {
-        // Silently fail for files that can't be read
         console.warn("Could not read EXIF from file:", file.name, err);
       }
       processed++;
