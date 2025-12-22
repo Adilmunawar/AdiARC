@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import ExifReader from "exifreader";
 import { createWorker } from "tesseract.js";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 function compressRanges(numbers: number[]): string {
   if (!numbers.length) return "";
@@ -235,12 +236,20 @@ export default function Home() {
   };
 
   const [serverIp, setServerIp] = useState<string>(() => safeLocalStorageGet("adiarc_sql_server", "192.125.6.11"));
+  const [port, setPort] = useState<string>(() => safeLocalStorageGet("adiarc_sql_port", "1433"));
   const [databaseName, setDatabaseName] = useState<string>(() =>
     safeLocalStorageGet("adiarc_sql_database", "Judiya_Pur"),
   );
   const [dbUser, setDbUser] = useState<string>(() => safeLocalStorageGet("adiarc_sql_user", "sa"));
   const [dbPassword, setDbPassword] = useState<string>(() =>
     safeLocalStorageGet("adiarc_sql_password", "justice@123"),
+  );
+  const [encrypt, setEncrypt] = useState<boolean>(() => safeLocalStorageGet("adiarc_sql_encrypt", "false") === "true");
+  const [trustServerCertificate, setTrustServerCertificate] = useState<boolean>(() =>
+    safeLocalStorageGet("adiarc_sql_trustcert", "true") === "true",
+  );
+  const [connectionTimeout, setConnectionTimeout] = useState<string>(() =>
+    safeLocalStorageGet("adiarc_sql_timeout", "15000"),
   );
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
@@ -252,7 +261,6 @@ export default function Home() {
     fileName: string;
     confidence?: number;
   };
- 
 
   const [ocrResults, setOcrResults] = useState<OcrResult[]>([]);
   const [isOcrScanning, setIsOcrScanning] = useState<boolean>(false);
@@ -1133,9 +1141,13 @@ export default function Home() {
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("adiarc_sql_server", serverIp.trim());
+        window.localStorage.setItem("adiarc_sql_port", port.trim());
         window.localStorage.setItem("adiarc_sql_database", databaseName.trim());
         window.localStorage.setItem("adiarc_sql_user", dbUser.trim());
         window.localStorage.setItem("adiarc_sql_password", dbPassword.trim());
+        window.localStorage.setItem("adiarc_sql_encrypt", String(encrypt));
+        window.localStorage.setItem("adiarc_sql_trustcert", String(trustServerCertificate));
+        window.localStorage.setItem("adiarc_sql_timeout", connectionTimeout.trim());
       }
       toast({
         title: "Configuration saved",
@@ -1155,55 +1167,85 @@ export default function Home() {
     setConnectionStatus("connecting");
     setLastConnectionMessage(null);
 
-    await new Promise((resolve) => setTimeout(resolve, 900));
-
-    const ip = serverIp.trim();
-
-    if (ip === "192.125.6.11") {
-      setConnectionStatus("live");
-      const message = "Connected to LRMIS Server (Gateway Verified)";
-      setLastConnectionMessage(message);
-      toast({
-        title: "Connection successful",
-        description: message,
-      });
-    } else {
-      setConnectionStatus("disconnected");
-      const message = "Unable to reach the configured SQL Server. Check IP / firewall.";
-      setLastConnectionMessage(message);
-      toast({
-        title: "Connection failed",
-        description: message,
-        variant: "destructive",
-      });
-    }
-
-    setIsTestingConnection(false);
-  };
-
-  const handleSyncToServer = async () => {
-    // Get valid items
-    const validItems = inventoryItems.filter(i => i.status === "valid");
-    if (validItems.length === 0) return toast({ title: "Nothing to sync" });
-  
-    setIsSyncingToServer(true);
-  
     try {
-      const response = await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mode: "test",
           serverIp,
+          port,
           dbName: databaseName,
           dbUser,
           dbPassword,
-          mutations: validItems
-        })
+          encrypt,
+          trustServerCertificate,
+          connectionTimeout,
+        }),
       });
-  
+
+      const result = await response.json();
+
+      if (result.success) {
+        setConnectionStatus("live");
+        setLastConnectionMessage(`✅ ${result.message}`);
+        toast({
+          title: "Connection Successful",
+          description: result.message,
+        });
+      } else {
+        setConnectionStatus("disconnected");
+        setLastConnectionMessage(`❌ ${result.error}`);
+        toast({
+          title: "Connection Test Failed",
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      setConnectionStatus("disconnected");
+      const message = "Network Error: Could not reach the API route.";
+      setLastConnectionMessage(`❌ ${message}`);
+      toast({
+        title: "Connection Failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const handleSyncToServer = async () => {
+    const validItems = inventoryItems.filter((i) => i.status === "valid" && i.id && i.file);
+    if (validItems.length === 0) {
+      toast({ title: "Nothing to sync", description: "No valid mutation items to upload." });
+      return;
+    }
+
+    setIsSyncingToServer(true);
+
+    try {
+      const response = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "upload",
+          serverIp,
+          port,
+          dbName: databaseName,
+          dbUser,
+          dbPassword,
+          encrypt,
+          trustServerCertificate,
+          connectionTimeout,
+          mutations: validItems.map((item) => ({ id: item.id, file: item.file })),
+        }),
+      });
+
       const result = await response.json();
       if (result.success) {
-        toast({ title: "Sync Complete", description: `Uploaded ${result.count} records.` });
+        toast({ title: "Sync Complete", description: `Uploaded ${result.count} new records successfully.` });
       } else {
         throw new Error(result.error);
       }
@@ -3059,6 +3101,32 @@ export default function Home() {
                          />
                        </div>
                      </div>
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                           <Button variant="link" className="p-0 h-auto text-xs">Advanced Connection Settings</Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-4 pt-4">
+                           <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1.5">
+                                 <Label htmlFor="sql-port" className="text-xs">Port</Label>
+                                 <Input id="sql-port" type="number" value={port} onChange={(e) => setPort(e.target.value)} placeholder="1433" className="h-8 text-xs" />
+                              </div>
+                              <div className="space-y-1.5">
+                                 <Label htmlFor="sql-timeout" className="text-xs">Timeout (ms)</Label>
+                                 <Input id="sql-timeout" type="number" value={connectionTimeout} onChange={(e) => setConnectionTimeout(e.target.value)} placeholder="15000" className="h-8 text-xs" />
+                              </div>
+                           </div>
+                           <div className="flex items-center space-x-2">
+                              <Switch id="sql-encrypt" checked={encrypt} onCheckedChange={setEncrypt} />
+                              <Label htmlFor="sql-encrypt" className="text-xs">Force Encryption</Label>
+                           </div>
+                           <div className="flex items-center space-x-2">
+                               <Switch id="sql-trust-cert" checked={trustServerCertificate} onCheckedChange={setTrustServerCertificate} />
+                               <Label htmlFor="sql-trust-cert" className="text-xs">Trust Self-Signed Cert</Label>
+                           </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+
 
                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-dashed border-border">
                        <Button
@@ -3111,7 +3179,7 @@ export default function Home() {
                      <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-[11px]">
                        <p className="font-medium mb-1">Current configuration snapshot</p>
                        <p className="text-muted-foreground">
-                         Server: <span className="font-mono">{serverIp || "—"}</span>
+                         Server: <span className="font-mono">{serverIp || "—"}:{port || "1433"}</span>
                        </p>
                        <p className="text-muted-foreground">
                          Database: <span className="font-mono">{databaseName || "—"}</span>
@@ -3141,7 +3209,7 @@ export default function Home() {
                        </Button>
                        <p className="text-[11px] text-muted-foreground">
                          This web UI only drives the sync workflow. Actual SQL connections are executed by your local server proxy
-                         listening on <code>/api/test-connection</code>.
+                         listening on <code>/api/sync</code>.
                        </p>
                      </div>
                    </div>
