@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import sql from 'mssql';
 import { v4 as uuidv4 } from 'uuid';
@@ -6,13 +7,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { 
-      mode, // 'test', 'upload', or 'upload_direct'
+      mode, // 'test', 'upload_direct'
       serverIp, 
       port,
       dbName, 
       dbUser, 
       dbPassword, 
-      // encrypt and trustServerCertificate from client are ignored
       connectionTimeout,
       mutations 
     } = body;
@@ -20,47 +20,52 @@ export async function POST(request: Request) {
     const parsedPort = port ? parseInt(port, 10) : 1433;
     const parsedTimeout = connectionTimeout ? parseInt(connectionTimeout, 10) : 15000;
 
-    const baseConfig = {
+    // Use the "Legacy" configuration that is most likely to work with older SQL Server instances.
+    const getBaseConfig = (database?: string) => ({
       user: dbUser,
       password: dbPassword,
       server: serverIp,
       port: parsedPort,
+      database: database,
       options: {
-        encrypt: false, // CRITICAL: Enforce legacy setting
-        trustServerCertificate: true, // CRITICAL: Enforce legacy setting
-        connectTimeout: parsedTimeout,
+        encrypt: false, // REQUIRED for SQL 2008/2012 local networks
+        trustServerCertificate: true,
         enableArithAbort: true,
+        connectTimeout: parsedTimeout,
+        // Downgrade Security for Old Servers
+        cryptoCredentialsDetails: {
+            minVersion: 'TLSv1'
+        }
       },
       pool: {
-          max: 1,
+          max: 1, // Keep pool small for testing and single operations
           min: 0,
           idleTimeoutMillis: 5000
       }
-    };
+    });
 
     if (mode === 'test') {
       let pool;
       try {
-        // Phase 1: Connect without DB name to test auth
-        pool = new sql.ConnectionPool(baseConfig);
+        // Phase 1: Connect without DB name to test auth and network
+        pool = new sql.ConnectionPool(getBaseConfig());
         await pool.connect();
         await pool.close();
       } catch (err: any) {
+        const errorCode = err.code || 'UNKNOWN';
         const errorMessage = err.originalError?.message || err.message || 'An unknown connection error occurred.';
-        return NextResponse.json({ success: false, error: `Connection Failed: ${errorMessage}` }, { status: 400 });
+        return NextResponse.json({ success: false, error: `Connection Failed (${errorCode}): ${errorMessage}` }, { status: 400 });
       }
 
       // Phase 2: Connect with DB name to check existence
-      const dbConfig = { ...baseConfig, database: dbName };
-      let dbPool;
+      const dbPool = new sql.ConnectionPool(getBaseConfig(dbName));
       try {
-        dbPool = new sql.ConnectionPool(dbConfig);
-        const connection = await dbPool.connect();
-        const dbResult = await connection.request()
+        await dbPool.connect();
+        const dbResult = await dbPool.request()
           .input('dbName', sql.NVarChar, dbName)
           .query(`SELECT database_id FROM sys.databases WHERE name = @dbName`);
         
-        await connection.close();
+        await dbPool.close();
 
         if (dbResult.recordset.length === 0) {
           return NextResponse.json({ success: false, error: `Auth Successful, but Database '${dbName}' does not exist.` }, { status: 404 });
@@ -69,26 +74,24 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: "Server Reachable, Auth Valid, Database Exists." });
       } catch (err: any) {
          if (dbPool && dbPool.connected) await dbPool.close();
+         const errorCode = err.code || 'UNKNOWN';
          const errorMessage = err.originalError?.message || err.message || 'An unknown database connection error occurred.';
-         return NextResponse.json({ success: false, error: `Auth Successful, but could not connect to Database '${dbName}': ${errorMessage}` }, { status: 500 });
+         return NextResponse.json({ success: false, error: `Auth Successful, but connection to Database '${dbName}' failed (${errorCode}): ${errorMessage}` }, { status: 500 });
       }
     }
 
     if (mode === 'upload_direct') {
-        const uploadConfig = {
-          ...baseConfig,
-          database: dbName,
-        };
-
+        const uploadConfig = getBaseConfig(dbName);
+        
         const pool = await sql.connect(uploadConfig);
-        const transaction = new sql.Transaction(pool);
         
         let uploadedCount = 0;
-        try {
-            await transaction.begin();
+        const errors = [];
 
-            for (const item of mutations) {
-                // Use a new request for each check inside the loop
+        for (const item of mutations) {
+            const transaction = new sql.Transaction(pool);
+            try {
+                await transaction.begin();
                 const checkRequest = new sql.Request(transaction);
                 const checkResult = await checkRequest
                     .input('docNumberCheck', sql.VarChar, item.id)
@@ -115,13 +118,18 @@ export async function POST(request: Request) {
                         `);
                     uploadedCount++;
                 }
+                await transaction.commit();
+            } catch (err: any) {
+                await transaction.rollback();
+                const errorMessage = err.originalError?.message || err.message;
+                errors.push(`Failed to upload ${item.filename}: ${errorMessage}`);
             }
-            await transaction.commit();
-        } catch (err) {
-            await transaction.rollback();
-            throw err; // Let the outer catch handle it
-        } finally {
-            await pool.close();
+        }
+        
+        await pool.close();
+
+        if (errors.length > 0) {
+            return NextResponse.json({ success: false, error: `Completed with ${errors.length} errors.`, details: errors }, { status: 500 });
         }
 
         return NextResponse.json({ success: true, count: uploadedCount });
@@ -131,7 +139,8 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('API Sync Error:', error);
+    const errorCode = error.code || 'SERVER_ERROR';
     const errorMessage = error.originalError?.message || error.message || "An unexpected server error occurred.";
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+    return NextResponse.json({ success: false, error: `(${errorCode}) ${errorMessage}` }, { status: 500 });
   }
 }

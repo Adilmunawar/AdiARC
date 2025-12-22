@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useRef, useState } from "react";
 import ExifReader from "exifreader";
@@ -7,30 +8,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi } from "lucide-react";
 import { extractMutationNumber } from "@/lib/forensic-utils";
 import { Progress } from "@/components/ui/progress";
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
-type InventoryItem = {
-  id: string | null;
-  file: string;
-  folder: string;
-  source: string;
-  status: "valid" | "stripped" | "no-match";
-  fileObject?: File;
-};
 type DirectUploadItem = {
   id: string;
   filename: string;
 };
-interface ServerSyncTabProps {
-  inventoryItems: InventoryItem[];
-}
 
-export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
+export function ServerSyncTab() {
   const { toast } = useToast();
 
   const safeLocalStorageGet = (key: string, fallback: string) => {
@@ -51,10 +40,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
   const [dbUser, setDbUser] = useState<string>(() => safeLocalStorageGet("adiarc_sql_user", "sa"));
   const [dbPassword, setDbPassword] = useState<string>(() =>
     safeLocalStorageGet("adiarc_sql_password", "justice@123"),
-  );
-  const [encrypt, setEncrypt] = useState<boolean>(() => safeLocalStorageGet("adiarc_sql_encrypt", "false") === "true");
-  const [trustServerCertificate, setTrustServerCertificate] = useState<boolean>(() =>
-    safeLocalStorageGet("adiarc_sql_trustcert", "true") === "true",
   );
   const [connectionTimeout, setConnectionTimeout] = useState<string>(() =>
     safeLocalStorageGet("adiarc_sql_timeout", "15000"),
@@ -78,8 +63,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
         window.localStorage.setItem("adiarc_sql_database", databaseName.trim());
         window.localStorage.setItem("adiarc_sql_user", dbUser.trim());
         window.localStorage.setItem("adiarc_sql_password", dbPassword.trim());
-        window.localStorage.setItem("adiarc_sql_encrypt", String(encrypt));
-        window.localStorage.setItem("adiarc_sql_trustcert", String(trustServerCertificate));
         window.localStorage.setItem("adiarc_sql_timeout", connectionTimeout.trim());
       }
       toast({
@@ -111,9 +94,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
           dbName: databaseName,
           dbUser,
           dbPassword,
-          // Encrypt and trust are sent but will be overridden by the backend
-          encrypt, 
-          trustServerCertificate,
           connectionTimeout,
         }),
       });
@@ -372,23 +352,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                     />
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="sql-encrypt" checked={encrypt} onCheckedChange={setEncrypt} disabled />
-                  <Label htmlFor="sql-encrypt" className="text-xs text-muted-foreground">
-                    Force Encryption (Disabled for Legacy Support)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="sql-trust-cert"
-                    checked={trustServerCertificate}
-                    onCheckedChange={setTrustServerCertificate}
-                    disabled
-                  />
-                  <Label htmlFor="sql-trust-cert" className="text-xs text-muted-foreground">
-                    Trust Self-Signed Cert (Enabled for Legacy Support)
-                  </Label>
-                </div>
+                 <p className="text-xs text-muted-foreground">Encryption is forced to 'false' and Trust Server Certificate to 'true' in the backend for legacy SQL Server compatibility.</p>
               </CollapsibleContent>
             </Collapsible>
 
