@@ -112,7 +112,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
           dbName: databaseName,
           dbUser,
           dbPassword,
-          encrypt,
+          encrypt, // These will be overridden by the backend to false/true
           trustServerCertificate,
           connectionTimeout,
         }),
@@ -149,47 +149,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
       setIsTestingConnection(false);
     }
   };
-
-  const handleSyncToServer = async () => {
-    const validItems = inventoryItems.filter((i) => i.status === "valid" && i.id && i.file);
-    if (validItems.length === 0) {
-      toast({ title: "Nothing to sync", description: "No valid mutation items to upload." });
-      return;
-    }
-
-    setIsSyncingToServer(true);
-
-    try {
-      const response = await fetch("/api/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "upload",
-          serverIp,
-          port,
-          dbName: databaseName,
-          dbUser,
-          dbPassword,
-          encrypt,
-          trustServerCertificate,
-          connectionTimeout,
-          mutations: validItems.map((item) => ({ id: item.id, file: item.file })),
-        }),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        toast({ title: "Sync Complete", description: `Uploaded ${result.count} new records successfully.` });
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (error: any) {
-      toast({ title: "Sync Failed", description: error.message, variant: "destructive" });
-    } finally {
-      setIsSyncingToServer(false);
-    }
-  };
-
   const handleDirectScan = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -203,20 +162,29 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
     setDirectScanProgress({ current: 0, total: imageFiles.length });
 
     const newItems: DirectUploadItem[] = [];
+    const skippedFiles = [];
     let processed = 0;
-    for (const file of imageFiles) {
-      try {
-        const tags = await ExifReader.load(file, { expanded: true });
-        const findings = extractMutationNumber(tags);
-        if (findings.length > 0) {
-          const bestMatch = findings.find((f) => f.source.includes("⭐")) || findings[0];
-          newItems.push({ id: bestMatch.number, filename: file.name });
-        }
-      } catch (err) {
-        console.warn("Could not read EXIF from file:", file.name, err);
-      }
-      processed++;
-      setDirectScanProgress({ current: processed, total: imageFiles.length });
+
+    const chunkSize = 20;
+    for (let i = 0; i < imageFiles.length; i += chunkSize) {
+        const chunk = imageFiles.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(async (file) => {
+            try {
+                const tags = await ExifReader.load(file, { expanded: true });
+                const findings = extractMutationNumber(tags);
+                if (findings.length > 0) {
+                    const bestMatch = findings.find((f) => f.source.includes("⭐")) || findings[0];
+                    newItems.push({ id: bestMatch.number, filename: file.name });
+                } else {
+                    skippedFiles.push(file.name);
+                }
+            } catch (err) {
+                console.warn("Could not read EXIF from file:", file.name, err);
+                skippedFiles.push(file.name);
+            }
+        }));
+        processed += chunk.length;
+        setDirectScanProgress({ current: processed, total: imageFiles.length });
     }
 
     setDirectUploadItems(newItems);
@@ -225,9 +193,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
     if (newItems.length > 0) {
       toast({
         title: "Direct Scan Complete",
-        description: `Found ${newItems.length} valid mutation files. ${
-          imageFiles.length - newItems.length
-        } files were skipped.`,
+        description: `Found ${newItems.length} valid mutation files. ${skippedFiles.length} files were skipped.`,
       });
     } else {
       toast({
@@ -256,8 +222,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
           dbName: databaseName,
           dbUser,
           dbPassword,
-          encrypt,
-          trustServerCertificate,
           connectionTimeout,
           mutations: directUploadItems,
         }),
@@ -276,9 +240,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
       setIsUploadingDirectly(false);
     }
   };
-
-  const pendingUploadCount = inventoryItems.filter((item) => item.status === "valid").length;
-
+  
   return (
     <Card className="border-border/70 bg-card/80 shadow-md">
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -295,7 +257,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
           <Wifi
             className={
               connectionStatus === "live"
-                ? "h-4 w-4 text-primary animate-pulse"
+                ? "h-4 w-4 text-green-500 animate-pulse"
                 : connectionStatus === "connecting"
                 ? "h-4 w-4 text-muted-foreground animate-pulse"
                 : "h-4 w-4 text-destructive"
@@ -412,7 +374,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 <div className="flex items-center space-x-2">
                   <Switch id="sql-encrypt" checked={encrypt} onCheckedChange={setEncrypt} />
                   <Label htmlFor="sql-encrypt" className="text-xs">
-                    Force Encryption
+                    Force Encryption (Not Recommended for Legacy)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -422,7 +384,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                     onCheckedChange={setTrustServerCertificate}
                   />
                   <Label htmlFor="sql-trust-cert" className="text-xs">
-                    Trust Self-Signed Cert
+                    Trust Self-Signed Cert (Required for Legacy)
                   </Label>
                 </div>
               </CollapsibleContent>
@@ -525,42 +487,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                     <UploadCloud className="mr-2 h-4 w-4" />
                     Push {directUploadItems.length > 0 ? `${directUploadItems.length} ` : ""}Mutations to Database
                   </>
-                )}
-              </Button>
-            </div>
-
-            {/* Existing Inventory Sync Section */}
-            <div className="space-y-4 rounded-md border border-border bg-card/70 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold">XMP Inventory Uploads</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Valid mutation IDs discovered in the XMP Mutation Inventory tab.
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  {pendingUploadCount} pending
-                </Badge>
-              </div>
-              <Button
-                type="button"
-                onClick={handleSyncToServer}
-                disabled={
-                  connectionStatus !== "live" ||
-                  pendingUploadCount === 0 ||
-                  isSyncingToServer ||
-                  isTestingConnection ||
-                  isScanningDirectly
-                }
-                className="w-full justify-center text-[13px] font-semibold"
-              >
-                {isSyncingToServer ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Syncing Inventory to server...
-                  </span>
-                ) : (
-                  "Sync Inventory to Server"
                 )}
               </Button>
             </div>

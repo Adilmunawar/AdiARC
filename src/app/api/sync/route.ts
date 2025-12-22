@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import sql from 'mssql';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
   try {
@@ -11,8 +12,8 @@ export async function POST(request: Request) {
       dbName, 
       dbUser, 
       dbPassword, 
-      encrypt,
-      trustServerCertificate,
+      encrypt, // Will be overridden for legacy
+      trustServerCertificate, // Will be overridden for legacy
       connectionTimeout,
       mutations 
     } = body;
@@ -20,34 +21,37 @@ export async function POST(request: Request) {
     const parsedPort = port ? parseInt(port, 10) : 1433;
     const parsedTimeout = connectionTimeout ? parseInt(connectionTimeout, 10) : 15000;
 
-    if (mode === 'test') {
-      const baseConfig = {
-        user: dbUser,
-        password: dbPassword,
-        server: serverIp,
-        port: parsedPort,
-        options: {
-          encrypt: encrypt,
-          trustServerCertificate: trustServerCertificate,
-          connectTimeout: parsedTimeout,
-        },
-        pool: {
-            max: 1,
-            min: 0,
-            idleTimeoutMillis: 5000
-        }
-      };
+    const baseConfig = {
+      user: dbUser,
+      password: dbPassword,
+      server: serverIp,
+      port: parsedPort,
+      options: {
+        encrypt: false, // CRITICAL: Enforce legacy setting
+        trustServerCertificate: true, // CRITICAL: Enforce legacy setting
+        connectTimeout: parsedTimeout,
+        enableArithAbort: true,
+      },
+      pool: {
+          max: 1,
+          min: 0,
+          idleTimeoutMillis: 5000
+      }
+    };
 
+    if (mode === 'test') {
       let pool;
       try {
+        // Phase 1: Connect without DB name to test auth
         pool = new sql.ConnectionPool(baseConfig);
-        const connection = await pool.connect();
-        await connection.close();
+        await pool.connect();
+        await pool.close();
       } catch (err: any) {
         const errorMessage = err.originalError?.message || err.message || 'An unknown connection error occurred.';
         return NextResponse.json({ success: false, error: `Connection Failed: ${errorMessage}` }, { status: 400 });
       }
 
+      // Phase 2: Connect with DB name to check existence
       const dbConfig = { ...baseConfig, database: dbName };
       let dbPool;
       try {
@@ -71,45 +75,53 @@ export async function POST(request: Request) {
       }
     }
 
-    if (mode === 'upload' || mode === 'upload_direct') {
+    if (mode === 'upload_direct') {
         const uploadConfig = {
-            user: dbUser,
-            password: dbPassword,
-            server: serverIp,
-            port: parsedPort,
-            database: dbName,
-            options: {
-              encrypt: encrypt,
-              trustServerCertificate: trustServerCertificate,
-              connectTimeout: parsedTimeout,
-            }
-          };
+          ...baseConfig,
+          database: dbName,
+        };
 
         const pool = await sql.connect(uploadConfig);
-
+        const transaction = new sql.Transaction(pool);
+        
         let uploadedCount = 0;
-        for (const item of mutations) {
-          const imagePath = mode === 'upload_direct'
-            ? `\\\\${serverIp}\\Images\\${item.filename}`
-            : item.file; // 'upload' mode uses the path from inventory
+        try {
+            await transaction.begin();
+            const request = new sql.Request(transaction);
 
-          const result = await pool.request()
-            .input('mNo', sql.VarChar, item.id)
-            .input('path', sql.VarChar, imagePath)
-            .query(`
-              IF NOT EXISTS (SELECT 1 FROM tbl_Mutations WHERE MutationNo = @mNo)
-              BEGIN
-                INSERT INTO tbl_Mutations (MutationNo, ImagePath, CreatedDate, Status)
-                VALUES (@mNo, @path, GETDATE(), 'Uploaded via NextJS')
-              END
-            `);
-          
-          if (result.rowsAffected[0] > 0) {
-            uploadedCount++;
-          }
+            for (const item of mutations) {
+                const checkResult = await request.query(`SELECT 1 FROM [transactions].[TransactionImages] WHERE doc_number = '${item.id}'`);
+                
+                if (checkResult.recordset.length === 0) {
+                    const imgId = uuidv4();
+                    const transImgId = uuidv4();
+                    const serverPath = `\\\\${serverIp}\\Images\\${item.filename}`;
+
+                    const insertRequest = new sql.Request(transaction);
+                    await insertRequest
+                        .input('imgId', sql.UniqueIdentifier, imgId)
+                        .input('transImgId', sql.UniqueIdentifier, transImgId)
+                        .input('docNumber', sql.VarChar, item.id)
+                        .input('filename', sql.VarChar, item.filename)
+                        .input('serverPath', sql.VarChar, serverPath)
+                        .query(`
+                            INSERT INTO [transactions].[ScanImages] ([image_id], [name], [image_type], [image_file_path], [access_datetime])
+                            VALUES (@imgId, @filename, 'jpg', @serverPath, GETDATE());
+
+                            INSERT INTO [transactions].[TransactionImages] ([transaction_image_id], [image_id], [doc_number], [transaction_type], [access_datetime], [status_primary_db])
+                            VALUES (@transImgId, @imgId, @docNumber, 'Intiqal', GETDATE(), 1);
+                        `);
+                    uploadedCount++;
+                }
+            }
+            await transaction.commit();
+        } catch (err) {
+            await transaction.rollback();
+            throw err; // Let the outer catch handle it
+        } finally {
+            await pool.close();
         }
 
-        await pool.close();
         return NextResponse.json({ success: true, count: uploadedCount });
     }
     
