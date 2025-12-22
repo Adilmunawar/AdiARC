@@ -1,5 +1,6 @@
 "use client";
 import React, { useRef, useState } from "react";
+import ExifReader from "exifreader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi } from "lucide-react";
+import { extractMutationNumber } from "@/lib/forensic-utils";
+import { Progress } from "@/components/ui/progress";
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
 type InventoryItem = {
@@ -61,8 +64,10 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
   const [isSyncingToServer, setIsSyncingToServer] = useState<boolean>(false);
   const [lastConnectionMessage, setLastConnectionMessage] = useState<string | null>(null);
 
-  // New state for direct upload
+  // State for direct upload
   const [directUploadItems, setDirectUploadItems] = useState<DirectUploadItem[]>([]);
+  const [isScanningDirectly, setIsScanningDirectly] = useState<boolean>(false);
+  const [directScanProgress, setDirectScanProgress] = useState({ current: 0, total: 0 });
   const [isUploadingDirectly, setIsUploadingDirectly] = useState<boolean>(false);
   const directUploadInputRef = useRef<HTMLInputElement>(null);
 
@@ -133,7 +138,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
       }
     } catch (error: any) {
       setConnectionStatus("disconnected");
-      const message = "Network Error: Could not reach the API route.";
+      const message = `Network Error: Could not reach the API route. Ensure the application server is running.`;
       setLastConnectionMessage(`❌ ${message}`);
       toast({
         title: "Connection Failed",
@@ -185,37 +190,50 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
     }
   };
 
-  const handleDirectFolderSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDirectScan = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) {
-      setDirectUploadItems([]);
-      return;
-    }
+    if (!files || files.length === 0) return;
 
+    setIsScanningDirectly(true);
+    setDirectUploadItems([]);
     const imageFiles = Array.from(files).filter(
       (file) => file.type.startsWith("image/") || /\.(jpg|jpeg|png|tif|tiff)$/i.test(file.name),
     );
 
-    const parsedItems: DirectUploadItem[] = imageFiles
-      .map((file) => {
-        const match = file.name.match(/^(\d+)\..+$/);
-        if (match && match[1]) {
-          return { id: match[1], filename: file.name };
-        }
-        return null;
-      })
-      .filter((item): item is DirectUploadItem => item !== null);
+    setDirectScanProgress({ current: 0, total: imageFiles.length });
 
-    setDirectUploadItems(parsedItems);
-    if (parsedItems.length > 0) {
+    const newItems: DirectUploadItem[] = [];
+    let processed = 0;
+    for (const file of imageFiles) {
+      try {
+        const tags = await ExifReader.load(file, { expanded: true });
+        const findings = extractMutationNumber(tags);
+        if (findings.length > 0) {
+          const bestMatch = findings.find((f) => f.source.includes("⭐")) || findings[0];
+          newItems.push({ id: bestMatch.number, filename: file.name });
+        }
+      } catch (err) {
+        // Silently fail for files that can't be read
+        console.warn("Could not read EXIF from file:", file.name, err);
+      }
+      processed++;
+      setDirectScanProgress({ current: processed, total: imageFiles.length });
+    }
+
+    setDirectUploadItems(newItems);
+    setIsScanningDirectly(false);
+
+    if (newItems.length > 0) {
       toast({
-        title: "Folder Processed",
-        description: `Found ${parsedItems.length} valid mutation images to upload.`,
+        title: "Direct Scan Complete",
+        description: `Found ${newItems.length} valid mutation files. ${
+          imageFiles.length - newItems.length
+        } files were skipped.`,
       });
     } else {
       toast({
-        title: "No valid files found",
-        description: "Ensure image files are named with a numeric ID (e.g., 1234.jpg).",
+        title: "No Valid Files Found",
+        description: "No images with readable XMP metadata containing a mutation number were found.",
         variant: "destructive",
       });
     }
@@ -223,7 +241,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
 
   const handleDirectUpload = async () => {
     if (directUploadItems.length === 0) {
-      toast({ title: "Nothing to upload", description: "Select a folder with valid images first." });
+      toast({ title: "Nothing to upload", description: "Scan a folder with valid images first." });
       return;
     }
     setIsUploadingDirectly(true);
@@ -288,7 +306,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
             variant={connectionStatus === "live" ? "default" : connectionStatus === "connecting" ? "secondary" : "destructive"}
             className="uppercase tracking-wide"
           >
-            {connectionStatus === "live" ? "Live" : connectionStatus === "connecting" ? "Disconnected" : "Disconnected"}
+            {connectionStatus === "live" ? "Live" : connectionStatus === "connecting" ? "Connecting..." : "Disconnected"}
           </Badge>
         </div>
       </CardHeader>
@@ -418,7 +436,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 size="sm"
                 onClick={handleSaveServerConfig}
                 className="h-8 px-3 text-[11px]"
-                disabled={isTestingConnection || isSyncingToServer || isUploadingDirectly}
+                disabled={isTestingConnection || isSyncingToServer || isUploadingDirectly || isScanningDirectly}
               >
                 Save configuration
               </Button>
@@ -426,7 +444,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 type="button"
                 size="sm"
                 onClick={handleTestServerConnection}
-                disabled={isTestingConnection || isUploadingDirectly}
+                disabled={isTestingConnection || isUploadingDirectly || isScanningDirectly}
                 className="h-9 px-4 text-[12px] font-semibold"
               >
                 {isTestingConnection ? (
@@ -446,22 +464,21 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
           {/* Right: Upload area */}
           <div className="space-y-4">
             <div className="space-y-4 rounded-md border border-border bg-card/70 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold">Direct Upload</p>
-                  <p className="text-[11px] text-muted-foreground">Upload mutations directly from a folder of images.</p>
-                </div>
+              <div>
+                <p className="text-sm font-semibold">Direct Upload via XMP Scan</p>
+                <p className="text-[11px] text-muted-foreground">Scan a folder and upload mutations based on XMP metadata.</p>
               </div>
+
               <div className="space-y-2">
                 <Button
                   type="button"
                   variant="outline"
                   className="w-full"
                   onClick={() => directUploadInputRef.current?.click()}
-                  disabled={isUploadingDirectly || isTestingConnection}
+                  disabled={isUploadingDirectly || isTestingConnection || isScanningDirectly}
                 >
                   <FolderUp className="mr-2 h-4 w-4" />
-                  Select Folder to Upload
+                  {isScanningDirectly ? "Scanning..." : "Select Folder to Scan & Upload"}
                 </Button>
                 <input
                   ref={directUploadInputRef}
@@ -471,20 +488,32 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                   webkitdirectory=""
                   directory=""
                   className="hidden"
-                  onChange={handleDirectFolderSelect}
+                  onChange={handleDirectScan}
                 />
               </div>
 
-              {directUploadItems.length > 0 && (
+              {isScanningDirectly && directScanProgress.total > 0 && (
+                <div className="space-y-2">
+                  <Progress
+                    value={(directScanProgress.current / directScanProgress.total) * 100}
+                    className="h-1.5"
+                  />
+                  <p className="text-center text-[10px] text-muted-foreground">
+                    Scanning {directScanProgress.current} of {directScanProgress.total} files...
+                  </p>
+                </div>
+              )}
+
+              {directUploadItems.length > 0 && !isScanningDirectly && (
                 <div className="rounded-md border border-dashed border-primary/50 bg-primary/10 p-3 text-center text-sm font-medium text-primary-foreground">
-                  <p className="text-primary">Ready to upload {directUploadItems.length} mutations.</p>
+                  <p className="text-primary">Ready to upload {directUploadItems.length} valid mutations.</p>
                 </div>
               )}
 
               <Button
                 type="button"
                 onClick={handleDirectUpload}
-                disabled={connectionStatus !== "live" || directUploadItems.length === 0 || isUploadingDirectly}
+                disabled={connectionStatus !== "live" || directUploadItems.length === 0 || isUploadingDirectly || isScanningDirectly}
                 className="w-full justify-center text-[13px] font-semibold"
               >
                 {isUploadingDirectly ? (
@@ -495,7 +524,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 ) : (
                   <>
                     <UploadCloud className="mr-2 h-4 w-4" />
-                    Push to Database
+                    Push {directUploadItems.length > 0 ? `${directUploadItems.length} ` : ""}Mutations to Database
                   </>
                 )}
               </Button>
@@ -518,14 +547,18 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 type="button"
                 onClick={handleSyncToServer}
                 disabled={
-                  connectionStatus !== "live" || pendingUploadCount === 0 || isSyncingToServer || isTestingConnection
+                  connectionStatus !== "live" ||
+                  pendingUploadCount === 0 ||
+                  isSyncingToServer ||
+                  isTestingConnection ||
+                  isScanningDirectly
                 }
                 className="w-full justify-center text-[13px] font-semibold"
               >
                 {isSyncingToServer ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Syncing to server...
+                    Syncing Inventory to server...
                   </span>
                 ) : (
                   "Sync Inventory to Server"
