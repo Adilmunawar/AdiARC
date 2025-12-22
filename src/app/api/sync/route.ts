@@ -33,24 +33,33 @@ export async function POST(request: Request) {
           connectTimeout: parsedTimeout,
         },
         pool: {
-            max: 1, // Keep the pool small for tests
+            max: 1,
+            min: 0,
+            idleTimeoutMillis: 5000 // Close idle connections quickly for tests
         }
       };
 
       let pool;
       try {
-        pool = await sql.connect(baseConfig);
+        // Use a temporary connection that is closed immediately
+        pool = new sql.ConnectionPool(baseConfig);
+        const connection = await pool.connect();
+        await connection.close();
       } catch (err: any) {
         return NextResponse.json({ success: false, error: `Connection Failed: Check Server IP, Port, or User Credentials.` }, { status: 400 });
       }
 
-      // Phase 2: Check if the database exists
+      // Phase 2: Check if the database exists by connecting with the DB name
+      const dbConfig = { ...baseConfig, database: dbName };
+      let dbPool;
       try {
-        const dbResult = await pool.request()
+        dbPool = new sql.ConnectionPool(dbConfig);
+        const connection = await dbPool.connect();
+        const dbResult = await connection.request()
           .input('dbName', sql.NVarChar, dbName)
           .query(`SELECT database_id FROM sys.databases WHERE name = @dbName`);
         
-        await pool.close();
+        await connection.close();
 
         if (dbResult.recordset.length === 0) {
           return NextResponse.json({ success: false, error: `Auth Successful, but Database '${dbName}' does not exist.` }, { status: 404 });
@@ -58,8 +67,9 @@ export async function POST(request: Request) {
         
         return NextResponse.json({ success: true, message: "Server Reachable, Auth Valid, Database Exists." });
       } catch (err: any) {
-         if (pool) await pool.close();
-         return NextResponse.json({ success: false, error: `Database Query Failed: ${err.message}` }, { status: 500 });
+         if (dbPool && dbPool.connected) await dbPool.close();
+         // Provide a more specific error if the connection fails at this stage
+         return NextResponse.json({ success: false, error: `Auth Successful, but could not connect to Database '${dbName}'. Check permissions or database state.` }, { status: 500 });
       }
     }
 
