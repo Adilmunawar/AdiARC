@@ -12,8 +12,7 @@ export async function POST(request: Request) {
       dbName, 
       dbUser, 
       dbPassword, 
-      encrypt, // Will be overridden for legacy
-      trustServerCertificate, // Will be overridden for legacy
+      // encrypt and trustServerCertificate from client are ignored
       connectionTimeout,
       mutations 
     } = body;
@@ -87,10 +86,13 @@ export async function POST(request: Request) {
         let uploadedCount = 0;
         try {
             await transaction.begin();
-            const request = new sql.Request(transaction);
 
             for (const item of mutations) {
-                const checkResult = await request.query(`SELECT 1 FROM [transactions].[TransactionImages] WHERE doc_number = '${item.id}'`);
+                // Use a new request for each check inside the loop
+                const checkRequest = new sql.Request(transaction);
+                const checkResult = await checkRequest
+                    .input('docNumberCheck', sql.VarChar, item.id)
+                    .query(`SELECT 1 FROM [transactions].[TransactionImages] WHERE doc_number = @docNumberCheck`);
                 
                 if (checkResult.recordset.length === 0) {
                     const imgId = uuidv4();

@@ -61,7 +61,6 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
   );
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
-  const [isSyncingToServer, setIsSyncingToServer] = useState<boolean>(false);
   const [lastConnectionMessage, setLastConnectionMessage] = useState<string | null>(null);
 
   // State for direct upload
@@ -112,7 +111,8 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
           dbName: databaseName,
           dbUser,
           dbPassword,
-          encrypt, // These will be overridden by the backend to false/true
+          // Encrypt and trust are sent but will be overridden by the backend
+          encrypt, 
           trustServerCertificate,
           connectionTimeout,
         }),
@@ -185,6 +185,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
         }));
         processed += chunk.length;
         setDirectScanProgress({ current: processed, total: imageFiles.length });
+        await new Promise(r => setTimeout(r, 0)); // Yield to main thread
     }
 
     setDirectUploadItems(newItems);
@@ -372,9 +373,9 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Switch id="sql-encrypt" checked={encrypt} onCheckedChange={setEncrypt} />
-                  <Label htmlFor="sql-encrypt" className="text-xs">
-                    Force Encryption (Not Recommended for Legacy)
+                  <Switch id="sql-encrypt" checked={encrypt} onCheckedChange={setEncrypt} disabled />
+                  <Label htmlFor="sql-encrypt" className="text-xs text-muted-foreground">
+                    Force Encryption (Disabled for Legacy Support)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -382,9 +383,10 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                     id="sql-trust-cert"
                     checked={trustServerCertificate}
                     onCheckedChange={setTrustServerCertificate}
+                    disabled
                   />
-                  <Label htmlFor="sql-trust-cert" className="text-xs">
-                    Trust Self-Signed Cert (Required for Legacy)
+                  <Label htmlFor="sql-trust-cert" className="text-xs text-muted-foreground">
+                    Trust Self-Signed Cert (Enabled for Legacy Support)
                   </Label>
                 </div>
               </CollapsibleContent>
@@ -397,7 +399,7 @@ export function ServerSyncTab({ inventoryItems }: ServerSyncTabProps) {
                 size="sm"
                 onClick={handleSaveServerConfig}
                 className="h-8 px-3 text-[11px]"
-                disabled={isTestingConnection || isSyncingToServer || isUploadingDirectly || isScanningDirectly}
+                disabled={isTestingConnection || isUploadingDirectly || isScanningDirectly}
               >
                 Save configuration
               </Button>
