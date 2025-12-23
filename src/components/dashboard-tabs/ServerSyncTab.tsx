@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi } from "lucide-react";
 import { extractMutationNumber } from "@/lib/forensic-utils";
 import { Progress } from "@/components/ui/progress";
+import { v4 as uuidv4 } from 'uuid';
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
 type DirectUploadItem = {
@@ -100,7 +101,7 @@ export function ServerSyncTab() {
 
       const result = await response.json();
 
-      if (result.success) {
+      if (response.ok && result.success) {
         setConnectionStatus("live");
         setLastConnectionMessage(`✅ ${result.message}`);
         toast({
@@ -109,10 +110,11 @@ export function ServerSyncTab() {
         });
       } else {
         setConnectionStatus("disconnected");
-        setLastConnectionMessage(`❌ ${result.error}`);
+        const errorMsg = result.error || 'An unknown error occurred.';
+        setLastConnectionMessage(`❌ ${errorMsg}`);
         toast({
           title: "Connection Test Failed",
-          description: result.error,
+          description: errorMsg,
           variant: "destructive",
         });
       }
@@ -121,7 +123,7 @@ export function ServerSyncTab() {
       const message = `Network Error: Could not reach the API route. Ensure the application server is running.`;
       setLastConnectionMessage(`❌ ${message}`);
       toast({
-        title: "Connection Failed",
+        title: "API Communication Failed",
         description: message,
         variant: "destructive",
       });
@@ -129,6 +131,7 @@ export function ServerSyncTab() {
       setIsTestingConnection(false);
     }
   };
+
   const handleDirectScan = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -209,11 +212,11 @@ export function ServerSyncTab() {
       });
 
       const result = await response.json();
-      if (result.success) {
+      if (response.ok && result.success) {
         toast({ title: "Direct Upload Complete", description: `Uploaded ${result.count} new records successfully.` });
         setDirectUploadItems([]); // Clear list after successful upload
       } else {
-        throw new Error(result.error);
+        throw new Error(result.error || "An unknown upload error occurred.");
       }
     } catch (error: any) {
       toast({ title: "Direct Upload Failed", description: error.message, variant: "destructive" });
@@ -462,3 +465,5 @@ export function ServerSyncTab() {
     </Card>
   );
 }
+
+    

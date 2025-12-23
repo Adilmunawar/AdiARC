@@ -81,58 +81,73 @@ export async function POST(request: Request) {
     }
 
     if (mode === 'upload_direct') {
+        if (!mutations || !Array.isArray(mutations) || mutations.length === 0) {
+            return NextResponse.json({ success: false, error: "Invalid or empty mutations list provided." }, { status: 400 });
+        }
+
         const uploadConfig = getBaseConfig(dbName);
+        let pool;
         
-        const pool = await sql.connect(uploadConfig);
-        
-        let uploadedCount = 0;
-        const errors = [];
+        try {
+            pool = await sql.connect(uploadConfig);
+            
+            let uploadedCount = 0;
+            const errors = [];
 
-        for (const item of mutations) {
-            const transaction = new sql.Transaction(pool);
-            try {
-                await transaction.begin();
-                const checkRequest = new sql.Request(transaction);
-                const checkResult = await checkRequest
-                    .input('docNumberCheck', sql.VarChar, item.id)
-                    .query(`SELECT 1 FROM [transactions].[TransactionImages] WHERE doc_number = @docNumberCheck`);
-                
-                if (checkResult.recordset.length === 0) {
-                    const imgId = uuidv4();
-                    const transImgId = uuidv4();
-                    const serverPath = `\\\\${serverIp}\\Images\\${item.filename}`;
+            for (const item of mutations) {
+                const transaction = new sql.Transaction(pool);
+                try {
+                    await transaction.begin();
+                    const checkRequest = new sql.Request(transaction);
+                    const checkResult = await checkRequest
+                        .input('docNumberCheck', sql.VarChar, item.id)
+                        .query(`SELECT 1 FROM [transactions].[TransactionImages] WHERE doc_number = @docNumberCheck`);
+                    
+                    if (checkResult.recordset.length === 0) {
+                        const imgId = uuidv4();
+                        const transImgId = uuidv4();
+                        const serverPath = `\\\\${serverIp}\\Images\\${item.filename}`;
 
-                    const insertRequest = new sql.Request(transaction);
-                    await insertRequest
-                        .input('imgId', sql.UniqueIdentifier, imgId)
-                        .input('transImgId', sql.UniqueIdentifier, transImgId)
-                        .input('docNumber', sql.VarChar, item.id)
-                        .input('filename', sql.VarChar, item.filename)
-                        .input('serverPath', sql.VarChar, serverPath)
-                        .query(`
-                            INSERT INTO [transactions].[ScanImages] ([image_id], [name], [image_type], [image_file_path], [access_datetime])
-                            VALUES (@imgId, @filename, 'jpg', @serverPath, GETDATE());
+                        const insertRequest = new sql.Request(transaction);
+                        await insertRequest
+                            .input('imgId', sql.UniqueIdentifier, imgId)
+                            .input('transImgId', sql.UniqueIdentifier, transImgId)
+                            .input('docNumber', sql.VarChar, item.id)
+                            .input('filename', sql.VarChar, item.filename)
+                            .input('serverPath', sql.VarChar, serverPath)
+                            .query(`
+                                INSERT INTO [transactions].[ScanImages] ([image_id], [name], [image_type], [image_file_path], [access_datetime])
+                                VALUES (@imgId, @filename, 'jpg', @serverPath, GETDATE());
 
-                            INSERT INTO [transactions].[TransactionImages] ([transaction_image_id], [image_id], [doc_number], [transaction_type], [access_datetime], [status_primary_db])
-                            VALUES (@transImgId, @imgId, @docNumber, 'Intiqal', GETDATE(), 1);
-                        `);
-                    uploadedCount++;
+                                INSERT INTO [transactions].[TransactionImages] ([transaction_image_id], [image_id], [doc_number], [transaction_type], [access_datetime], [status_primary_db])
+                                VALUES (@transImgId, @imgId, @docNumber, 'Intiqal', GETDATE(), 1);
+                            `);
+                        uploadedCount++;
+                    }
+                    await transaction.commit();
+                } catch (err: any) {
+                    await transaction.rollback();
+                    const errorMessage = err.originalError?.message || err.message;
+                    errors.push(`Failed to upload ${item.filename}: ${errorMessage}`);
                 }
-                await transaction.commit();
-            } catch (err: any) {
-                await transaction.rollback();
-                const errorMessage = err.originalError?.message || err.message;
-                errors.push(`Failed to upload ${item.filename}: ${errorMessage}`);
+            }
+            
+            if (errors.length > 0) {
+                return NextResponse.json({ success: false, error: `Completed with ${errors.length} errors.`, details: errors }, { status: 500 });
+            }
+
+            return NextResponse.json({ success: true, count: uploadedCount });
+
+        } catch (error: any) {
+            console.error('Direct Upload Connection Error:', error);
+            const errorCode = error.code || 'SERVER_ERROR';
+            const errorMessage = error.originalError?.message || error.message || "An unexpected server error occurred during direct upload.";
+            return NextResponse.json({ success: false, error: `(${errorCode}) ${errorMessage}` }, { status: 500 });
+        } finally {
+             if (pool && pool.connected) {
+                await pool.close();
             }
         }
-        
-        await pool.close();
-
-        if (errors.length > 0) {
-            return NextResponse.json({ success: false, error: `Completed with ${errors.length} errors.`, details: errors }, { status: 500 });
-        }
-
-        return NextResponse.json({ success: true, count: uploadedCount });
     }
     
     return NextResponse.json({ success: false, error: "Invalid mode specified." }, { status: 400 });
@@ -144,3 +159,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: `(${errorCode}) ${errorMessage}` }, { status: 500 });
   }
 }
+
+    
