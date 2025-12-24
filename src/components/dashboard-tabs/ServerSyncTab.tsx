@@ -12,7 +12,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi } from "lucide-react";
 import { extractMutationNumber } from "@/lib/forensic-utils";
 import { Progress } from "@/components/ui/progress";
-import { v4 as uuidv4 } from 'uuid';
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
 type DirectUploadItem = {
@@ -465,5 +464,3 @@ export function ServerSyncTab() {
     </Card>
   );
 }
-
-    
