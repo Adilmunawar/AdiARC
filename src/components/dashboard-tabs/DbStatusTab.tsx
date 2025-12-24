@@ -25,8 +25,6 @@ export function DbStatusTab() {
   };
 
   const [serverIp, setServerIp] = useState<string>(() => safeLocalStorageGet("adiarc_ping_ip", "192.125.6.11"));
-  const [port, setPort] = useState<string>(() => safeLocalStorageGet("adiarc_ping_port", "1433"));
-  
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
@@ -34,11 +32,13 @@ export function DbStatusTab() {
     setConnectionStatus("connecting");
     setLastMessage(null);
 
-    // Save the IP and Port on test so it persists.
+    // Hardcoded port for simplicity
+    const port = "1433"; 
+
+    // Save the IP on test so it persists.
     try {
        if (typeof window !== "undefined") {
          window.localStorage.setItem("adiarc_ping_ip", serverIp.trim());
-         window.localStorage.setItem("adiarc_ping_port", port.trim());
        }
     } catch {
       // Non-critical, ignore if local storage is blocked
@@ -130,53 +130,41 @@ export function DbStatusTab() {
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5 col-span-2">
-                    <Label htmlFor="sql-server-ip" className="flex items-center gap-1 text-xs">
-                    <Server className="h-3.5 w-3.5" />
-                    <span>Server IP Address</span>
-                    </Label>
-                    <Input
-                    id="sql-server-ip"
-                    value={serverIp}
-                    onChange={(e) => setServerIp(e.target.value)}
-                    placeholder="e.g., 192.168.1.100"
-                    className="h-10 text-sm"
-                    disabled={connectionStatus === 'connecting'}
-                    />
-                </div>
-                 <div className="space-y-1.5">
-                    <Label htmlFor="sql-port" className="text-xs">
-                        Port
-                    </Label>
-                    <Input
-                    id="sql-port"
-                    value={port}
-                    onChange={(e) => setPort(e.target.value)}
-                    placeholder="e.g., 1433"
-                    className="h-10 text-sm"
-                    disabled={connectionStatus === 'connecting'}
-                    />
-                </div>
+            <div className="space-y-1.5">
+                <Label htmlFor="sql-server-ip" className="flex items-center gap-1 text-xs">
+                <Server className="h-3.5 w-3.5" />
+                <span>Server IP Address</span>
+                </Label>
+                <Input
+                id="sql-server-ip"
+                value={serverIp}
+                onChange={(e) => setServerIp(e.target.value)}
+                placeholder="e.g., 192.168.1.100"
+                className="h-10 text-sm"
+                disabled={connectionStatus === 'connecting'}
+                />
             </div>
             
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-dashed border-border">
-              <Button
-                type="button"
-                size="lg"
-                onClick={handlePingServer}
-                disabled={connectionStatus === 'connecting' || !serverIp || !port}
-                className="px-6 text-sm font-semibold shadow-md"
-              >
-                {connectionStatus === 'connecting' ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Pinging...
-                  </span>
-                ) : (
-                  "Ping Server"
-                )}
-              </Button>
+            <div className="flex items-center justify-between gap-3 pt-4 border-t border-dashed border-border">
+                <p className="text-xs text-muted-foreground">
+                    This tool will attempt to connect on the default SQL Server port (1433).
+                </p>
+                <Button
+                    type="button"
+                    size="lg"
+                    onClick={handlePingServer}
+                    disabled={connectionStatus === 'connecting' || !serverIp}
+                    className="px-6 text-sm font-semibold shadow-md"
+                >
+                    {connectionStatus === 'connecting' ? (
+                    <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Pinging...
+                    </span>
+                    ) : (
+                    "Ping Server"
+                    )}
+                </Button>
             </div>
 
             {lastMessage && (
