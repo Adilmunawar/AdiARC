@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Database, Key, Loader2, Server, Wifi } from "lucide-react";
+import { Database, Key, Loader2, Server, Wifi, DatabaseZap } from "lucide-react";
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
 
