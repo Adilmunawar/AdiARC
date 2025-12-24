@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi } from "lucide-react";
+import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi, Info, Terminal } from "lucide-react";
 import { extractMutationNumber } from "@/lib/forensic-utils";
 import { Progress } from "@/components/ui/progress";
 
@@ -119,7 +119,7 @@ export function ServerSyncTab() {
       }
     } catch (error: any) {
       setConnectionStatus("disconnected");
-      const message = `Network Error: Could not reach the API route. Ensure the application server is running.`;
+      const message = `Network Error: Could not reach the API route. Ensure the application server is running or the local bridge is active.`;
       setLastConnectionMessage(`❌ ${message}`);
       toast({
         title: "API Communication Failed",
@@ -225,6 +225,7 @@ export function ServerSyncTab() {
   };
   
   return (
+    <div className="space-y-6">
     <Card className="border-border/70 bg-card/80 shadow-md">
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -233,7 +234,7 @@ export function ServerSyncTab() {
             <span>Server Sync (LRMIS Bridge)</span>
           </CardTitle>
           <CardDescription>
-            Configure the SQL Server connection used by the legacy desktop app and drive uploads from the browser.
+            Configure the SQL Server connection and upload mutations directly from the browser.
           </CardDescription>
         </div>
         <div className="flex items-center gap-2 text-xs">
@@ -462,5 +463,52 @@ export function ServerSyncTab() {
         </section>
       </CardContent>
     </Card>
+        <Card className="border-destructive/40 bg-destructive/5 shadow-md">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-destructive">
+                    <Info className="h-4 w-4" />
+                    <span>Action Required: Run the Local API Bridge</span>
+                </CardTitle>
+                <CardDescription className="text-destructive/80">
+                    Your web application is deployed online (on Vercel), but your SQL database is on a private, local network. The web server cannot directly connect to it. To solve this, you must run a special "bridge" script on a computer inside your local network.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+                <div className="space-y-2">
+                    <h4 className="font-semibold">Step 1: Choose a Bridge Computer</h4>
+                    <p className="text-muted-foreground">
+                        Select one reliable computer or server on your local network that can see the SQL server (at `{serverIp}`). This machine must remain on for the sync to work.
+                    </p>
+                </div>
+                <div className="space-y-2">
+                    <h4 className="font-semibold">Step 2: Open a Terminal</h4>
+                    <p className="text-muted-foreground">
+                        On the chosen bridge computer, open a command prompt (CMD, PowerShell) or terminal.
+                    </p>
+                </div>
+                <div className="space-y-2">
+                    <h4 className="font-semibold">Step 3: Run the Bridge Script</h4>
+                    <p className="text-muted-foreground">
+                        Navigate to this project's directory in the terminal and run the following command:
+                    </p>
+                    <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3">
+                        <Terminal className="h-4 w-4 text-muted-foreground" />
+                        <code className="text-sm font-semibold">node debug-connect.js</code>
+                    </div>
+                     <p className="text-xs text-muted-foreground pt-1">
+                        If you see a "server listening" message, the bridge is active. Do not close this terminal window. The web app will now send requests to this script, which then securely connects to your local SQL database.
+                    </p>
+                </div>
+                 <div className="space-y-2 pt-2 border-t border-dashed border-destructive/20">
+                     <h4 className="font-semibold">Important Note</h4>
+                    <p className="text-xs text-muted-foreground">
+                        The "Test Connection" and "Push Mutations" buttons will now communicate with this local bridge script instead of the Vercel server's API. Ensure your browser is not blocking requests to local network addresses if you encounter issues.
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
+    </div>
   );
 }
+
+    
