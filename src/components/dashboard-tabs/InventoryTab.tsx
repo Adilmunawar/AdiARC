@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState } from "react";
@@ -38,16 +39,24 @@ type InventoryFilterPreset = {
   idMax: string;
 };
 
-export function InventoryTab() {
+interface InventoryTabProps {
+  setInventoryItems: React.Dispatch<React.SetStateAction<InventoryItem[]>>;
+}
+
+export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
   const { toast } = useToast();
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [isInventoryScanning, setIsInventoryScanning] = useState(false);
-  const isInventoryScanningRef = useRef<boolean>(false);
+  const [inventoryItems, _setInventoryItems] = useState<InventoryItem[]>([]);
+  const isInventoryScanning = useRef<boolean>(false);
   const [inventoryProgress, setInventoryProgress] = useState<{ current: number; total: number }>({
     current: 0,
     total: 0,
   });
   const inventoryInputRef = useRef<HTMLInputElement | null>(null);
+
+  const updateInventoryItems = (items: InventoryItem[]) => {
+    _setInventoryItems(items);
+    setInventoryItems(items);
+  };
 
   // Inventory table UI helpers
   const [inventorySearch, setInventorySearch] = useState<string>("");
@@ -162,9 +171,8 @@ export function InventoryTab() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    setIsInventoryScanning(true);
-    isInventoryScanningRef.current = true;
-    setInventoryItems([]);
+    isInventoryScanning.current = true;
+    updateInventoryItems([]);
     setSelectedMutationId(null);
 
     // Filter for images
@@ -178,15 +186,16 @@ export function InventoryTab() {
     const chunkSize = 10; // Process in small chunks to prevent freezing
 
     for (let i = 0; i < imageFiles.length; i += chunkSize) {
-      if (!isInventoryScanningRef.current) {
+      if (!isInventoryScanning.current) {
         break;
       }
 
       const chunk = imageFiles.slice(i, i + chunkSize);
+      const processedChunk: InventoryItem[] = [];
 
       await Promise.all(
         chunk.map(async (file) => {
-          if (!isInventoryScanningRef.current) return;
+          if (!isInventoryScanning.current) return;
 
           try {
             const tags = await ExifReader.load(file, { expanded: true });
@@ -196,7 +205,7 @@ export function InventoryTab() {
 
             // Health Check
             if (Object.keys(tags).length < 2) {
-              newItems.push({ id: null, file: file.name, folder, source: "-", status: "stripped", fileObject: file });
+              processedChunk.push({ id: null, file: file.name, folder, source: "-", status: "stripped", fileObject: file });
               return;
             }
 
@@ -207,7 +216,7 @@ export function InventoryTab() {
               // Prefer the "Golden Key" (⭐) if available
               const bestMatch = findings.find((f) => f.source.includes("⭐")) || findings[0];
 
-              newItems.push({
+              processedChunk.push({
                 id: bestMatch.number,
                 file: file.name,
                 folder,
@@ -216,10 +225,10 @@ export function InventoryTab() {
                 fileObject: file,
               });
             } else {
-              newItems.push({ id: null, file: file.name, folder, source: "-", status: "no-match", fileObject: file });
+              processedChunk.push({ id: null, file: file.name, folder, source: "-", status: "no-match", fileObject: file });
             }
           } catch (err) {
-            newItems.push({
+            processedChunk.push({
               id: null,
               file: file.name,
               folder: "(unknown)",
@@ -232,13 +241,13 @@ export function InventoryTab() {
       );
 
       // Update State
-      setInventoryItems((prev) => [...prev, ...newItems.slice(prev.length)]);
+       _setInventoryItems((prev) => [...prev, ...processedChunk]);
+      setInventoryItems((prev) => [...prev, ...processedChunk]);
       setInventoryProgress({ current: Math.min(i + chunkSize, imageFiles.length), total: imageFiles.length });
       await new Promise((r) => setTimeout(r, 0));
     }
 
-    isInventoryScanningRef.current = false;
-    setIsInventoryScanning(false);
+    isInventoryScanning.current = false;
   };
 
   const downloadBlob = (filename: string, mimeType: string, content: string) => {
@@ -442,11 +451,11 @@ export function InventoryTab() {
             <Button
               type="button"
               onClick={() => inventoryInputRef.current?.click()}
-              disabled={isInventoryScanning}
+              disabled={isInventoryScanning.current}
               className="inline-flex items-center gap-2 h-10 px-4 text-xs font-semibold shadow-md shadow-primary/20"
             >
-              {isInventoryScanning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              <span>{isInventoryScanning ? "Scanning folder..." : "Select folder to scan"}</span>
+              {isInventoryScanning.current && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <span>{isInventoryScanning.current ? "Scanning folder..." : "Select folder to scan"}</span>
             </Button>
             {inventoryItems.some((item) => item.status === "valid") && (
               <Button type="button" variant="outline" size="sm" onClick={() => handleDownloadInventory("csv")}>
