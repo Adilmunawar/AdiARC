@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap } from "lucide-react";
 import Link from "next/link";
 
 const tools = [
@@ -37,6 +37,12 @@ const tools = [
         path: "/sync"
     },
     {
+        name: "DB Status",
+        description: "Check the status and connectivity of a local database.",
+        icon: DatabaseZap,
+        path: "/db-status"
+    },
+    {
         name: "Local OCR Detective",
         description: "Run OCR on images to find numbers when metadata fails.",
         icon: ScanText,
@@ -56,7 +62,7 @@ export default function Home() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tools.map(tool => (
+            {tools.sort((a, b) => a.name.localeCompare(b.name)).map(tool => (
                 <Link href={tool.path} key={tool.name} className="no-underline">
                     <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all duration-200 cursor-pointer">
                         <CardHeader>

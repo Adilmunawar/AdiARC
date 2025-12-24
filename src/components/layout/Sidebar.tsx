@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -10,13 +11,13 @@ import {
   FileCode, 
   Split, 
   Database,
-  LogOut, 
-  UserCircle 
+  DatabaseZap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
+  { name: "DB Status", icon: DatabaseZap, path: "/db-status"},
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
   { name: "Local OCR", icon: ScanText, path: "/ocr" },
@@ -46,7 +47,7 @@ export function Sidebar() {
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-3 px-2">
         <nav className="space-y-1">
-          {navItems.map((item) => {
+          {navItems.sort((a,b) => a.path === '/' ? -1 : b.path === '/' ? 1 : a.name.localeCompare(b.name)).map((item) => {
             const isActive = pathname === item.path;
             return (
               <Link
@@ -66,8 +67,6 @@ export function Sidebar() {
           })}
         </nav>
       </div>
-
-      {/* Footer is removed */}
     </div>
   );
 }
