@@ -1,109 +1,79 @@
 
 "use client";
-import React, { useState } from "react";
-import { Upload, ScanEye, ListChecks, Database } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { RangeGapsTab } from "@/components/dashboard-tabs/RangeGapsTab";
-import { HtmlExtractorTab } from "@/components/dashboard-tabs/HtmlExtractorTab";
-import { WirasatTab } from "@/components/dashboard-tabs/WirasatTab";
-import { InventoryTab } from "@/components/dashboard-tabs/InventoryTab";
-import { ServerSyncTab } from "@/components/dashboard-tabs/ServerSyncTab";
-import { OcrTab } from "@/components/dashboard-tabs/OcrTab";
+import React from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { FileCode, Split, Calculator, Box, ScanText, Database } from "lucide-react";
+import Link from "next/link";
 
-type InventoryItem = {
-  id: string | null;
-  file: string;
-  folder: string;
-  source: string;
-  status: "valid" | "stripped" | "no-match";
-  fileObject?: File;
-};
+const tools = [
+    {
+        name: "Range Gaps",
+        description: "Find missing sequential IDs from a large list.",
+        icon: Split,
+        path: "/range-gaps"
+    },
+    {
+        name: "HTML Extractor",
+        description: "Extract numeric options from HTML source code.",
+        icon: FileCode,
+        path: "/extractor"
+    },
+    {
+        name: "Wirasat Partitions",
+        description: "Calculate inheritance shares based on Islamic rules.",
+        icon: Calculator,
+        path: "/wirasat"
+    },
+    {
+        name: "XMP Inventory",
+        description: "Scan image metadata for embedded mutation IDs.",
+        icon: Box,
+        path: "/inventory"
+    },
+     {
+        name: "Server Sync",
+        description: "Bridge to legacy LRMIS SQL Server for direct uploads.",
+        icon: Database,
+        path: "/sync"
+    },
+    {
+        name: "Local OCR Detective",
+        description: "Run OCR on images to find numbers when metadata fails.",
+        icon: ScanText,
+        path: "/ocr"
+    }
+];
+
 export default function Home() {
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background via-muted/40 to-background px-4 py-8 sm:py-10 lg:py-12">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 lg:gap-10">
-        <header className="space-y-5 text-center animate-fade-in">
-          <div className="mx-auto flex max-w-xl items-center justify-center gap-3 text-[11px] text-muted-foreground">
-            <div className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border/70 bg-card px-3 py-1.5 shadow-sm">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
-                1
-              </span>
-              <span className="inline-flex items-center gap-1 font-medium">
-                <Upload className="h-3.5 w-3.5" /> Upload mutation file
-              </span>
-            </div>
-            <div className="hidden flex-1 items-center justify-center gap-2 rounded-full border border-border/70 bg-card px-3 py-1.5 text-[11px] shadow-sm sm:flex">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
-                2
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <ScanEye className="h-3.5 w-3.5" /> Define range
-              </span>
-            </div>
-            <div className="hidden flex-1 items-center justify-center gap-2 rounded-full border border-border/70 bg-card px-3 py-1.5 text-[11px] shadow-sm lg:flex">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
-                3
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <ListChecks className="h-3.5 w-3.5" /> Review gaps
-              </span>
-            </div>
-          </div>
-
-          <h1 className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-balance text-3xl font-semibold tracking-tight text-transparent sm:text-4xl md:text-5xl">
-            AdiARC — Mutation & Range Calculator
-          </h1>
-          <p className="mx-auto max-w-2xl text-balance text-sm md:text-base text-muted-foreground">
-            Upload a large list of existing mutation IDs, choose the numeric window you care about, and AdiARC will compute all
-            missing IDs locally in your browser with smart range compression.
-          </p>
+    <div className="flex flex-col gap-8">
+        <header className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">AdiARC Dashboard</h1>
+            <p className="text-muted-foreground">
+                A suite of powerful utilities for forensic data analysis and LRMIS tasks.
+            </p>
         </header>
 
-        <Tabs defaultValue="find-missing" className="space-y-6">
-          <TabsList className="inline-flex rounded-full border border-border bg-muted/60 p-1 text-xs shadow-sm">
-            <TabsTrigger value="find-missing" className="px-3 py-1">
-              Range gaps (Find missing IDs)
-            </TabsTrigger>
-            <TabsTrigger value="fetch-mutations" className="px-3 py-1">
-              HTML dropdown extractor
-            </TabsTrigger>
-            <TabsTrigger value="wirasat" className="px-3 py-1">
-              Partitions (Wirasat)
-            </TabsTrigger>
-            <TabsTrigger value="mutation-inventory" className="px-3 py-1">
-              XMP Mutation Inventory
-            </TabsTrigger>
-            <TabsTrigger value="server-sync" className="px-3 py-1 inline-flex items-center gap-1">
-              <Database className="h-3.5 w-3.5" />
-              <span>Server Sync</span>
-            </TabsTrigger>
-            <TabsTrigger value="local-ocr" className="px-3 py-1">
-              Local OCR Detective
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="find-missing">
-            <RangeGapsTab />
-          </TabsContent>
-          <TabsContent value="fetch-mutations">
-            <HtmlExtractorTab />
-          </TabsContent>
-          <TabsContent value="wirasat">
-            <WirasatTab />
-          </TabsContent>
-          <TabsContent value="mutation-inventory">
-            <InventoryTab setInventoryItems={setInventoryItems} />
-          </TabsContent>
-          <TabsContent value="server-sync">
-            <ServerSyncTab />
-          </TabsContent>
-          <TabsContent value="local-ocr">
-            <OcrTab />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </main>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tools.map(tool => (
+                <Link href={tool.path} key={tool.name} className="no-underline">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all duration-200 cursor-pointer">
+                        <CardHeader>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary/10 rounded-lg">
+                                    <tool.icon className="h-6 w-6 text-primary" />
+                                </div>
+                                <CardTitle className="text-base font-semibold">{tool.name}</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <CardDescription>{tool.description}</CardDescription>
+                        </CardContent>
+                    </Card>
+                </Link>
+            ))}
+        </div>
+    </div>
   );
 }
