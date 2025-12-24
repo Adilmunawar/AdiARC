@@ -137,7 +137,7 @@ export function RangeGapsTab() {
     if (!Number.isInteger(startNum) || !Number.isInteger(endNum) || startNum <= 0 || endNum <= 0 || startNum > endNum) {
       toast({
         title: "Invalid range",
-        description: "Please enter a valid numeric range (start <= end, both > 0).",
+        description: "Please enter a valid numeric range (start &lt;= end, both &gt; 0).",
         variant: "destructive",
       });
       return;
@@ -158,7 +158,7 @@ export function RangeGapsTab() {
 
       const missing: number[] = [];
       const present: number[] = [];
-      for (let i = startNum; i <= endNum; i++) {
+      for (let i = startNum; i &lt;= endNum; i++) {
         if (existingNumbers.has(i)) {
           present.push(i);
         } else {
@@ -169,7 +169,7 @@ export function RangeGapsTab() {
       const presentFullString = present.join(",");
 
       let buckets: { start: number; end: number; missing: number; total: number }[] | null = null;
-      if (missing.length > 0) {
+      if (missing.length &gt; 0) {
         const maxBuckets = 30;
         const bucketCount = Math.min(maxBuckets, totalInRange);
         const bucketSize = Math.max(1, Math.floor(totalInRange / bucketCount));
@@ -178,13 +178,13 @@ export function RangeGapsTab() {
           const bucketStart = startNum + idx * bucketSize;
           const rawEnd = bucketStart + bucketSize - 1;
           const bucketEnd = idx === bucketCount - 1 ? endNum : Math.min(rawEnd, endNum);
-          const total = bucketEnd >= bucketStart ? bucketEnd - bucketStart + 1 : 0;
+          const total = bucketEnd &gt;= bucketStart ? bucketEnd - bucketStart + 1 : 0;
           return { start: bucketStart, end: bucketEnd, missing: 0, total };
         });
 
         for (const m of missing) {
           const index = Math.min(Math.floor((m - startNum) / bucketSize), bucketCount - 1);
-          if (index >= 0 && index < buckets.length) {
+          if (index &gt;= 0 && index &lt; buckets.length) {
             buckets[index].missing += 1;
           }
         }
@@ -229,17 +229,17 @@ export function RangeGapsTab() {
     }
   };
 
-  const coverage = stats && stats.total > 0 ? Math.round((stats.present / stats.total) * 1000) / 10 : null;
+  const coverage = stats && stats.total &gt; 0 ? Math.round((stats.present / stats.total) * 1000) / 10 : null;
   const missingDisplay = useCompressed ? result : missingFull;
   const presentDisplay = useCompressed ? presentCompressed : presentFull;
 
   const gapSeverity =
-    stats && stats.total > 0
+    stats && stats.total &gt; 0
       ? stats.missing === 0
         ? "none"
-        : stats.missing / stats.total >= 0.2
+        : stats.missing / stats.total &gt;= 0.2
         ? "high"
-        : stats.missing / stats.total >= 0.05
+        : stats.missing / stats.total &gt;= 0.05
         ? "medium"
         : "low"
       : null;
@@ -247,20 +247,20 @@ export function RangeGapsTab() {
   const chartData =
     gapBuckets?.map((bucket) => ({
       bucketLabel: `${bucket.start}-${bucket.end}`,
-      missingRatio: bucket.total > 0 ? bucket.missing / bucket.total : 0,
+      missingRatio: bucket.total &gt; 0 ? bucket.missing / bucket.total : 0,
     })) ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Coverage summary always visible above both columns */}
-      <section className="rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 text-xs shadow-sm shadow-primary/10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Coverage summary</p>
-            <p className="text-sm font-semibold text-foreground">
+    &lt;div className="space-y-6 animate-fade-in"&gt;
+      &lt;!-- Coverage summary always visible above both columns --&gt;
+      &lt;section className="rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 text-xs shadow-sm shadow-primary/10"&gt;
+        &lt;div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"&gt;
+          &lt;div className="space-y-1"&gt;
+            &lt;p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground"&gt;Coverage summary&lt;/p&gt;
+            &lt;p className="text-sm font-semibold text-foreground"&gt;
               {coverage !== null ? `${coverage.toFixed(1)}% IDs present in range` : "—"}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
+            &lt;/p&gt;
+            &lt;p className="text-[11px] text-muted-foreground"&gt;
               {gapSeverity === "none"
                 ? "Perfect coverage. No missing IDs."
                 : gapSeverity === "high"
@@ -270,163 +270,163 @@ export function RangeGapsTab() {
                 : gapSeverity === "low"
                 ? "Light gaps detected. Coverage is mostly complete."
                 : "Run a scan to see coverage details."}
-            </p>
-            <p className="text-[10px] text-muted-foreground/80">
+            &lt;/p&gt;
+            &lt;p className="text-[10px] text-muted-foreground/80"&gt;
               Coverage = present IDs ÷ total IDs in your selected range.
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+            &lt;/p&gt;
+          &lt;/div&gt;
+          &lt;div className="flex flex-col items-end gap-2"&gt;
+            &lt;div className="flex items-center gap-2 text-[11px] text-muted-foreground"&gt;
+              &lt;span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary"&gt;
                 {stats ? stats.missing : "—"}
-              </span>
-              <span>{stats ? `missing of ${stats.total.toLocaleString()}` : "Run a scan to see missing counts"}</span>
-            </div>
-            <div className="inline-flex overflow-hidden rounded-full border border-border bg-card text-[11px]">
-              <button
+              &lt;/span&gt;
+              &lt;span&gt;{stats ? `missing of ${stats.total.toLocaleString()}` : "Run a scan to see missing counts"}&lt;/span&gt;
+            &lt;/div&gt;
+            &lt;div className="inline-flex overflow-hidden rounded-full border border-border bg-card text-[11px]"&gt;
+              &lt;button
                 type="button"
                 className={`px-2 py-1 text-[11px] ${useCompressed ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
                 onClick={() => setUseCompressed(true)}
-              >
+              &gt;
                 Compressed
-              </button>
-              <button
+              &lt;/button&gt;
+              &lt;button
                 type="button"
                 className={`px-2 py-1 text-[11px] ${!useCompressed ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
                 onClick={() => setUseCompressed(false)}
-              >
+              &gt;
                 Full list
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+              &lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
 
-      {/* Main two-column layout: Input left, Missing IDs right */}
-      <section className="grid gap-8 lg:grid-cols-2 items-stretch animate-enter">
-        <Card className="flex h-full flex-col border-border/70 bg-card/80 shadow-xl shadow-primary/10 backdrop-blur-sm hover-scale">
-          <CardHeader className="pb-5 border-b border-border/60">
-            <CardTitle className="text-base font-semibold tracking-tight">Input configuration</CardTitle>
-            <CardDescription>Define the numeric window and load your mutation file.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-5 flex-1">
-            <section className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="start">Range start</Label>
-                <Input id="start" type="number" value={start} onChange={(e) => setStart(e.target.value)} min={1} />
-                <p className="text-xs text-muted-foreground">Lowest mutation ID to include in the scan.</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="end">Range end</Label>
-                <Input id="end" type="number" value={end} onChange={(e) => setEnd(e.target.value)} min={1} />
-                <p className="text-xs text-muted-foreground">Highest mutation ID to include in the scan.</p>
-              </div>
-            </section>
+      &lt;!-- Main two-column layout: Input left, Missing IDs right --&gt;
+      &lt;section className="grid gap-8 lg:grid-cols-2 items-stretch animate-enter"&gt;
+        &lt;Card className="flex h-full flex-col border-border/70 bg-card/80 shadow-xl shadow-primary/10 backdrop-blur-sm hover:shadow-primary/20 transition-shadow duration-300"&gt;
+          &lt;CardHeader className="pb-5 border-b border-border/60"&gt;
+            &lt;CardTitle className="text-base font-semibold tracking-tight"&gt;Input configuration&lt;/CardTitle&gt;
+            &lt;CardDescription&gt;Define the numeric window and load your mutation file.&lt;/CardDescription&gt;
+          &lt;/CardHeader&gt;
+          &lt;CardContent className="space-y-6 pt-5 flex-1"&gt;
+            &lt;section className="grid gap-4 md:grid-cols-2"&gt;
+              &lt;div className="space-y-2"&gt;
+                &lt;Label htmlFor="start"&gt;Range start&lt;/Label&gt;
+                &lt;Input id="start" type="number" value={start} onChange={(e) => setStart(e.target.value)} min={1} /&gt;
+                &lt;p className="text-xs text-muted-foreground"&gt;Lowest mutation ID to include in the scan.&lt;/p&gt;
+              &lt;/div&gt;
+              &lt;div className="space-y-2"&gt;
+                &lt;Label htmlFor="end"&gt;Range end&lt;/Label&gt;
+                &lt;Input id="end" type="number" value={end} onChange={(e) => setEnd(e.target.value)} min={1} /&gt;
+                &lt;p className="text-xs text-muted-foreground"&gt;Highest mutation ID to include in the scan.&lt;/p&gt;
+              &lt;/div&gt;
+            &lt;/section&gt;
 
-            <section className="space-y-2">
-              <Label htmlFor="file">Mutation numbers text file (.txt)</Label>
-              <Input id="file" type="file" accept=".txt" onChange={handleFileChange} />
-              {fileName && <p className="text-sm text-muted-foreground">Loaded file: {fileName}</p>}
-              <p className="text-xs text-muted-foreground">
+            &lt;section className="space-y-2"&gt;
+              &lt;Label htmlFor="file"&gt;Mutation numbers text file (.txt)&lt;/Label&gt;
+              &lt;Input id="file" type="file" accept=".txt" onChange={handleFileChange} /&gt;
+              {fileName && &lt;p className="text-sm text-muted-foreground"&gt;Loaded file: {fileName}&lt;/p&gt;}
+              &lt;p className="text-xs text-muted-foreground"&gt;
                 Supports tens of thousands of entries separated by commas, spaces, or new lines.
-              </p>
-            </section>
+              &lt;/p&gt;
+            &lt;/section&gt;
 
-            <section className="space-y-2">
-              <Label>Preview of uploaded content</Label>
-              <Textarea
+            &lt;section className="space-y-2"&gt;
+              &lt;Label&gt;Preview of uploaded content&lt;/Label&gt;
+              &lt;Textarea
                 readOnly
                 value={fileContent.slice(0, 12000)}
                 placeholder="First part of your uploaded file will appear here (preview is truncated for very large files)."
                 className="h-32 font-mono text-xs"
-              />
-            </section>
+              /&gt;
+            &lt;/section&gt;
 
-            <div className="mt-auto flex flex-wrap items-center justify-between gap-4 border-t border-dashed border-border pt-4">
-              <p className="text-xs md:text-[13px] text-muted-foreground max-w-xs">
+            &lt;div className="mt-auto flex flex-wrap items-center justify-between gap-4 border-t border-dashed border-border pt-4"&gt;
+              &lt;p className="text-xs md:text-[13px] text-muted-foreground max-w-xs"&gt;
                 All processing happens locally in your browser. No servers or external APIs are called.
-              </p>
-              <Button
+              &lt;/p&gt;
+              &lt;Button
                 type="button"
                 onClick={handleProcess}
                 disabled={isLoading}
-                className="hover-scale px-5 py-2 text-sm font-semibold shadow-md shadow-primary/20"
-              >
+                className="hover:scale-105 active:scale-100 px-5 py-2 text-sm font-semibold shadow-md shadow-primary/20"
+              &gt;
                 {isLoading ? "Processing..." : "Find missing numbers"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              &lt;/Button&gt;
+            &lt;/div&gt;
+          &lt;/CardContent&gt;
+        &lt;/Card&gt;
 
-        <Card className="flex h-full flex-col border-dashed border-border/70 bg-card/70 shadow-sm animate-enter">
-          <CardHeader className="flex items-start justify-between gap-3 pb-3">
-            <div>
-              <CardTitle className="text-base font-semibold">Missing IDs</CardTitle>
-              <CardDescription>
+        &lt;Card className="flex h-full flex-col border-dashed border-border/70 bg-card/70 shadow-sm animate-enter"&gt;
+          &lt;CardHeader className="flex items-start justify-between gap-3 pb-3"&gt;
+            &lt;div&gt;
+              &lt;CardTitle className="text-base font-semibold"&gt;Missing IDs&lt;/CardTitle&gt;
+              &lt;CardDescription&gt;
                 View missing IDs as compact ranges or a full list within the selected window.
-              </CardDescription>
-            </div>
-            <div className="flex flex-col items-end gap-1 text-[11px]">
-              <Button
+              &lt;/CardDescription&gt;
+            &lt;/div&gt;
+            &lt;div className="flex flex-col items-end gap-1 text-[11px]"&gt;
+              &lt;Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleCopy("missing IDs", missingDisplay)}
                 className="h-7 px-3 text-[11px]"
-              >
+              &gt;
                 Copy
-              </Button>
-              <Button
+              &lt;/Button&gt;
+              &lt;Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleDownload}
                 className="h-7 px-3 text-[11px]"
-              >
+              &gt;
                 Download
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 flex-1">
-            <div className="grid grid-cols-3 gap-2 rounded-lg border border-dashed border-border/80 bg-muted/40 px-3 py-2 text-center text-[11px] text-muted-foreground">
-              <div>
-                <p className="font-medium text-foreground">{stats ? stats.total.toLocaleString() : "—"}</p>
-                <p>IDs in range</p>
-              </div>
-              <div>
-                <p className="font-medium text-destructive">{stats ? stats.missing.toLocaleString() : "—"}</p>
-                <p>Missing IDs</p>
-              </div>
-              <div>
-                <p className="font-medium text-foreground">{stats ? stats.present.toLocaleString() : "—"}</p>
-                <p>Present IDs</p>
-              </div>
-            </div>
+              &lt;/Button&gt;
+            &lt;/div&gt;
+          &lt;/CardHeader&gt;
+          &lt;CardContent className="space-y-4 flex-1"&gt;
+            &lt;div className="grid grid-cols-3 gap-2 rounded-lg border border-dashed border-border/80 bg-muted/40 px-3 py-2 text-center text-[11px] text-muted-foreground"&gt;
+              &lt;div&gt;
+                &lt;p className="font-medium text-foreground"&gt;{stats ? stats.total.toLocaleString() : "—"}&lt;/p&gt;
+                &lt;p&gt;IDs in range&lt;/p&gt;
+              &lt;/div&gt;
+              &lt;div&gt;
+                &lt;p className="font-medium text-destructive"&gt;{stats ? stats.missing.toLocaleString() : "—"}&lt;/p&gt;
+                &lt;p&gt;Missing IDs&lt;/p&gt;
+              &lt;/div&gt;
+              &lt;div&gt;
+                &lt;p className="font-medium text-foreground"&gt;{stats ? stats.present.toLocaleString() : "—"}&lt;/p&gt;
+                &lt;p&gt;Present IDs&lt;/p&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <p className="font-medium">Gap distribution across range</p>
-                <span className="text-[10px]">Taller red bars = more missing IDs</span>
-              </div>
-              <div className="h-28 rounded-md border border-border/60 bg-muted/40 px-2 py-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <XAxis dataKey="bucketLabel" hide tickLine={false} axisLine={false} />
-                    <Tooltip
+            &lt;div className="space-y-1"&gt;
+              &lt;div className="flex items-center justify-between text-[11px] text-muted-foreground"&gt;
+                &lt;p className="font-medium"&gt;Gap distribution across range&lt;/p&gt;
+                &lt;span className="text-[10px]"&gt;Taller red bars = more missing IDs&lt;/span&gt;
+              &lt;/div&gt;
+              &lt;div className="h-28 rounded-md border border-border/60 bg-muted/40 px-2 py-1"&gt;
+                &lt;ResponsiveContainer width="100%" height="100%"&gt;
+                  &lt;BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}&gt;
+                    &lt;XAxis dataKey="bucketLabel" hide tickLine={false} axisLine={false} /&gt;
+                    &lt;Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         borderColor: "hsl(var(--border))",
                         fontSize: 11,
                       }}
-                      formatter={(value: number) => [`${Math.round((value as number) * 1000) / 10}% missing`, "Missing share"]}
-                    />
-                    <Bar dataKey="missingRatio" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+                      formatter={(value: number) => [\`\${Math.round((value as number) * 1000) / 10}% missing\`, "Missing share"]}
+                    /&gt;
+                    &lt;Bar dataKey="missingRatio" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} /&gt;
+                  &lt;/BarChart&gt;
+                &lt;/ResponsiveContainer&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
 
-            <div className="text-xs text-muted-foreground">
+            &lt;div className="text-xs text-muted-foreground"&gt;
               {!stats
                 ? "Run a scan to see missing IDs here."
                 : stats.missing === 0
@@ -434,44 +434,44 @@ export function RangeGapsTab() {
                 : useCompressed
                 ? "Viewing compressed ranges. Switch to full list to see every missing ID."
                 : "Viewing full list of missing IDs in this range."}
-            </div>
+            &lt;/div&gt;
 
-            <Textarea
+            &lt;Textarea
               readOnly
               value={missingDisplay}
-              placeholder={`After processing, missing numbers will appear here as ${
+              placeholder={\`After processing, missing numbers will appear here as \${
                 useCompressed ? "compressed ranges (e.g. 20001-20006)" : "a full comma-separated list"
-              }. If there are no missing numbers, you will see 'NONE'.`}
+              }. If there are no missing numbers, you will see 'NONE'.\`}
               className="h-64 font-mono text-xs md:h-72"
-            />
-          </CardContent>
-        </Card>
-      </section>
+            /&gt;
+          &lt;/CardContent&gt;
+        &lt;/Card&gt;
+      &lt;/section&gt;
 
-      {/* Full-width Present IDs section beneath both columns */}
-      <section className="animate-enter">
-        <Card className="mt-2 border border-border/70 bg-card/80 shadow-md shadow-primary/10">
-          <CardHeader className="flex flex-col gap-2 px-4 pb-3 pt-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="text-base font-semibold">Present IDs</CardTitle>
-              <CardDescription>
+      &lt;!-- Full-width Present IDs section beneath both columns --&gt;
+      &lt;section className="animate-enter"&gt;
+        &lt;Card className="mt-2 border border-border/70 bg-card/80 shadow-md shadow-primary/10"&gt;
+          &lt;CardHeader className="flex flex-col gap-2 px-4 pb-3 pt-4 sm:flex-row sm:items-start sm:justify-between"&gt;
+            &lt;div&gt;
+              &lt;CardTitle className="text-base font-semibold"&gt;Present IDs&lt;/CardTitle&gt;
+              &lt;CardDescription&gt;
                 All IDs from your file within the selected range, shown as {useCompressed ? "compressed" : "full"} data.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] sm:self-start">
-              <Button
+              &lt;/CardDescription&gt;
+            &lt;/div&gt;
+            &lt;div className="flex items-center gap-2 text-[11px] sm:self-start"&gt;
+              &lt;Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleCopy("present IDs", presentDisplay)}
                 className="h-7 px-3 text-[11px]"
-              >
+              &gt;
                 Copy present IDs
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Textarea
+              &lt;/Button&gt;
+            &lt;/div&gt;
+          &lt;/CardHeader&gt;
+          &lt;CardContent className="space-y-3"&gt;
+            &lt;Textarea
               readOnly
               value={presentDisplay}
               placeholder={
@@ -480,13 +480,15 @@ export function RangeGapsTab() {
                   : "After processing, present numbers will appear here as a full comma-separated list."
               }
               className="h-52 font-mono text-xs md:h-60"
-            />
-            <p className="text-[11px] text-muted-foreground">
+            /&gt;
+            &lt;p className="text-[11px] text-muted-foreground"&gt;
               Use this to verify exactly which IDs from your file are covered in this range, in either compressed or full form.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-    </div>
+            &lt;/p&gt;
+          &lt;/CardContent&gt;
+        &lt;/Card&gt;
+      &lt;/section&gt;
+    &lt;/div&gt;
   );
 }
+
+    
