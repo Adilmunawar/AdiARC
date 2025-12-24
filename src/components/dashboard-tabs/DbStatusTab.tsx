@@ -26,7 +26,7 @@ export function DbStatusTab() {
 
   const [serverIp, setServerIp] = useState<string>(() => safeLocalStorageGet("adiarc_sql_server", "192.125.6.11"));
   const [port, setPort] = useState<string>(() => safeLocalStorageGet("adiarc_sql_port", "1433"));
-  const [databaseName, setDatabaseName] = useState<string>(() =>
+  const [dbName, setDbName] = useState<string>(() =>
     safeLocalStorageGet("adiarc_sql_database", "Judiya_Pur"),
   );
   const [dbUser, setDbUser] = useState<string>(() => safeLocalStorageGet("adiarc_sql_user", "sa"));
@@ -44,8 +44,10 @@ export function DbStatusTab() {
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("adiarc_sql_server", serverIp.trim());
+        // We no longer show these in the UI for this tab, but we'll keep saving them
+        // in case the Server Sync tab or other features use them.
         window.localStorage.setItem("adiarc_sql_port", port.trim());
-        window.localStorage.setItem("adiarc_sql_database", databaseName.trim());
+        window.localStorage.setItem("adiarc_sql_database", dbName.trim());
         window.localStorage.setItem("adiarc_sql_user", dbUser.trim());
         window.localStorage.setItem("adiarc_sql_password", dbPassword.trim());
         window.localStorage.setItem("adiarc_sql_timeout", connectionTimeout.trim());
@@ -76,9 +78,9 @@ export function DbStatusTab() {
           mode: "test",
           serverIp,
           port,
-          dbName: databaseName,
-          dbUser,
-          dbPassword,
+          dbName, // Sent for the test, but UI simplified
+          dbUser, // Sent for the test, but UI simplified
+          dbPassword, // Sent for the test, but UI simplified
           connectionTimeout,
         }),
       });
@@ -93,14 +95,25 @@ export function DbStatusTab() {
           description: result.message,
         });
       } else {
-        setConnectionStatus("disconnected");
         const errorMsg = result.error || 'An unknown error occurred.';
-        setLastConnectionMessage(`❌ ${errorMsg}`);
-        toast({
-          title: "Connection Test Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
+
+        // Check if the error indicates the server is reachable but auth failed, which means it's "active"
+        if (errorMsg.includes("Auth Successful") || errorMsg.includes("Login failed")) {
+           setConnectionStatus("live");
+           setLastConnectionMessage(`✅ Server is Active. (Auth check failed, but the server responded).`);
+           toast({
+             title: "Server is Active",
+             description: "The server responded to the connection request, but authentication failed.",
+           });
+        } else {
+            setConnectionStatus("disconnected");
+            setLastConnectionMessage(`❌ ${errorMsg}`);
+            toast({
+              title: "Connection Test Failed",
+              description: errorMsg,
+              variant: "destructive",
+            });
+        }
       }
     } catch (error: any) {
       setConnectionStatus("disconnected");
@@ -125,7 +138,7 @@ export function DbStatusTab() {
             <span>Database Status Checker</span>
           </CardTitle>
           <CardDescription>
-            Test the connectivity to a local SQL Server instance.
+            Ping a local SQL Server instance to check if it's active and reachable on the network.
           </CardDescription>
         </div>
         <div className="flex items-center gap-2 text-xs">
@@ -142,86 +155,32 @@ export function DbStatusTab() {
             variant={connectionStatus === "live" ? "default" : connectionStatus === "connecting" ? "secondary" : "destructive"}
             className="uppercase tracking-wide"
           >
-            {connectionStatus === "live" ? "Live" : connectionStatus === "connecting" ? "Connecting..." : "Disconnected"}
+            {connectionStatus === "live" ? "Active" : connectionStatus === "connecting" ? "Pinging..." : "Offline"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-4 rounded-md border border-border bg-card/70 p-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold">Connection Settings</p>
-              <span className="text-[11px] text-muted-foreground">Stored in this browser only</span>
+              <p className="text-sm font-semibold">Server Details</p>
+               <span className="text-[11px] text-muted-foreground">Uses stored credentials</span>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
+            <div className="space-y-1.5">
                 <Label htmlFor="sql-server-ip" className="flex items-center gap-1 text-xs">
                   <Server className="h-3.5 w-3.5" />
-                  <span>Server IP</span>
+                  <span>Server IP Address</span>
                 </Label>
                 <Input
                   id="sql-server-ip"
                   value={serverIp}
                   onChange={(e) => setServerIp(e.target.value)}
                   placeholder="192.125.6.11"
-                  className="h-8 text-xs"
+                  className="h-9 text-sm"
                 />
               </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="sql-db-name" className="flex items-center gap-1 text-xs">
-                  <Database className="h-3.5 w-3.5" />
-                  <span>Database Name</span>
-                </Label>
-                <Input
-                  id="sql-db-name"
-                  value={databaseName}
-                  onChange={(e) => setDatabaseName(e.target.value)}
-                  placeholder="Judiya_Pur"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="sql-user" className="text-xs">
-                  Username
-                </Label>
-                <Input
-                  id="sql-user"
-                  value={dbUser}
-                  onChange={(e) => setDbUser(e.target.value)}
-                  placeholder="sa"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="sql-password" className="flex items-center gap-1 text-xs">
-                  <Key className="h-3.5 w-3.5" />
-                  <span>Password</span>
-                </Label>{" "}
-                <Input
-                  id="sql-password"
-                  type="password"
-                  value={dbPassword}
-                  onChange={(e) => setDbPassword(e.target.value)}
-                  placeholder="justice@123"
-                  className="h-8 text-xs"
-                />
-              </div>
-            </div>
             
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-dashed border-border">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleSaveServerConfig}
-                className="h-8 px-3 text-[11px]"
-                disabled={isTestingConnection}
-              >
-                Save Configuration
-              </Button>
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-dashed border-border">
               <Button
                 type="button"
                 size="sm"
@@ -235,7 +194,7 @@ export function DbStatusTab() {
                     Pinging Server...
                   </span>
                 ) : (
-                  "Test Connection"
+                  "Ping Server"
                 )}
               </Button>
             </div>
