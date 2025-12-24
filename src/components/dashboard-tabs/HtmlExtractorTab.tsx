@@ -1,6 +1,7 @@
 
 "use client";
 import React, { useState } from "react";
+import { ArrowRight, Copy, Download, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,7 @@ export function HtmlExtractorTab() {
     if (!value) {
       toast({
         title: `Nothing to copy for ${label}`,
-        description: "Run a scan first to generate data.",
+        description: "Run an extraction first to generate data.",
         variant: "destructive",
       });
       return;
@@ -142,64 +143,81 @@ export function HtmlExtractorTab() {
       <CardHeader>
         <CardTitle className="text-base font-semibold">Fetch mutation numbers from HTML dropdown</CardTitle>
         <CardDescription>
-          Paste the raw HTML that contains the <code>&lt;select&gt;</code> with your mutation numbers. We will extract only the
-          numeric options (e.g. 0, 288, 301, 303, 331, 342, 3261, 14018, ...).
+          Paste raw HTML containing a <code>&lt;select&gt;</code> element to extract all numeric options. This is useful for grabbing mutation lists from legacy websites.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <section className="space-y-2">
-          <Label htmlFor="mutation-html">Paste HTML with mutation dropdown</Label>
-          <Textarea
-            id="mutation-html"
-            value={mutationSource}
-            onChange={(e) => setMutationSource(e.target.value)}
-            placeholder="Paste the HTML that contains &lt;option&gt; elements with mutation numbers here."
-            className="h-56 font-mono text-xs"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Example: a <code>&lt;select&gt;</code> element from a website where each <code>&lt;option&gt;</code> holds a mutation
-            number. Non-numeric options like headings (e.g. چنیں) are ignored automatically.
-          </p>
-        </section>
+      <CardContent>
+        <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
+          
+          {/* LEFT: Input Column */}
+          <div className="flex flex-col gap-4">
+             <section className="space-y-2">
+                <Label htmlFor="mutation-html">1. Paste HTML source</Label>
+                <Textarea
+                    id="mutation-html"
+                    value={mutationSource}
+                    onChange={(e) => setMutationSource(e.target.value)}
+                    placeholder="Paste the HTML that contains &lt;option&gt; elements with mutation numbers here."
+                    className="h-64 font-mono text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                    Example: a <code>&lt;select&gt;</code> element from a website where each <code>&lt;option&gt;</code> holds a mutation number. Non-numeric options are ignored.
+                </p>
+            </section>
+            
+            <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
+                <p className="text-xs text-muted-foreground max-w-xs">
+                    The extraction is done entirely in your browser for privacy and speed.
+                </p>
+                <Button type="button" onClick={handleExtractMutationNumbers} className="shrink-0">
+                    <Search className="mr-2 h-4 w-4" />
+                    <span>Extract Numbers</span>
+                </Button>
+            </div>
+          </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-border pt-3">
-          <p className="text-[11px] text-muted-foreground max-w-sm">
-            The extraction is done entirely in your browser. We collect only numeric values from option text and ignore any
-            IDs or labels.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={handleExtractMutationNumbers}>
-              Extract mutation numbers
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleCopy("mutation numbers", mutationText)}
-              disabled={!mutationText}
-            >
-              Copy as text
-            </Button>
-            <Button type="button" size="sm" onClick={handleDownloadMutationNumbers} disabled={!mutationNumbers.length}>
-              Download as .txt
-            </Button>
+          {/* RIGHT: Output Column */}
+          <div className="flex flex-col gap-4 mt-6 lg:mt-0">
+            <section className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <Label>2. Extracted numbers</Label>
+                    {mutationNumbers.length > 0 && (
+                        <span className="text-[11px] text-muted-foreground">{mutationNumbers.length} unique numbers found</span>
+                    )}
+                </div>
+                <Textarea
+                    readOnly
+                    value={mutationText}
+                    placeholder={
+                    "After extraction, mutation numbers will appear here, one per line, ready to copy or download."
+                    }
+                    className="h-64 font-mono text-xs bg-muted/30"
+                />
+            </section>
+             <div className="flex items-center justify-end gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCopy("mutation numbers", mutationText)}
+                    disabled={!mutationText}
+                >
+                    <Copy className="mr-2 h-3.5 w-3.5" />
+                    Copy as text
+                </Button>
+                <Button 
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadMutationNumbers}
+                    disabled={!mutationNumbers.length}
+                >
+                    <Download className="mr-2 h-3.5 w-3.5" />
+                    Download as .txt
+                </Button>
+            </div>
           </div>
         </div>
-
-        <section className="space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <p className="font-medium">Extracted mutation numbers</p>
-            <span>{mutationNumbers.length ? `${mutationNumbers.length} numbers found` : "No numbers extracted yet"}</span>
-          </div>
-          <Textarea
-            readOnly
-            value={mutationText}
-            placeholder={
-              "After extraction, mutation numbers will appear here, one per line, ready to copy or download as a .txt file."
-            }
-            className="h-48 font-mono text-xs"
-          />
-        </section>
       </CardContent>
     </Card>
   );
