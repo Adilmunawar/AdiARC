@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { DatabaseZap, Loader2, Server, Wifi, AlertTriangle } from "lucide-react";
+import { DatabaseZap, Loader2, Server, Wifi } from "lucide-react";
 
 type ConnectionStatus = "idle" | "connecting" | "live" | "failed";
 
@@ -120,7 +120,7 @@ export function DbStatusTab() {
             <span>Database Status Checker</span>
           </CardTitle>
           <CardDescription>
-            Ping a local SQL Server to check if it's active and reachable on the network.
+            Ping a local SQL Server to check if it's active. This tool works by sending a request from the app server to the database IP.
           </CardDescription>
         </div>
         <div className="flex items-center gap-2 text-xs">
@@ -173,14 +173,6 @@ export function DbStatusTab() {
                 </div>
             )}
         </section>
-
-        <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800/90 dark:text-amber-300">
-            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-            <div className="text-xs space-y-1">
-                <p className="font-semibold">Local Network Access Required</p>
-                <p>This tool requires the Next.js application to be running on the same local network as the SQL Server. If this application is deployed to a cloud service like Vercel, it will not be able to reach a private database IP address.</p>
-            </div>
-        </div>
       </CardContent>
     </Card>
   );
