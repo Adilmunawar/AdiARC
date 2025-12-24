@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Database, Key, Loader2, Server, Wifi, DatabaseZap } from "lucide-react";
+import { DatabaseZap, Loader2, Server, Wifi } from "lucide-react";
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
 
@@ -24,51 +24,33 @@ export function DbStatusTab() {
     }
   };
 
+  // We only need the IP for the status check, but we get the other details from storage
+  // to pre-fill the Server Sync tab.
   const [serverIp, setServerIp] = useState<string>(() => safeLocalStorageGet("adiarc_sql_server", "192.125.6.11"));
   const [port, setPort] = useState<string>(() => safeLocalStorageGet("adiarc_sql_port", "1433"));
-  const [dbName, setDbName] = useState<string>(() =>
-    safeLocalStorageGet("adiarc_sql_database", "Judiya_Pur"),
-  );
+  const [dbName, setDbName] = useState<string>(() => safeLocalStorageGet("adiarc_sql_database", "Judiya_Pur"));
   const [dbUser, setDbUser] = useState<string>(() => safeLocalStorageGet("adiarc_sql_user", "sa"));
-  const [dbPassword, setDbPassword] = useState<string>(() =>
-    safeLocalStorageGet("adiarc_sql_password", "justice@123"),
-  );
-  const [connectionTimeout, setConnectionTimeout] = useState<string>(() =>
-    safeLocalStorageGet("adiarc_sql_timeout", "15000"),
-  );
+  const [dbPassword, setDbPassword] = useState<string>(() => safeLocalStorageGet("adiarc_sql_password", "justice@123"));
+  const [connectionTimeout, setConnectionTimeout] = useState<string>(() => safeLocalStorageGet("adiarc_sql_timeout", "15000"));
+
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [lastConnectionMessage, setLastConnectionMessage] = useState<string | null>(null);
-
-  const handleSaveServerConfig = () => {
-    try {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("adiarc_sql_server", serverIp.trim());
-        // We no longer show these in the UI for this tab, but we'll keep saving them
-        // in case the Server Sync tab or other features use them.
-        window.localStorage.setItem("adiarc_sql_port", port.trim());
-        window.localStorage.setItem("adiarc_sql_database", dbName.trim());
-        window.localStorage.setItem("adiarc_sql_user", dbUser.trim());
-        window.localStorage.setItem("adiarc_sql_password", dbPassword.trim());
-        window.localStorage.setItem("adiarc_sql_timeout", connectionTimeout.trim());
-      }
-      toast({
-        title: "Configuration saved",
-        description: "SQL Server connection details stored in this browser.",
-      });
-    } catch {
-      toast({
-        title: "Unable to save configuration",
-        description: "Your browser blocked access to local storage.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleTestServerConnection = async () => {
     setIsTestingConnection(true);
     setConnectionStatus("connecting");
     setLastConnectionMessage(null);
+
+    // Save the IP on test so it can be used by other tabs.
+    try {
+       if (typeof window !== "undefined") {
+         window.localStorage.setItem("adiarc_sql_server", serverIp.trim());
+       }
+    } catch {
+      // Non-critical, ignore if local storage is blocked
+    }
+
 
     try {
       const response = await fetch("/api/sync", {
@@ -78,9 +60,9 @@ export function DbStatusTab() {
           mode: "test",
           serverIp,
           port,
-          dbName, // Sent for the test, but UI simplified
-          dbUser, // Sent for the test, but UI simplified
-          dbPassword, // Sent for the test, but UI simplified
+          dbName,
+          dbUser,
+          dbPassword,
           connectionTimeout,
         }),
       });
@@ -97,13 +79,13 @@ export function DbStatusTab() {
       } else {
         const errorMsg = result.error || 'An unknown error occurred.';
 
-        // Check if the error indicates the server is reachable but auth failed, which means it's "active"
+        // The server is still "active" if it responded with an auth error.
         if (errorMsg.includes("Auth Successful") || errorMsg.includes("Login failed")) {
            setConnectionStatus("live");
-           setLastConnectionMessage(`✅ Server is Active. (Auth check failed, but the server responded).`);
+           setLastConnectionMessage(`✅ Server is Active. (Authentication failed, but the server is online).`);
            toast({
              title: "Server is Active",
-             description: "The server responded to the connection request, but authentication failed.",
+             description: "The server responded, but the credentials stored in your browser are incorrect.",
            });
         } else {
             setConnectionStatus("disconnected");
@@ -117,7 +99,7 @@ export function DbStatusTab() {
       }
     } catch (error: any) {
       setConnectionStatus("disconnected");
-      const message = `Network Error: Could not reach the API endpoint. This tool requires the local API bridge to be running. Please check the 'Server Sync' tab for instructions.`;
+      const message = `Network Error: Could not reach the API endpoint. The app must be running on the same local network as the database.`;
       setLastConnectionMessage(`❌ ${message}`);
       toast({
         title: "API Communication Failed",
@@ -138,7 +120,7 @@ export function DbStatusTab() {
             <span>Database Status Checker</span>
           </CardTitle>
           <CardDescription>
-            Ping a local SQL Server instance to check if it's active and reachable on the network.
+            Ping a local SQL Server to check if it's active and reachable on the network.
           </CardDescription>
         </div>
         <div className="flex items-center gap-2 text-xs">
@@ -163,7 +145,7 @@ export function DbStatusTab() {
         <section className="space-y-4 rounded-md border border-border bg-card/70 p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold">Server Details</p>
-               <span className="text-[11px] text-muted-foreground">Uses stored credentials</span>
+               <span className="text-[11px] text-muted-foreground">Uses stored credentials from Sync tab</span>
             </div>
 
             <div className="space-y-1.5">
@@ -202,10 +184,12 @@ export function DbStatusTab() {
             {lastConnectionMessage && <p className="pt-1 text-[11px] text-muted-foreground">{lastConnectionMessage}</p>}
         </section>
         <div className="text-center text-xs text-muted-foreground">
-            <p className="font-semibold">Note: This tool requires the local API bridge to be active on your network.</p>
-            <p>Please see the "Server Sync" tab for instructions on how to download and run the bridge script.</p>
+            <p className="font-semibold">Note: This tool requires the Next.js application to be running on the same local network as the SQL Server.</p>
+            <p>If the app is deployed to the cloud, it will not be able to reach a private database IP address.</p>
         </div>
       </CardContent>
     </Card>
   );
 }
+
+    
