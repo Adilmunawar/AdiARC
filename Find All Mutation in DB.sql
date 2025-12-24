@@ -1,0 +1,1 @@
+SELECT * FROM transactions.vw_Intiqaal
