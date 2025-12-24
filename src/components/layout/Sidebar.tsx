@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -67,19 +68,7 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Footer / User Profile */}
-      <div className="p-3 border-t border-border">
-        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/40 hover:bg-muted transition-colors cursor-pointer">
-          <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center">
-            <UserCircle className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium truncate">Adil Munawar</p>
-            <p className="text-xs text-muted-foreground truncate">Admin</p>
-          </div>
-          <LogOut className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
-        </div>
-      </div>
+      {/* Footer is removed */}
     </div>
   );
 }
