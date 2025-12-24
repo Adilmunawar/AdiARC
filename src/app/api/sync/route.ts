@@ -2,37 +2,12 @@
 import { NextResponse } from 'next/server';
 import sql from 'mssql';
 import { v4 as uuidv4 } from 'uuid';
-import net from 'net';
-
-// --- NEW: Fast Ping Function ---
-// This function attempts a quick socket connection to the IP and port.
-// It avoids the overhead of the full mssql driver handshake for a simple "is it online?" check.
-function pingServer(host: string, port: number, timeout = 1500): Promise<boolean> {
-    return new Promise((resolve) => {
-        const socket = new net.Socket();
-
-        const onError = () => {
-            socket.destroy();
-            resolve(false);
-        };
-
-        socket.setTimeout(timeout);
-        socket.once('error', onError);
-        socket.once('timeout', onError);
-
-        socket.connect(port, host, () => {
-            socket.end();
-            resolve(true);
-        });
-    });
-}
-
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { 
-      mode, // 'test', 'upload_direct', 'ping'
+      mode, // 'test', 'upload_direct'
       serverIp, 
       port,
       dbName, 
@@ -44,17 +19,6 @@ export async function POST(request: Request) {
 
     const parsedPort = port ? parseInt(port, 10) : 1433;
     const parsedTimeout = connectionTimeout ? parseInt(connectionTimeout, 10) : 15000;
-    
-    // --- NEW: Simplified Ping Mode ---
-    if (mode === 'ping') {
-        const isLive = await pingServer(serverIp, parsedPort);
-        if (isLive) {
-            return NextResponse.json({ success: true, message: "Server is Active and Reachable." });
-        } else {
-            return NextResponse.json({ success: false, error: "Connection Failed: The server is not reachable at this IP and port." }, { status: 400 });
-        }
-    }
-
 
     // This is the full config for authenticated actions.
     const getBaseConfig = (database?: string) => ({
