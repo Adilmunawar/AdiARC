@@ -20,7 +20,24 @@ export async function POST(request: Request) {
     const parsedPort = port ? parseInt(port, 10) : 1433;
     const parsedTimeout = connectionTimeout ? parseInt(connectionTimeout, 10) : 15000;
 
-    // Use the "Legacy" configuration that is most likely to work with older SQL Server instances.
+    // This is the most basic config, used for the simple "ping" test.
+    // It only requires the server IP and does not need valid credentials.
+    const getPingConfig = () => ({
+        server: serverIp,
+        port: parsedPort,
+        options: {
+            encrypt: false, 
+            trustServerCertificate: true,
+            connectTimeout: parsedTimeout,
+        },
+        pool: {
+            max: 1,
+            min: 0,
+            idleTimeoutMillis: 5000
+        }
+    });
+
+    // This is the full config for authenticated actions.
     const getBaseConfig = (database?: string) => ({
       user: dbUser,
       password: dbPassword,
@@ -45,6 +62,27 @@ export async function POST(request: Request) {
     });
 
     if (mode === 'test') {
+       // If we don't have a dbUser, we're doing a simple IP-only ping.
+      if (!dbUser) {
+          let pool;
+          try {
+              pool = new sql.ConnectionPool(getPingConfig());
+              await pool.connect();
+              await pool.close();
+              return NextResponse.json({ success: true, message: "Server is Active and Reachable." });
+          } catch (err: any) {
+              if (pool && pool.connected) await pool.close();
+              const errorCode = err.code || 'UNKNOWN';
+              // A login failure still means the server is active.
+              if (errorCode === 'ELOGIN') {
+                   return NextResponse.json({ success: true, message: "Server is Active (credentials not required for this test)." });
+              }
+              const errorMessage = err.originalError?.message || err.message || 'An unknown connection error occurred.';
+              return NextResponse.json({ success: false, error: `Connection Failed (${errorCode}): ${errorMessage}` }, { status: 400 });
+          }
+      }
+
+      // --- Full Credential Test Logic ---
       let pool;
       try {
         // Phase 1: Connect without DB name to test auth and network

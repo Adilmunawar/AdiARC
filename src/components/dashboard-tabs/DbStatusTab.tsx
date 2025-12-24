@@ -24,15 +24,8 @@ export function DbStatusTab() {
     }
   };
 
-  // We only need the IP for the status check, but we get the other details from storage
-  // to pre-fill the Server Sync tab.
   const [serverIp, setServerIp] = useState<string>(() => safeLocalStorageGet("adiarc_sql_server", "192.125.6.11"));
-  const [port, setPort] = useState<string>(() => safeLocalStorageGet("adiarc_sql_port", "1433"));
-  const [dbName, setDbName] = useState<string>(() => safeLocalStorageGet("adiarc_sql_database", "Judiya_Pur"));
-  const [dbUser, setDbUser] = useState<string>(() => safeLocalStorageGet("adiarc_sql_user", "sa"));
-  const [dbPassword, setDbPassword] = useState<string>(() => safeLocalStorageGet("adiarc_sql_password", "justice@123"));
-  const [connectionTimeout, setConnectionTimeout] = useState<string>(() => safeLocalStorageGet("adiarc_sql_timeout", "15000"));
-
+  
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [lastConnectionMessage, setLastConnectionMessage] = useState<string | null>(null);
@@ -59,11 +52,7 @@ export function DbStatusTab() {
         body: JSON.stringify({
           mode: "test",
           serverIp,
-          port,
-          dbName,
-          dbUser,
-          dbPassword,
-          connectionTimeout,
+          // We don't send other credentials for a simple ping test
         }),
       });
 
@@ -78,28 +67,17 @@ export function DbStatusTab() {
         });
       } else {
         const errorMsg = result.error || 'An unknown error occurred.';
-
-        // The server is still "active" if it responded with an auth error.
-        if (errorMsg.includes("Auth Successful") || errorMsg.includes("Login failed")) {
-           setConnectionStatus("live");
-           setLastConnectionMessage(`✅ Server is Active. (Authentication failed, but the server is online).`);
-           toast({
-             title: "Server is Active",
-             description: "The server responded, but the credentials stored in your browser are incorrect.",
-           });
-        } else {
-            setConnectionStatus("disconnected");
-            setLastConnectionMessage(`❌ ${errorMsg}`);
-            toast({
-              title: "Connection Test Failed",
-              description: errorMsg,
-              variant: "destructive",
-            });
-        }
+        setConnectionStatus("disconnected");
+        setLastConnectionMessage(`❌ ${errorMsg}`);
+        toast({
+            title: "Connection Test Failed",
+            description: errorMsg,
+            variant: "destructive",
+        });
       }
     } catch (error: any) {
       setConnectionStatus("disconnected");
-      const message = `Network Error: Could not reach the API endpoint. The app must be running on the same local network as the database.`;
+      const message = `Network Error: Could not reach the API endpoint. Ensure this app is running on the same local network as the database.`;
       setLastConnectionMessage(`❌ ${message}`);
       toast({
         title: "API Communication Failed",
@@ -145,7 +123,6 @@ export function DbStatusTab() {
         <section className="space-y-4 rounded-md border border-border bg-card/70 p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold">Server Details</p>
-               <span className="text-[11px] text-muted-foreground">Uses stored credentials from Sync tab</span>
             </div>
 
             <div className="space-y-1.5">
