@@ -50,9 +50,8 @@ export function DbStatusTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: "test",
+          mode: "ping", // Use the new, fast ping mode
           serverIp,
-          // We don't send other credentials for a simple ping test
         }),
       });
 
@@ -168,5 +167,3 @@ export function DbStatusTab() {
     </Card>
   );
 }
-
-    

@@ -2,12 +2,37 @@
 import { NextResponse } from 'next/server';
 import sql from 'mssql';
 import { v4 as uuidv4 } from 'uuid';
+import net from 'net';
+
+// --- NEW: Fast Ping Function ---
+// This function attempts a quick socket connection to the IP and port.
+// It avoids the overhead of the full mssql driver handshake for a simple "is it online?" check.
+function pingServer(host: string, port: number, timeout = 1500): Promise<boolean> {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+
+        const onError = () => {
+            socket.destroy();
+            resolve(false);
+        };
+
+        socket.setTimeout(timeout);
+        socket.once('error', onError);
+        socket.once('timeout', onError);
+
+        socket.connect(port, host, () => {
+            socket.end();
+            resolve(true);
+        });
+    });
+}
+
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { 
-      mode, // 'test', 'upload_direct'
+      mode, // 'test', 'upload_direct', 'ping'
       serverIp, 
       port,
       dbName, 
@@ -19,23 +44,17 @@ export async function POST(request: Request) {
 
     const parsedPort = port ? parseInt(port, 10) : 1433;
     const parsedTimeout = connectionTimeout ? parseInt(connectionTimeout, 10) : 15000;
-
-    // This is the most basic config, used for the simple "ping" test.
-    // It only requires the server IP and does not need valid credentials.
-    const getPingConfig = () => ({
-        server: serverIp,
-        port: parsedPort,
-        options: {
-            encrypt: false, 
-            trustServerCertificate: true,
-            connectTimeout: parsedTimeout,
-        },
-        pool: {
-            max: 1,
-            min: 0,
-            idleTimeoutMillis: 5000
+    
+    // --- NEW: Simplified Ping Mode ---
+    if (mode === 'ping') {
+        const isLive = await pingServer(serverIp, parsedPort);
+        if (isLive) {
+            return NextResponse.json({ success: true, message: "Server is Active and Reachable." });
+        } else {
+            return NextResponse.json({ success: false, error: "Connection Failed: The server is not reachable at this IP and port." }, { status: 400 });
         }
-    });
+    }
+
 
     // This is the full config for authenticated actions.
     const getBaseConfig = (database?: string) => ({
@@ -62,26 +81,6 @@ export async function POST(request: Request) {
     });
 
     if (mode === 'test') {
-       // If we don't have a dbUser, we're doing a simple IP-only ping.
-      if (!dbUser) {
-          let pool;
-          try {
-              pool = new sql.ConnectionPool(getPingConfig());
-              await pool.connect();
-              await pool.close();
-              return NextResponse.json({ success: true, message: "Server is Active and Reachable." });
-          } catch (err: any) {
-              if (pool && pool.connected) await pool.close();
-              const errorCode = err.code || 'UNKNOWN';
-              // A login failure still means the server is active.
-              if (errorCode === 'ELOGIN') {
-                   return NextResponse.json({ success: true, message: "Server is Active (credentials not required for this test)." });
-              }
-              const errorMessage = err.originalError?.message || err.message || 'An unknown connection error occurred.';
-              return NextResponse.json({ success: false, error: `Connection Failed (${errorCode}): ${errorMessage}` }, { status: 400 });
-          }
-      }
-
       // --- Full Credential Test Logic ---
       let pool;
       try {
@@ -197,5 +196,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: `(${errorCode}) ${errorMessage}` }, { status: 500 });
   }
 }
-
-    
