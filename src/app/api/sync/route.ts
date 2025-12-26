@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const parsedPort = port ? parseInt(port, 10) : 1433;
     const parsedTimeout = connectionTimeout ? parseInt(connectionTimeout, 10) : 15000;
 
-    // Use the "Legacy" configuration that is most likely to work with older SQL Server instances.
+    // This is the full config for authenticated actions.
     const getBaseConfig = (database?: string) => ({
       user: dbUser,
       password: dbPassword,
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     });
 
     if (mode === 'test') {
+      // --- Full Credential Test Logic ---
       let pool;
       try {
         // Phase 1: Connect without DB name to test auth and network
@@ -159,5 +160,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: `(${errorCode}) ${errorMessage}` }, { status: 500 });
   }
 }
-
-    

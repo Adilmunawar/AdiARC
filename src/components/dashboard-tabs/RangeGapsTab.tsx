@@ -134,7 +134,7 @@ export function RangeGapsTab() {
     const startNum = Number(start);
     const endNum = Number(end);
 
-    if (!Number.isInteger(startNum) || !Number.isInteger(endNum) || startNum <= 0 || endNum <= 0 || startNum > endNum) {
+    if (!Number.isInteger(startNum) || !Number.isInteger(endNum) || startNum <= 0 || endNum <= startNum) {
       toast({
         title: "Invalid range",
         description: "Please enter a valid numeric range (start <= end, both > 0).",
@@ -251,242 +251,111 @@ export function RangeGapsTab() {
     })) ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Coverage summary always visible above both columns */}
-      <section className="rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 text-xs shadow-sm shadow-primary/10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Coverage summary</p>
-            <p className="text-sm font-semibold text-foreground">
-              {coverage !== null ? `${coverage.toFixed(1)}% IDs present in range` : "—"}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              {gapSeverity === "none"
-                ? "Perfect coverage. No missing IDs."
-                : gapSeverity === "high"
-                ? "Critical gaps detected. Consider investigating missing ranges."
-                : gapSeverity === "medium"
-                ? "Moderate gaps detected across the range."
-                : gapSeverity === "low"
-                ? "Light gaps detected. Coverage is mostly complete."
-                : "Run a scan to see coverage details."}
-            </p>
-            <p className="text-[10px] text-muted-foreground/80">
-              Coverage = present IDs ÷ total IDs in your selected range.
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
-                {stats ? stats.missing : "—"}
-              </span>
-              <span>{stats ? `missing of ${stats.total.toLocaleString()}` : "Run a scan to see missing counts"}</span>
-            </div>
-            <div className="inline-flex overflow-hidden rounded-full border border-border bg-card text-[11px]">
-              <button
-                type="button"
-                className={`px-2 py-1 text-[11px] ${useCompressed ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-                onClick={() => setUseCompressed(true)}
-              >
-                Compressed
-              </button>
-              <button
-                type="button"
-                className={`px-2 py-1 text-[11px] ${!useCompressed ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-                onClick={() => setUseCompressed(false)}
-              >
-                Full list
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main two-column layout: Input left, Missing IDs right */}
-      <section className="grid gap-8 lg:grid-cols-2 items-stretch animate-enter">
-        <Card className="flex h-full flex-col border-border/70 bg-card/80 shadow-xl shadow-primary/10 backdrop-blur-sm hover-scale">
-          <CardHeader className="pb-5 border-b border-border/60">
-            <CardTitle className="text-base font-semibold tracking-tight">Input configuration</CardTitle>
-            <CardDescription>Define the numeric window and load your mutation file.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-5 flex-1">
+    <Card className="border-border/70 bg-card/80 shadow-md">
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">Find Gaps in Sequential Numbers</CardTitle>
+        <CardDescription>
+          Identify missing mutation numbers within a large range by comparing it against a text file of existing IDs.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <section className="grid gap-6 lg:grid-cols-2 items-start">
+          {/* LEFT: Input Column */}
+          <div className="flex flex-col gap-4">
             <section className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="start">Range start</Label>
+                <Label htmlFor="start">Range Start</Label>
                 <Input id="start" type="number" value={start} onChange={(e) => setStart(e.target.value)} min={1} />
-                <p className="text-xs text-muted-foreground">Lowest mutation ID to include in the scan.</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end">Range end</Label>
+                <Label htmlFor="end">Range End</Label>
                 <Input id="end" type="number" value={end} onChange={(e) => setEnd(e.target.value)} min={1} />
-                <p className="text-xs text-muted-foreground">Highest mutation ID to include in the scan.</p>
               </div>
             </section>
 
             <section className="space-y-2">
-              <Label htmlFor="file">Mutation numbers text file (.txt)</Label>
+              <Label htmlFor="file">Mutation Numbers Text File (.txt)</Label>
               <Input id="file" type="file" accept=".txt" onChange={handleFileChange} />
-              {fileName && <p className="text-sm text-muted-foreground">Loaded file: {fileName}</p>}
-              <p className="text-xs text-muted-foreground">
-                Supports tens of thousands of entries separated by commas, spaces, or new lines.
-              </p>
+              {fileName && <p className="text-xs text-muted-foreground mt-1">Loaded: {fileName}</p>}
             </section>
+            
+            <section className="space-y-2">
+                <Label>Preview of Uploaded Content</Label>
+                <Textarea
+                  readOnly
+                  value={fileContent.slice(0, 12000)}
+                  placeholder="Your uploaded file content will appear here (preview is truncated)."
+                  className="h-40 font-mono text-xs"
+                />
+            </section>
+
+            <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2 mt-2">
+                <p className="text-xs text-muted-foreground max-w-xs">
+                    All processing is done locally in your browser for privacy and speed.
+                </p>
+                <Button
+                  type="button"
+                  onClick={handleProcess}
+                  disabled={isLoading}
+                  className="shrink-0"
+                >
+                  {isLoading ? "Processing..." : "Find Missing Numbers"}
+                </Button>
+            </div>
+          </div>
+
+          {/* RIGHT: Output Column */}
+          <div className="flex flex-col gap-4 mt-6 lg:mt-0">
+             <div className="grid grid-cols-3 gap-3 text-center text-xs text-muted-foreground p-3 rounded-lg border bg-muted/40">
+                <div>
+                    <p className="font-semibold text-foreground text-lg">{stats ? stats.total.toLocaleString() : "—"}</p>
+                    <p>Total in Range</p>
+                </div>
+                <div>
+                    <p className="font-semibold text-destructive text-lg">{stats ? stats.missing.toLocaleString() : "—"}</p>
+                    <p>Missing</p>
+                </div>
+                <div>
+                    <p className="font-semibold text-foreground text-lg">{stats ? stats.present.toLocaleString() : "—"}</p>
+                    <p>Present</p>
+                </div>
+            </div>
 
             <section className="space-y-2">
-              <Label>Preview of uploaded content</Label>
-              <Textarea
-                readOnly
-                value={fileContent.slice(0, 12000)}
-                placeholder="First part of your uploaded file will appear here (preview is truncated for very large files)."
-                className="h-32 font-mono text-xs"
-              />
+                <div className="flex items-center justify-between">
+                    <Label>Missing Numbers ({useCompressed ? 'Compressed' : 'Full List'})</Label>
+                     <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => setUseCompressed(p => !p)}
+                          >
+                            {useCompressed ? "Show Full List" : "Show Compressed"}
+                          </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => handleCopy("missing IDs", missingDisplay)}
+                            disabled={!missingDisplay || missingDisplay === "NONE"}
+                        >
+                            Copy
+                        </Button>
+                    </div>
+                </div>
+                <Textarea
+                  readOnly
+                  value={missingDisplay}
+                  placeholder="Missing numbers will appear here after processing."
+                  className="h-64 font-mono text-xs bg-muted/30"
+                />
             </section>
-
-            <div className="mt-auto flex flex-wrap items-center justify-between gap-4 border-t border-dashed border-border pt-4">
-              <p className="text-xs md:text-[13px] text-muted-foreground max-w-xs">
-                All processing happens locally in your browser. No servers or external APIs are called.
-              </p>
-              <Button
-                type="button"
-                onClick={handleProcess}
-                disabled={isLoading}
-                className="hover-scale px-5 py-2 text-sm font-semibold shadow-md shadow-primary/20"
-              >
-                {isLoading ? "Processing..." : "Find missing numbers"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex h-full flex-col border-dashed border-border/70 bg-card/70 shadow-sm animate-enter">
-          <CardHeader className="flex items-start justify-between gap-3 pb-3">
-            <div>
-              <CardTitle className="text-base font-semibold">Missing IDs</CardTitle>
-              <CardDescription>
-                View missing IDs as compact ranges or a full list within the selected window.
-              </CardDescription>
-            </div>
-            <div className="flex flex-col items-end gap-1 text-[11px]">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleCopy("missing IDs", missingDisplay)}
-                className="h-7 px-3 text-[11px]"
-              >
-                Copy
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleDownload}
-                className="h-7 px-3 text-[11px]"
-              >
-                Download
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 flex-1">
-            <div className="grid grid-cols-3 gap-2 rounded-lg border border-dashed border-border/80 bg-muted/40 px-3 py-2 text-center text-[11px] text-muted-foreground">
-              <div>
-                <p className="font-medium text-foreground">{stats ? stats.total.toLocaleString() : "—"}</p>
-                <p>IDs in range</p>
-              </div>
-              <div>
-                <p className="font-medium text-destructive">{stats ? stats.missing.toLocaleString() : "—"}</p>
-                <p>Missing IDs</p>
-              </div>
-              <div>
-                <p className="font-medium text-foreground">{stats ? stats.present.toLocaleString() : "—"}</p>
-                <p>Present IDs</p>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <p className="font-medium">Gap distribution across range</p>
-                <span className="text-[10px]">Taller red bars = more missing IDs</span>
-              </div>
-              <div className="h-28 rounded-md border border-border/60 bg-muted/40 px-2 py-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <XAxis dataKey="bucketLabel" hide tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        borderColor: "hsl(var(--border))",
-                        fontSize: 11,
-                      }}
-                      formatter={(value: number) => [`${Math.round((value as number) * 1000) / 10}% missing`, "Missing share"]}
-                    />
-                    <Bar dataKey="missingRatio" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="text-xs text-muted-foreground">
-              {!stats
-                ? "Run a scan to see missing IDs here."
-                : stats.missing === 0
-                ? "No gaps detected in the selected range. Your coverage is complete."
-                : useCompressed
-                ? "Viewing compressed ranges. Switch to full list to see every missing ID."
-                : "Viewing full list of missing IDs in this range."}
-            </div>
-
-            <Textarea
-              readOnly
-              value={missingDisplay}
-              placeholder={`After processing, missing numbers will appear here as ${
-                useCompressed ? "compressed ranges (e.g. 20001-20006)" : "a full comma-separated list"
-              }. If there are no missing numbers, you will see 'NONE'.`}
-              className="h-64 font-mono text-xs md:h-72"
-            />
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Full-width Present IDs section beneath both columns */}
-      <section className="animate-enter">
-        <Card className="mt-2 border border-border/70 bg-card/80 shadow-md shadow-primary/10">
-          <CardHeader className="flex flex-col gap-2 px-4 pb-3 pt-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="text-base font-semibold">Present IDs</CardTitle>
-              <CardDescription>
-                All IDs from your file within the selected range, shown as {useCompressed ? "compressed" : "full"} data.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] sm:self-start">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleCopy("present IDs", presentDisplay)}
-                className="h-7 px-3 text-[11px]"
-              >
-                Copy present IDs
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Textarea
-              readOnly
-              value={presentDisplay}
-              placeholder={
-                useCompressed
-                  ? "After processing, present numbers will appear here as compressed ranges."
-                  : "After processing, present numbers will appear here as a full comma-separated list."
-              }
-              className="h-52 font-mono text-xs md:h-60"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Use this to verify exactly which IDs from your file are covered in this range, in either compressed or full form.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-    </div>
+          </div>
+        </section>
+      </CardContent>
+    </Card>
   );
 }

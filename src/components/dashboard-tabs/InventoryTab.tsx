@@ -53,11 +53,6 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
   });
   const inventoryInputRef = useRef<HTMLInputElement | null>(null);
 
-  const updateInventoryItems = (items: InventoryItem[]) => {
-    _setInventoryItems(items);
-    setInventoryItems(items);
-  };
-
   // Inventory table UI helpers
   const [inventorySearch, setInventorySearch] = useState<string>("");
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState<"all" | "valid" | "no-match" | "stripped">("all");
@@ -172,7 +167,8 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
     if (!files || files.length === 0) return;
 
     isInventoryScanning.current = true;
-    updateInventoryItems([]);
+    _setInventoryItems([]);
+    setInventoryItems([]);
     setSelectedMutationId(null);
 
     // Filter for images
@@ -483,7 +479,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
               <div className="space-y-0.5">
                 <p className="font-medium">Scan progress</p>
                 <p className="text-muted-foreground">
-                  Progress: {Math.round((inventoryProgress.current / inventoryProgress.total) * 100)}% dd{" "}
+                  Progress: {Math.round((inventoryProgress.current / inventoryProgress.total) * 100)}% |{" "}
                   {inventoryProgress.current} / {inventoryProgress.total} files
                 </p>
               </div>

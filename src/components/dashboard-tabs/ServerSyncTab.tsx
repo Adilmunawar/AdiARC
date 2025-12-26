@@ -12,7 +12,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Database, FolderUp, Key, Loader2, Server, UploadCloud, Wifi } from "lucide-react";
 import { extractMutationNumber } from "@/lib/forensic-utils";
 import { Progress } from "@/components/ui/progress";
-import { v4 as uuidv4 } from 'uuid';
 
 type ConnectionStatus = "disconnected" | "connecting" | "live";
 type DirectUploadItem = {
@@ -120,7 +119,7 @@ export function ServerSyncTab() {
       }
     } catch (error: any) {
       setConnectionStatus("disconnected");
-      const message = `Network Error: Could not reach the API route. Ensure the application server is running.`;
+      const message = `Network Error: Could not reach the API route. Ensure the application server is running locally.`;
       setLastConnectionMessage(`❌ ${message}`);
       toast({
         title: "API Communication Failed",
@@ -234,7 +233,7 @@ export function ServerSyncTab() {
             <span>Server Sync (LRMIS Bridge)</span>
           </CardTitle>
           <CardDescription>
-            Configure the SQL Server connection used by the legacy desktop app and drive uploads from the browser.
+            Configure the SQL Server connection and upload mutations directly from the browser.
           </CardDescription>
         </div>
         <div className="flex items-center gap-2 text-xs">
@@ -459,6 +458,9 @@ export function ServerSyncTab() {
                 )}
               </Button>
             </div>
+             <p className="text-xs text-muted-foreground px-1">
+                Note: This tool requires the Next.js application to be running on the same local network as the SQL Server to successfully connect and upload data.
+              </p>
           </div>
         </section>
       </CardContent>
