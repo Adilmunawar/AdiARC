@@ -15,7 +15,9 @@ import {
   Menu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sidebar as SidebarPrimitive, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
@@ -30,48 +32,58 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <SidebarPrimitive 
-        className="bg-card border-r border-border"
-        collapsible="icon"
+    <aside
+      className={cn(
+        "flex flex-col border-r transition-all duration-300 ease-in-out h-screen bg-card",
+        isOpen ? "w-60" : "w-20"
+      )}
     >
-      <SidebarHeader className="p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <div className="flex h-16 items-center justify-between border-b px-4">
+        <Link href="/" className={cn("flex items-center gap-2", !isOpen && "justify-center w-full")}>
             <img src="https://img.icons8.com/color/48/adn.png" alt="logo" className="w-8 h-8" />
-            <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">AdiARC</span>
-          </div>
-          <SidebarTrigger className="group-data-[collapsible=icon]:hidden">
-            <Menu className="h-5 w-5 text-muted-foreground" />
-          </SidebarTrigger>
-      </SidebarHeader>
+            <span className={cn("font-semibold text-lg", !isOpen && "hidden")}>AdiARC</span>
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(!isOpen && "hidden")}
+        >
+          <Menu className="h-6 w-6" />
+        </Button>
+      </div>
+      <div className={cn("flex justify-center py-2 border-b", isOpen && "hidden")}>
+         <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <Menu className="h-6 w-6" />
+          </Button>
+      </div>
 
-      <SidebarContent className="p-3">
-        <SidebarMenu>
-          {navItems.sort((a,b) => a.path === '/' ? -1 : b.path === '/' ? 1 : a.name.localeCompare(b.name)).map((item) => {
-            const isActive = pathname === item.path;
-            return (
-              <SidebarMenuItem key={item.path}>
-                <Link href={item.path}>
-                    <SidebarMenuButton 
-                        isActive={isActive}
-                        tooltip={item.name}
-                        className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                             isActive
-                                ? "bg-primary text-primary-foreground shadow-md"
-                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        )}
-                    >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.name}</span>
-                    </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      </SidebarContent>
-    </SidebarPrimitive>
+      <ScrollArea className="flex-1">
+        <nav className="p-2 space-y-2">
+            {navItems.sort((a,b) => a.path === '/' ? -1 : b.path === '/' ? 1 : a.name.localeCompare(b.name)).map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                    <Link href={item.path} key={item.name}>
+                        <Button 
+                            variant={isActive ? "default" : "ghost"} 
+                            className={cn("w-full justify-start gap-2", !isOpen && "justify-center")}
+                            title={isOpen ? "" : item.name}
+                        >
+                            <item.icon className="h-5 w-5" />
+                            {isOpen && <span>{item.name}</span>}
+                        </Button>
+                    </Link>
+                );
+            })}
+        </nav>
+      </ScrollArea>
+    </aside>
   );
 }

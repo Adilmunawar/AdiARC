@@ -5,8 +5,6 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { SidebarInset } from "@/components/ui/sidebar";
-import { ClientSidebarProvider } from "@/components/layout/ClientSidebarProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,18 +21,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ClientSidebarProvider>
-          <div className="flex h-screen overflow-hidden bg-background">
-            <Sidebar />
-            <SidebarInset>
-              <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                {children}
-                <Toaster />
-                <Sonner />
-              </main>
-            </SidebarInset>
-          </div>
-        </ClientSidebarProvider>
+        <div className="flex h-screen bg-background">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            {children}
+            <Toaster />
+            <Sonner />
+          </main>
+        </div>
       </body>
     </html>
   );
