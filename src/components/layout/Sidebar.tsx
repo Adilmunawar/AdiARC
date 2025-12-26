@@ -15,7 +15,7 @@ import {
   Menu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sidebar as SidebarPrimitive, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { Sidebar as SidebarPrimitive, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
@@ -27,20 +27,6 @@ const navItems = [
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
   { name: "Server Sync", icon: Database, path: "/sync" },
 ];
-
-function SidebarToggle() {
-    const { toggleSidebar } = useSidebar();
-    return (
-        <button 
-            onClick={toggleSidebar} 
-            className="p-2 rounded-lg hover:bg-accent"
-            aria-label="Toggle sidebar"
-        >
-            <Menu className="h-5 w-5 text-muted-foreground" />
-        </button>
-    )
-}
-
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -55,8 +41,8 @@ export function Sidebar() {
             <img src="https://img.icons8.com/color/48/adn.png" alt="logo" className="w-8 h-8" />
             <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">AdiARC</span>
           </div>
-          <SidebarTrigger asChild className="group-data-[collapsible=icon]:hidden">
-              <SidebarToggle />
+          <SidebarTrigger className="group-data-[collapsible=icon]:hidden">
+            <Menu className="h-5 w-5 text-muted-foreground" />
           </SidebarTrigger>
       </SidebarHeader>
 
