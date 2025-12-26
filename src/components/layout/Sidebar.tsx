@@ -37,32 +37,18 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r transition-all duration-300 ease-in-out h-screen bg-card",
+        "flex flex-col border-r transition-width duration-300 ease-in-out h-screen bg-card",
         isOpen ? "w-60" : "w-20"
       )}
     >
-      <div className="flex h-16 items-center justify-between border-b px-4">
-        <Link href="/" className={cn("flex items-center gap-2", !isOpen && "justify-center w-full")}>
-            <img src="https://img.icons8.com/color/48/adn.png" alt="logo" className="w-8 h-8" />
-            <span className={cn("font-semibold text-lg", !isOpen && "hidden")}>AdiARC</span>
-        </Link>
+      <div className={cn("flex h-16 items-center border-b px-4", isOpen ? "justify-end" : "justify-center")}>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsOpen(!isOpen)}
-          className={cn(!isOpen && "hidden")}
         >
           <Menu className="h-6 w-6" />
         </Button>
-      </div>
-      <div className={cn("flex justify-center py-2 border-b", isOpen && "hidden")}>
-         <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
       </div>
 
       <ScrollArea className="flex-1">
