@@ -351,6 +351,8 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
         title: "Clone failed",
         description: "There was a problem preparing the ZIP file in your browser.",
       });
+    } finally {
+      setIsCloning(false);
     }
   };
 
@@ -833,7 +835,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
                   size="sm"
                   variant="outline"
                   onClick={() => handleCompareMissingWithGolden(goldenKeySummary)}
-                  disabled={goldenKeySummary.length === 0}
+                  disabled={goldenKeySummary.length === 0 || isCloning}
                 >
                   Run comparison
                 </Button>
@@ -842,9 +844,14 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
                   size="sm"
                   variant="default"
                   onClick={handleCloneMatchedImages}
-                  disabled={!comparisonResult || comparisonResult.matched.length === 0}
+                  disabled={!comparisonResult || comparisonResult.matched.length === 0 || isCloning}
                 >
-                  Clone them
+                  {isCloning ? (
+                     <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Preparing ZIP...</span>
+                    </span>
+                  ) : "Clone them" }
                 </Button>
               </div>
             </div>
@@ -860,7 +867,12 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
               onChange={(e) => setMissingListInput(e.target.value)}
               className="h-20 text-xs"
             />
-
+            {isCloning && (
+              <div className="space-y-2 pt-2">
+                  <Progress value={cloneProgress} className="h-1.5" />
+                  <p className="text-[10px] text-muted-foreground text-center">Zipping files... {Math.round(cloneProgress)}%</p>
+              </div>
+            )}
             {comparisonResult && (
               <div className="grid gap-3 border-t border-dashed border-border pt-2 text-[11px]">
                 <div>
@@ -910,3 +922,5 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
     </Card>
   );
 }
+
+    
