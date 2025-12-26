@@ -144,7 +144,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
           }
         }
       } else {
-         expandedTokens.push(token);
+        expandedTokens.push(token);
       }
     });
 
@@ -187,7 +187,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
     setInventoryProgress({ current: 0, total: imageFiles.length });
 
     const newItems: InventoryItem[] = [];
-    const chunkSize = 10; // Process in small chunks to prevent freezing
+    const chunkSize = 50; // Process in small chunks to prevent freezing
 
     for (let i = 0; i < imageFiles.length; i += chunkSize) {
       if (!isInventoryScanning.current) {
@@ -947,5 +947,7 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
     </>
   );
 }
+
+    
 
     

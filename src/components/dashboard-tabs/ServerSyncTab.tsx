@@ -147,7 +147,7 @@ export function ServerSyncTab() {
     const skippedFiles = [];
     let processed = 0;
 
-    const chunkSize = 20;
+    const chunkSize = 50;
     for (let i = 0; i < imageFiles.length; i += chunkSize) {
         const chunk = imageFiles.slice(i, i + chunkSize);
         await Promise.all(chunk.map(async (file) => {
@@ -467,5 +467,7 @@ export function ServerSyncTab() {
     </Card>
   );
 }
+
+    
 
     
