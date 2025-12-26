@@ -170,7 +170,7 @@ export function RangeGapsTab() {
       // Optimized number extraction using a global regex match
       const numberRegex = /\d+/g;
       const matches = fileContent.matchAll(numberRegex);
-      for (const match of matches) {
+      for (const match of Array.from(matches)) {
         existingNumbers.add(Number(match[0]));
       }
 
