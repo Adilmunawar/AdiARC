@@ -199,31 +199,32 @@ export function InventoryTab({ setInventoryItems }: InventoryTabProps) {
               ? (file as any).webkitRelativePath.split("/").slice(0, -1).join("/") || "(root)"
               : "(unknown)";
 
-            // Health Check
-            if (Object.keys(tags).length < 2) {
-              processedChunk.push({ id: null, file: file.name, folder, source: "-", status: "stripped", fileObject: file });
+            // Health Check: if minimal tags, it's likely stripped.
+            if (Object.keys(tags).length < 2 || (tags.file && Object.keys(tags.file).length < 2)) {
+              processedChunk.push({ id: null, file: file.name, folder, source: "Minimal Metadata", status: "stripped", fileObject: file });
               return;
             }
 
             // USE THE NEW EXTRACTOR
             const findings = extractMutationNumber(tags);
+            const goldenKeyFinding = findings.find(f => f.isGoldenKey);
 
-            if (findings.length > 0) {
-              // Prefer the "Golden Key" (⭐) if available
-              const bestMatch = findings.find((f) => f.source.includes("⭐")) || findings[0];
-
+            if (goldenKeyFinding) {
+              // Rule 1: Golden Key found -> 'valid'
               processedChunk.push({
-                id: bestMatch.number,
+                id: goldenKeyFinding.number,
                 file: file.name,
                 folder,
-                source: bestMatch.source,
+                source: goldenKeyFinding.source,
                 status: "valid",
                 fileObject: file,
               });
             } else {
-              processedChunk.push({ id: null, file: file.name, folder, source: "-", status: "no-match", fileObject: file });
+              // Rule 2: No Golden Key, but metadata exists -> 'no-match'
+              processedChunk.push({ id: null, file: file.name, folder, source: "No XMP:DocumentNo", status: "no-match", fileObject: file });
             }
           } catch (err) {
+            // Rule 3: Error reading file -> 'stripped'
             processedChunk.push({
               id: null,
               file: file.name,

@@ -1,7 +1,7 @@
 
 // --- CORE ENGINE: UNIVERSAL MUTATION HUNTER (Ported from Mutation Hunter Pro) ---
-export const extractMutationNumber = (tags: any): { number: string; source: string }[] => {
-  const findings: { number: string; source: string }[] = [];
+export const extractMutationNumber = (tags: any): { number: string; source: string; isGoldenKey: boolean }[] => {
+  const findings: { number: string; source: string; isGoldenKey: boolean }[] = [];
 
   // Helper: Recursive hunter for deep objects/arrays
   const hunt = (data: any, sourceLabel: string) => {
@@ -18,6 +18,7 @@ export const extractMutationNumber = (tags: any): { number: string; source: stri
           findings.push({
             number: String(value).trim(),
             source: "⭐ XMP:DocumentNo",
+            isGoldenKey: true,
           });
           return; // Found the official tag, stop digging this branch
         }
@@ -54,7 +55,7 @@ export const extractMutationNumber = (tags: any): { number: string; source: stri
         matches.forEach((num) => {
           // Prevent duplicates from same source
           if (!findings.some((f) => f.number === num && f.source === sourceLabel)) {
-            findings.push({ number: num, source: sourceLabel });
+            findings.push({ number: num, source: sourceLabel, isGoldenKey: false });
           }
         });
       }
