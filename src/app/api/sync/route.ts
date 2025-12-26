@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         connectTimeout: parsedTimeout,
         // Downgrade Security for Old Servers
         cryptoCredentialsDetails: {
-            minVersion: 'TLSv1'
+            minVersion: 'TLSv1' as any
         }
       },
       pool: {
