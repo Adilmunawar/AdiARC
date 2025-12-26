@@ -163,15 +163,15 @@ export function RangeGapsTab() {
     const totalInRange = Math.max(0, endNum - startNum + 1);
 
     setIsLoading(true);
-    await new Promise(res => setTimeout(res, 250)); // Artificial delay for UX
+    await new Promise(res => setTimeout(res, 50)); // Short delay for UX responsiveness
 
     try {
       const existingNumbers = new Set<number>();
-      const tokens = fileContent.split(/[^0-9]+/);
-      for (const t of tokens) {
-        if (!t) continue;
-        const n = Number(t);
-        if (Number.isInteger(n)) existingNumbers.add(n);
+      // Optimized number extraction using a global regex match
+      const numberRegex = /\d+/g;
+      const matches = fileContent.matchAll(numberRegex);
+      for (const match of matches) {
+        existingNumbers.add(Number(match[0]));
       }
 
       const missing: number[] = [];
