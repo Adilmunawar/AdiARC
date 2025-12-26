@@ -53,10 +53,10 @@ export function HtmlExtractorTab() {
       return;
     }
 
-    if (source.length > 2_000_000) {
+    if (source.length > 20_000_000) {
       toast({
         title: "Input too large",
-        description: "Please paste a smaller HTML snippet (max ~2M characters).",
+        description: "Please paste a smaller HTML snippet (max ~20M characters).",
         variant: "destructive",
       });
       return;
