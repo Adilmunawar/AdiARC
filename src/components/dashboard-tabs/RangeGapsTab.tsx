@@ -142,7 +142,7 @@ export function RangeGapsTab() {
     if (!fileContent) {
       toast({
         title: "No file content",
-        description: "Please upload a text file with your mutation numbers.",
+        description: "Please upload a text file or paste numbers in the text area.",
         variant: "destructive",
       });
       return;
@@ -296,15 +296,15 @@ export function RangeGapsTab() {
             <section className="space-y-2">
               <Label htmlFor="file">Mutation Numbers File (.txt, .csv)</Label>
               <Input id="file" type="file" accept=".txt,.csv" onChange={handleFileChange} />
-              {fileName && <p className="text-xs text-muted-foreground mt-1">Loaded: {fileName}</p>}
-              {!fileName && 
-                <Textarea 
-                    value={fileContent} 
-                    onChange={(e) => setFileContent(e.target.value)} 
-                    placeholder="...or paste your numbers here directly (comma, space, or new-line separated)."
-                    className="h-24 font-mono text-xs mt-2"
-                />
-              }
+              <p className="text-xs text-muted-foreground pt-2">
+                  You can upload a file, or paste your numbers directly into the text area below (comma, space, or new-line separated). Uploading a file will populate the text area.
+              </p>
+              <Textarea 
+                  value={fileContent} 
+                  onChange={(e) => setFileContent(e.target.value)} 
+                  placeholder="Your numbers will appear here after uploading a file, or you can paste them directly."
+                  className="h-24 font-mono text-xs"
+              />
             </section>
 
             <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2 mt-2">
@@ -471,5 +471,7 @@ export function RangeGapsTab() {
     </Card>
   );
 }
+
+    
 
     
