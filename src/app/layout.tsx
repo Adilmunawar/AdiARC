@@ -6,7 +6,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarInset } from "@/components/ui/sidebar";
+import { ClientSidebarProvider } from "@/components/layout/ClientSidebarProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SidebarProvider>
+        <ClientSidebarProvider>
           <div className="flex h-screen overflow-hidden bg-background">
             <Sidebar />
             <SidebarInset>
@@ -34,7 +35,7 @@ export default function RootLayout({
               </main>
             </SidebarInset>
           </div>
-        </SidebarProvider>
+        </ClientSidebarProvider>
       </body>
     </html>
   );

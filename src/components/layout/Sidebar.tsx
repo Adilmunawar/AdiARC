@@ -29,7 +29,7 @@ const navItems = [
 ];
 
 function SidebarToggle() {
-    const { state, toggleSidebar } = useSidebar();
+    const { toggleSidebar } = useSidebar();
     return (
         <button 
             onClick={toggleSidebar} 
