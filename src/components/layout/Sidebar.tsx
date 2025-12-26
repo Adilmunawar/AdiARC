@@ -59,11 +59,11 @@ export function Sidebar() {
                     <Link href={item.path} key={item.name}>
                         <Button 
                             variant={isActive ? "default" : "ghost"} 
-                            className={cn("w-full justify-start gap-2", !isOpen && "justify-center")}
+                            className={cn("w-full justify-start gap-3 group transition-all duration-200", !isOpen && "justify-center")}
                             title={isOpen ? "" : item.name}
                         >
-                            <item.icon className="h-5 w-5" />
-                            {isOpen && <span>{item.name}</span>}
+                            <item.icon className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                            {isOpen && <span className="transition-opacity duration-200">{item.name}</span>}
                         </Button>
                     </Link>
                 );
