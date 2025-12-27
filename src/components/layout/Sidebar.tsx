@@ -12,7 +12,8 @@ import {
   Split, 
   Database,
   DatabaseZap,
-  Menu
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,23 +33,20 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
     <aside
       className={cn(
-        "flex flex-col border-r transition-width duration-300 ease-in-out h-screen bg-card",
+        "relative flex flex-col border-r transition-width duration-300 ease-in-out h-screen bg-card rounded-tr-2xl rounded-br-2xl",
         isOpen ? "w-60" : "w-20"
       )}
     >
-      <div className={cn("flex h-16 items-center border-b px-4", isOpen ? "justify-end" : "justify-center")}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <Menu className="h-6 w-6" />
-        </Button>
+      <div className={cn("flex h-16 items-center border-b px-4", isOpen ? "justify-start" : "justify-center")}>
+         <Link href="/" className="flex items-center gap-2">
+            <Database className="h-6 w-6 text-primary" />
+            {isOpen && <span className="font-bold text-lg">AdiARC</span>}
+        </Link>
       </div>
 
       <ScrollArea className="flex-1">
@@ -70,6 +68,16 @@ export function Sidebar() {
             })}
         </nav>
       </ScrollArea>
+
+       <div className="mt-auto p-2 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-center"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <ChevronsLeft className="h-6 w-6" /> : <ChevronsRight className="h-6 w-6" />}
+          </Button>
+        </div>
     </aside>
   );
 }
