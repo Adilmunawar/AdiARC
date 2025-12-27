@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -10,10 +9,16 @@ import {
   ScanText, 
   FileCode, 
   Split, 
+  DatabaseZap,
+  ChevronsLeft,
+  ChevronsRight,
   Database,
-  DatabaseZap
+  ClipboardCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
@@ -24,49 +29,69 @@ const navItems = [
   { name: "HTML Extractor", icon: FileCode, path: "/extractor" },
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
   { name: "Server Sync", icon: Database, path: "/sync" },
+  { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="hidden w-64 h-screen bg-card border-r border-border md:flex flex-col flex-shrink-0 rounded-tr-[2rem] rounded-br-[2rem]">
-      {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-            <span className="font-bold text-primary text-xl">A</span>
-          </div>
-          <div>
-            <h1 className="font-bold text-lg tracking-tight">AdiARC</h1>
-            <p className="text-xs text-muted-foreground">Utility Suite</p>
-          </div>
-        </div>
+    <aside
+      className={cn(
+        "relative flex flex-col border-r transition-width duration-300 ease-in-out h-screen bg-card rounded-tr-2xl rounded-br-2xl",
+        isOpen ? "w-60" : "w-20"
+      )}
+    >
+      <div className={cn("flex h-16 items-center border-b px-4", isOpen ? "justify-start" : "justify-center")}>
+         <Link href="/" className="flex items-center gap-2">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6 text-primary"
+            >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+                <path d="M2 12h20" />
+            </svg>
+            {isOpen && <span className="font-bold text-lg">AdiARC</span>}
+        </Link>
       </div>
 
-      {/* Navigation */}
-      <div className="flex-1 overflow-y-auto py-3 px-2">
-        <nav className="space-y-1">
-          {navItems.sort((a,b) => a.path === '/' ? -1 : b.path === '/' ? 1 : a.name.localeCompare(b.name)).map((item) => {
-            const isActive = pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </Link>
-            );
-          })}
+      <ScrollArea className="flex-1">
+        <nav className="p-2 space-y-2">
+            {navItems.sort((a,b) => a.path === '/' ? -1 : b.path === '/' ? 1 : a.name.localeCompare(b.name)).map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                    <Link href={item.path} key={item.name}>
+                        <Button 
+                            variant={isActive ? "default" : "ghost"} 
+                            className={cn("w-full justify-start gap-3 group transition-all duration-200", !isOpen && "justify-center")}
+                            title={isOpen ? "" : item.name}
+                        >
+                            <item.icon className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                            {isOpen && <span className="transition-opacity duration-200">{item.name}</span>}
+                        </Button>
+                    </Link>
+                );
+            })}
         </nav>
-      </div>
-    </div>
+      </ScrollArea>
+
+       <div className="mt-auto p-2 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-center"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <ChevronsLeft className="h-6 w-6" /> : <ChevronsRight className="h-6 w-6" />}
+          </Button>
+        </div>
+    </aside>
   );
 }

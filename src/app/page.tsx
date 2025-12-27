@@ -1,8 +1,7 @@
-
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 
 const tools = [
@@ -47,13 +46,19 @@ const tools = [
         description: "Run OCR on images to find numbers when metadata fails.",
         icon: ScanText,
         path: "/ocr"
+    },
+    {
+        name: "Auditor",
+        description: "Compare two lists of mutations to find discrepancies.",
+        icon: ClipboardCheck,
+        path: "/auditor"
     }
 ];
 
 export default function Home() {
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 animate-enter">
         <header className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">AdiARC Dashboard</h1>
             <p className="text-muted-foreground">
@@ -63,11 +68,11 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tools.sort((a, b) => a.name.localeCompare(b.name)).map(tool => (
-                <Link href={tool.path} key={tool.name} className="no-underline">
-                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all duration-200 cursor-pointer">
+                <Link href={tool.path} key={tool.name} className="no-underline group">
+                    <Card className="h-full border-border/70 bg-card/80 transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:shadow-lg group-hover:-translate-y-1">
                         <CardHeader>
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg">
+                                <div className="p-2 bg-primary/10 rounded-lg transition-colors duration-300 group-hover:bg-primary/20">
                                     <tool.icon className="h-6 w-6 text-primary" />
                                 </div>
                                 <CardTitle className="text-base font-semibold">{tool.name}</CardTitle>

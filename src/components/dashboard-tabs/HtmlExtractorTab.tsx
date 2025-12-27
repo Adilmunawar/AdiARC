@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Copy, Download, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+
+type ExtractorState = {
+  source: string;
+  numbers: number[];
+};
 
 export function HtmlExtractorTab() {
   const { toast } = useToast();
-  const [mutationSource, setMutationSource] = useState<string>("");
-  const [mutationNumbers, setMutationNumbers] = useState<number[]>([]);
-  const [mutationText, setMutationText] = useState<string>("");
+  const [state, setState] = useLocalStorage<ExtractorState>("adiarc_html_extractor_state", {
+    source: "",
+    numbers: [],
+  });
+  const mutationText = state.numbers.join("\n");
 
   const handleCopy = async (label: string, value: string) => {
     if (!value) {
@@ -42,7 +50,7 @@ export function HtmlExtractorTab() {
   };
 
   const handleExtractMutationNumbers = () => {
-    const source = mutationSource.trim();
+    const source = state.source.trim();
 
     if (!source) {
       toast({
@@ -53,10 +61,10 @@ export function HtmlExtractorTab() {
       return;
     }
 
-    if (source.length > 2_000_000) {
+    if (source.length > 20_000_000) {
       toast({
         title: "Input too large",
-        description: "Please paste a smaller HTML snippet (max ~2M characters).",
+        description: "Please paste a smaller HTML snippet (max ~20M characters).",
         variant: "destructive",
       });
       return;
@@ -84,8 +92,7 @@ export function HtmlExtractorTab() {
       const uniqueSorted = Array.from(new Set(numbers)).sort((a, b) => a - b);
 
       if (!uniqueSorted.length) {
-        setMutationNumbers([]);
-        setMutationText("");
+        setState({ ...state, numbers: [] });
         toast({
           title: "No mutation numbers found",
           description: "Make sure the HTML contains <option> tags with numeric values.",
@@ -93,14 +100,12 @@ export function HtmlExtractorTab() {
         });
         return;
       }
-
-      setMutationNumbers(uniqueSorted);
-      const textExport = uniqueSorted.join("\n");
-      setMutationText(textExport);
+      
+      setState({ ...state, numbers: uniqueSorted });
 
       toast({
         title: "Mutation numbers extracted",
-        description: `Found ${uniqueSorted.length} numeric options in the pasted HTML.`,
+        description: `Found ${uniqueSorted.length} unique options in the pasted HTML.`,
       });
     } catch (error) {
       console.error("Failed to extract mutation numbers", error);
@@ -113,7 +118,7 @@ export function HtmlExtractorTab() {
   };
 
   const handleDownloadMutationNumbers = () => {
-    if (!mutationNumbers.length) {
+    if (!state.numbers.length) {
       toast({
         title: "Nothing to download",
         description: "Extract mutation numbers first.",
@@ -122,7 +127,7 @@ export function HtmlExtractorTab() {
       return;
     }
 
-    const blob = new Blob([mutationNumbers.join("\n")], { type: "text/plain" });
+    const blob = new Blob([state.numbers.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -143,7 +148,7 @@ export function HtmlExtractorTab() {
       <CardHeader>
         <CardTitle className="text-base font-semibold">Fetch mutation numbers from HTML dropdown</CardTitle>
         <CardDescription>
-          Paste raw HTML containing a <code>&lt;select&gt;</code> element to extract all numeric options. This is useful for grabbing mutation lists from legacy websites.
+          Paste raw HTML containing a <code>&lt;select&gt;</code> element to extract all numeric options. This is useful for grabbing mutation lists from legacy websites. Your work is saved automatically.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -155,8 +160,8 @@ export function HtmlExtractorTab() {
                 <Label htmlFor="mutation-html">1. Paste HTML source</Label>
                 <Textarea
                     id="mutation-html"
-                    value={mutationSource}
-                    onChange={(e) => setMutationSource(e.target.value)}
+                    value={state.source}
+                    onChange={(e) => setState({ ...state, source: e.target.value })}
                     placeholder="Paste the HTML that contains &lt;option&gt; elements with mutation numbers here."
                     className="h-64 font-mono text-xs"
                 />
@@ -181,8 +186,8 @@ export function HtmlExtractorTab() {
             <section className="space-y-2">
                 <div className="flex items-center justify-between">
                     <Label>2. Extracted numbers</Label>
-                    {mutationNumbers.length > 0 && (
-                        <span className="text-[11px] text-muted-foreground">{mutationNumbers.length} unique numbers found</span>
+                    {state.numbers.length > 0 && (
+                        <span className="text-[11px] text-muted-foreground">{state.numbers.length} unique numbers found</span>
                     )}
                 </div>
                 <Textarea
@@ -210,7 +215,7 @@ export function HtmlExtractorTab() {
                     variant="outline"
                     size="sm"
                     onClick={handleDownloadMutationNumbers}
-                    disabled={!mutationNumbers.length}
+                    disabled={!state.numbers.length}
                 >
                     <Download className="mr-2 h-3.5 w-3.5" />
                     Download as .txt

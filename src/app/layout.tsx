@@ -4,7 +4,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -22,16 +21,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <TooltipProvider>
-          <div className="flex h-screen overflow-hidden bg-background">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              {children}
-              <Toaster />
-              <Sonner />
-            </main>
-          </div>
-        </TooltipProvider>
+        <div className="flex h-screen bg-background">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            {children}
+            <Toaster />
+            <Sonner />
+          </main>
+        </div>
       </body>
     </html>
   );

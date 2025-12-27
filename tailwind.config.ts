@@ -76,6 +76,9 @@ const config = {
         "fade-in": "fade-in 0.3s ease-out",
         "enter": "enter 0.3s ease-out",
       },
+      transitionProperty: {
+        'width': 'width',
+      }
     },
   },
   plugins: [require("tailwindcss-animate")],
