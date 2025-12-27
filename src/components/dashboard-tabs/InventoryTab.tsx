@@ -66,16 +66,14 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
   
   const inventoryItems = persistedState.items;
   const setLiveInventoryItems = (items: InventoryItem[] | ((prev: InventoryItem[]) => InventoryItem[])) => {
-    const newItems = typeof items === 'function' ? items(persistedState.items) : items;
-    setPersistedState(prev => ({...prev, items: newItems.map(({fileObject, ...rest}) => rest)}));
-    _setLiveItems(newItems);
-    setAppInventoryItems(newItems.map(({fileObject, ...rest}) => rest));
+    const newItems = typeof items === 'function' ? items(liveItems) : items;
+     setLiveItems(newItems);
   };
   
-  const [liveItems, _setLiveItems] = useState<InventoryItem[]>(persistedState.items);
+  const [liveItems, setLiveItems] = useState<InventoryItem[]>(persistedState.items);
   
-  const isScanningRef = useRef<boolean>(false);
-  const isPausedRef = useRef<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
   const [scanProgress, setScanProgress] = useState<{ current: number; total: number }>({
     current: 0,
     total: 0,
@@ -191,16 +189,26 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     });
   };
 
+  const finishScan = () => {
+    setIsScanning(false);
+    setIsPaused(false);
+    toast({ title: "Scan complete", description: "Finished scanning all files." });
+    setScanProgress({ current: scanQueueRef.current.length, total: scanQueueRef.current.length });
+    
+    // Final save to local storage
+    const finalItems = liveItems.map(({ fileObject, ...rest }) => rest);
+    setPersistedState(prev => ({...prev, items: finalItems}));
+    setAppInventoryItems(finalItems);
+  }
+
   const processScanChunk = async () => {
-    if (!isScanningRef.current || isPausedRef.current) return;
+    if (!isScanning || isPaused) return;
 
     const chunkSize = 50;
     const chunk = scanQueueRef.current.slice(currentScanIndexRef.current, currentScanIndexRef.current + chunkSize);
 
     if (chunk.length === 0) {
-      isScanningRef.current = false;
-      toast({ title: "Scan complete", description: "Finished scanning all files." });
-      setScanProgress({ current: scanQueueRef.current.length, total: scanQueueRef.current.length });
+      finishScan();
       return;
     }
     
@@ -243,8 +251,8 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    isScanningRef.current = true;
-    isPausedRef.current = false;
+    setIsScanning(true);
+    setIsPaused(false);
     setLiveInventoryItems([]);
     setSelectedMutationId(null);
     currentScanIndexRef.current = 0;
@@ -260,16 +268,28 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
   };
   
   const handlePauseOrResumeScan = () => {
-    isPausedRef.current = !isPausedRef.current;
-    if (!isPausedRef.current) {
-        toast({ title: "Scan Resumed" });
-        processScanChunk();
-    } else {
+    const willBePaused = !isPaused;
+    setIsPaused(willBePaused);
+    
+    if (willBePaused) {
         toast({ title: "Scan Paused" });
+        // Save current progress to local storage
+        const currentItems = liveItems.map(({ fileObject, ...rest }) => rest);
+        setPersistedState(prev => ({...prev, items: currentItems}));
+        setAppInventoryItems(currentItems);
+
+    } else {
+        toast({ title: "Scan Resumed" });
+        // The processScanChunk will be triggered by the state change of isPaused
     }
-    // Force re-render to update button text
-    setScanProgress(prev => ({...prev}));
   };
+
+  useEffect(() => {
+    if (isScanning && !isPaused) {
+      processScanChunk();
+    }
+  }, [isPaused, isScanning]);
+
 
   const downloadBlob = (filename: string, mimeType: string, content: string) => {
     const blob = new Blob([content], { type: mimeType });
@@ -325,9 +345,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
       return;
     }
     
-    // We need live file objects for cloning. The persisted state doesn't have them.
-    // If the live state is empty, we can't clone.
-    if (liveItems.length === 0) {
+    if (liveItems.length === 0 && inventoryItems.length > 0) {
         toast({
             title: "Live session expired",
             description: "Please rescan the folder in this session to enable cloning. Cloned files are not stored between page reloads.",
@@ -344,7 +362,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     if (!filesToClone.length) {
       toast({
         title: "No image files available for cloning",
-        description: "The files matching your criteria were found in a previous session. Please rescan to enable cloning.",
+        description: "The files matching your criteria were found in a previous session or this session hasn't started. Please rescan to enable cloning.",
       });
       return;
     }
@@ -507,20 +525,20 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
               <Button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isScanningRef.current}
+                disabled={isScanning}
                 className="inline-flex items-center gap-2 h-10 px-4 text-xs font-semibold shadow-md shadow-primary/20"
               >
-                {isScanningRef.current && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>{isScanningRef.current ? "Scanning..." : "Select Folder to Scan"}</span>
+                {isScanning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <span>{isScanning ? "Scanning..." : "Select Folder to Scan"}</span>
               </Button>
-               {isScanningRef.current && (
+               {isScanning && (
                 <Button type="button" variant="outline" size="sm" onClick={handlePauseOrResumeScan}>
-                  {isPausedRef.current ? (
+                  {isPaused ? (
                     <Play className="h-3.5 w-3.5 mr-2" />
                   ) : (
                     <Pause className="h-3.5 w-3.5 mr-2" />
                   )}
-                  {isPausedRef.current ? "Resume" : "Pause"}
+                  {isPaused ? "Resume" : "Pause"}
                 </Button>
               )}
             </div>
@@ -538,7 +556,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
           </section>
 
           {/* PROGRESS BAR */}
-          {(scanProgress.total > 0 || isScanningRef.current) && (
+          {(scanProgress.total > 0 || isScanning) && (
             <section className="space-y-2 rounded-md border border-border bg-card/70 px-3 py-2 text-[11px]">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="space-y-0.5">
