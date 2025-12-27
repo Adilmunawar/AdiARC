@@ -10,10 +10,11 @@ import {
   ScanText, 
   FileCode, 
   Split, 
-  Database,
+  Globe,
   DatabaseZap,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ export function Sidebar() {
     >
       <div className={cn("flex h-16 items-center border-b px-4", isOpen ? "justify-start" : "justify-center")}>
          <Link href="/" className="flex items-center gap-2">
-            <Database className="h-6 w-6 text-primary" />
+            <Globe className="h-6 w-6 text-primary" />
             {isOpen && <span className="font-bold text-lg">AdiARC</span>}
         </Link>
       </div>
