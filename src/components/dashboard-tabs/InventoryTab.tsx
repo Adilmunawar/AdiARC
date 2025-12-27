@@ -19,7 +19,6 @@ import { Table, TableBody, TableHeader, TableRow, TableCell, TableHead } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { compressRanges, extractMutationNumber } from "@/lib/forensic-utils";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +33,6 @@ type InventoryItem = {
   folder: string;
   source: string;
   status: "valid" | "stripped" | "no-match";
-  // fileObject is removed from persistent state to save space
   fileObject?: File;
 };
 
@@ -48,32 +46,17 @@ type InventoryFilterPreset = {
   idMax: string;
 };
 
-type InventoryState = {
-  items: InventoryItem[];
-  presets: InventoryFilterPreset[];
-};
-
 interface InventoryTabProps {
   setInventoryItems: React.Dispatch<React.SetStateAction<InventoryItem[]>>;
 }
 
 export function InventoryTab({ setInventoryItems: setAppInventoryItems }: InventoryTabProps) {
   const { toast } = useToast();
-  const [persistedState, setPersistedState] = useLocalStorage<InventoryState>("adiarc_inventory_state", {
-    items: [],
-    presets: [],
-  });
   
-  const inventoryItems = persistedState.items;
-  const setLiveInventoryItems = (items: InventoryItem[] | ((prev: InventoryItem[]) => InventoryItem[])) => {
-    const newItems = typeof items === 'function' ? items(liveItems) : items;
-     setLiveItems(newItems);
-  };
-  
-  const [liveItems, setLiveItems] = useState<InventoryItem[]>(persistedState.items);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [presets, setPresets] = useState<InventoryFilterPreset[]>([]);
   
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [isPaused, setIsPaused] = useState<boolean>(false);
   const [scanProgress, setScanProgress] = useState<{ current: number; total: number }>({
     current: 0,
     total: 0,
@@ -81,6 +64,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scanQueueRef = useRef<File[]>([]);
   const currentScanIndexRef = useRef<number>(0);
+  const isScanningRef = useRef<boolean>(false);
 
   // UI state (not persisted)
   const [inventorySearch, setInventorySearch] = useState<string>("");
@@ -190,19 +174,14 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
   };
 
   const finishScan = () => {
+    isScanningRef.current = false;
     setIsScanning(false);
-    setIsPaused(false);
     toast({ title: "Scan complete", description: "Finished scanning all files." });
     setScanProgress({ current: scanQueueRef.current.length, total: scanQueueRef.current.length });
-    
-    // Final save to local storage
-    const finalItems = liveItems.map(({ fileObject, ...rest }) => rest);
-    setPersistedState(prev => ({...prev, items: finalItems}));
-    setAppInventoryItems(finalItems);
   }
 
   const processScanChunk = async () => {
-    if (!isScanning || isPaused) return;
+    if (!isScanningRef.current) return;
 
     const chunkSize = 50;
     const chunk = scanQueueRef.current.slice(currentScanIndexRef.current, currentScanIndexRef.current + chunkSize);
@@ -223,7 +202,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                     processedChunk.push({ id: null, file: file.name, folder, source: "Minimal Metadata", status: "stripped", fileObject: file });
                     return;
                 }
-
+                
                 const findings = extractMutationNumber(tags);
                 const goldenKeyFinding = findings.find(f => f.isGoldenKey);
 
@@ -240,9 +219,9 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
 
     currentScanIndexRef.current += chunk.length;
     
-    setLiveInventoryItems(prev => [...prev, ...processedChunk]);
+    setInventoryItems(prev => [...prev, ...processedChunk]);
     setScanProgress({ current: currentScanIndexRef.current, total: scanQueueRef.current.length });
-
+    
     // Schedule the next chunk
     setTimeout(processScanChunk, 0);
   };
@@ -251,9 +230,9 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    isScanningRef.current = true;
     setIsScanning(true);
-    setIsPaused(false);
-    setLiveInventoryItems([]);
+    setInventoryItems([]);
     setSelectedMutationId(null);
     currentScanIndexRef.current = 0;
 
@@ -266,30 +245,12 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     toast({ title: "Scan started", description: `Found ${scanQueueRef.current.length} images to process.` });
     processScanChunk();
   };
-  
-  const handlePauseOrResumeScan = () => {
-    const willBePaused = !isPaused;
-    setIsPaused(willBePaused);
-    
-    if (willBePaused) {
-        toast({ title: "Scan Paused" });
-        // Save current progress to local storage
-        const currentItems = liveItems.map(({ fileObject, ...rest }) => rest);
-        setPersistedState(prev => ({...prev, items: currentItems}));
-        setAppInventoryItems(currentItems);
 
-    } else {
-        toast({ title: "Scan Resumed" });
-        // The processScanChunk will be triggered by the state change of isPaused
-    }
+  const handleStopScan = () => {
+    isScanningRef.current = false;
+    setIsScanning(false);
+    toast({title: "Scan stopped"});
   };
-
-  useEffect(() => {
-    if (isScanning && !isPaused) {
-      processScanChunk();
-    }
-  }, [isPaused, isScanning]);
-
 
   const downloadBlob = (filename: string, mimeType: string, content: string) => {
     const blob = new Blob([content], { type: mimeType });
@@ -345,7 +306,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
       return;
     }
     
-    if (liveItems.length === 0 && inventoryItems.length > 0) {
+    if (inventoryItems.length === 0) {
         toast({
             title: "Live session expired",
             description: "Please rescan the folder in this session to enable cloning. Cloned files are not stored between page reloads.",
@@ -355,7 +316,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     }
 
     const matchedSet = new Set(matched);
-    const filesToClone = liveItems.filter(
+    const filesToClone = inventoryItems.filter(
       (item) => item.status === "valid" && item.id && matchedSet.has(item.id) && item.fileObject,
     );
 
@@ -508,7 +469,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
         <CardHeader>
           <CardTitle className="text-base font-semibold">Mutation Inventory Dashboard</CardTitle>
           <CardDescription>
-            Forensic scan of a local folder to inventory all mutation IDs embedded in XMP metadata. Your work is saved automatically.
+            Forensic scan of a local folder to inventory all mutation IDs embedded in XMP metadata.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -532,13 +493,8 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                 <span>{isScanning ? "Scanning..." : "Select Folder to Scan"}</span>
               </Button>
                {isScanning && (
-                <Button type="button" variant="outline" size="sm" onClick={handlePauseOrResumeScan}>
-                  {isPaused ? (
-                    <Play className="h-3.5 w-3.5 mr-2" />
-                  ) : (
-                    <Pause className="h-3.5 w-3.5 mr-2" />
-                  )}
-                  {isPaused ? "Resume" : "Pause"}
+                <Button type="button" variant="destructive" size="sm" onClick={handleStopScan}>
+                    Stop Scan
                 </Button>
               )}
             </div>
@@ -699,7 +655,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                       setActiveInventoryPresetId(null);
                       return;
                     }
-                    const preset = persistedState.presets.find((p) => p.id === value);
+                    const preset = presets.find((p) => p.id === value);
                     if (!preset) return;
                     setActiveInventoryPresetId(preset.id);
                     setInventorySearch(preset.search);
@@ -714,7 +670,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">No preset</SelectItem>
-                    {persistedState.presets.map((preset) => (
+                    {presets.map((preset) => (
                       <SelectItem key={preset.id} value={preset.id}>
                         {preset.name}
                       </SelectItem>
@@ -739,7 +695,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                       idMin: inventoryIdMin,
                       idMax: inventoryIdMax,
                     };
-                    setPersistedState(prev => ({...prev, presets: [...prev.presets, preset]}));
+                    setPresets(prev => [...prev, preset]);
                     setActiveInventoryPresetId(id);
                   }}
                 >
@@ -1000,5 +956,3 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     </>
   );
 }
-
-    
