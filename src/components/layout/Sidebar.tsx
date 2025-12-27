@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -13,7 +12,8 @@ import {
   DatabaseZap,
   ChevronsLeft,
   ChevronsRight,
-  Database
+  Database,
+  ClipboardCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ const navItems = [
   { name: "HTML Extractor", icon: FileCode, path: "/extractor" },
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
   { name: "Server Sync", icon: Database, path: "/sync" },
+  { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
 ];
 
 export function Sidebar() {

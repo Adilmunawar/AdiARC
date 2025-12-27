@@ -1,8 +1,7 @@
-
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 
 const tools = [
@@ -47,6 +46,12 @@ const tools = [
         description: "Run OCR on images to find numbers when metadata fails.",
         icon: ScanText,
         path: "/ocr"
+    },
+    {
+        name: "Auditor",
+        description: "Compare two lists of mutations to find discrepancies.",
+        icon: ClipboardCheck,
+        path: "/auditor"
     }
 ];
 
