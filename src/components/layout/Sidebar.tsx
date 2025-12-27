@@ -10,7 +10,6 @@ import {
   ScanText, 
   FileCode, 
   Split, 
-  Globe,
   DatabaseZap,
   ChevronsLeft,
   ChevronsRight,
@@ -45,7 +44,20 @@ export function Sidebar() {
     >
       <div className={cn("flex h-16 items-center border-b px-4", isOpen ? "justify-start" : "justify-center")}>
          <Link href="/" className="flex items-center gap-2">
-            <Globe className="h-6 w-6 text-primary" />
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6 text-primary"
+            >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+                <path d="M2 12h20" />
+            </svg>
             {isOpen && <span className="font-bold text-lg">AdiARC</span>}
         </Link>
       </div>
