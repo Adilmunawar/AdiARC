@@ -189,9 +189,9 @@ export function RangeGapsTab() {
     try {
       const existingNumbers = new Set<number>();
       const numberRegex = /\d+/g;
-      const matches = state.fileContent.matchAll(numberRegex);
+      const matches = state.fileContent.match(numberRegex) || [];
       for (const match of matches) {
-        existingNumbers.add(Number(match[0]));
+        existingNumbers.add(Number(match));
       }
 
       const missing: number[] = [];
@@ -401,7 +401,7 @@ export function RangeGapsTab() {
                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-semibold">Analysis Results</h3>
                     {gapSeverity === 'low' && <Badge variant="outline" className="border-green-500/50 text-green-700">Low Gap Rate</Badge>}
-                    {gapSeverity === 'medium' && <Badge variant="secondary">Medium Gap Rate</200ms>
+                    {gapSeverity === 'medium' && <Badge variant="secondary">Medium Gap Rate</Badge>}
                     {gapSeverity === 'high' && <Badge variant="destructive">High Gap Rate</Badge>}
                  </div>
                  <Button variant="outline" size="sm" onClick={handleDownload} disabled={!state.stats}>
