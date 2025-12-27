@@ -1,5 +1,4 @@
 
-      
 "use client";
 import React, { useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -13,22 +12,39 @@ import { useToast } from "@/components/ui/use-toast";
 import { compressRanges } from "@/lib/forensic-utils";
 import { Copy, Download, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+
+type RangeGapsState = {
+  start: string;
+  end: string;
+  fileContent: string;
+  fileName: string;
+  result: string;
+  presentCompressed: string;
+  missingFull: string;
+  presentFull: string;
+  stats: { total: number; missing: number; present: number } | null;
+  gapBuckets: { start: number; end: number; missing: number; total: number }[] | null;
+};
 
 export function RangeGapsTab() {
   const { toast } = useToast();
-  const [start, setStart] = useState<string>("5001");
-  const [end, setEnd] = useState<string>("10000");
-  const [fileContent, setFileContent] = useState<string>("");
-  const [fileName, setFileName] = useState<string>("");
+  const [state, setState] = useLocalStorage<RangeGapsState>("adiarc_range_gaps_state", {
+    start: "5001",
+    end: "10000",
+    fileContent: "",
+    fileName: "",
+    result: "",
+    presentCompressed: "",
+    missingFull: "",
+    presentFull: "",
+    stats: null,
+    gapBuckets: null,
+  });
+
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<string>("");
-  const [presentCompressed, setPresentCompressed] = useState<string>("");
-  const [missingFull, setMissingFull] = useState<string>("");
-  const [presentFull, setPresentFull] = useState<string>("");
   const [useCompressedMissing, setUseCompressedMissing] = useState<boolean>(true);
   const [useCompressedPresent, setUseCompressedPresent] = useState<boolean>(true);
-  const [stats, setStats] = useState<{ total: number; missing: number; present: number } | null>(null);
-  const [gapBuckets, setGapBuckets] = useState<{ start: number; end: number; missing: number; total: number }[] | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -37,8 +53,7 @@ export function RangeGapsTab() {
     const reader = new FileReader();
     reader.onload = () => {
       const text = typeof reader.result === "string" ? reader.result : "";
-      setFileContent(text);
-      setFileName(file.name);
+      setState(prev => ({...prev, fileContent: text, fileName: file.name }));
       toast({
         title: "File loaded",
         description: `Loaded ${file.name}`,
@@ -81,7 +96,7 @@ export function RangeGapsTab() {
   };
 
   const handleDownload = () => {
-    if (!result && !presentCompressed) {
+    if (!state.result && !state.presentCompressed) {
       toast({
         title: "Nothing to download",
         description: "Run a scan first to generate data.",
@@ -89,35 +104,37 @@ export function RangeGapsTab() {
       });
       return;
     }
+    
+    const coverage = state.stats && state.stats.total > 0 ? Math.round((state.stats.present / state.stats.total) * 1000) / 10 : null;
 
     const lines = [
       `AdiARC Gap Analysis Report`,
       `===========================`,
       `Date: ${new Date().toISOString()}`,
-      `Range: ${start} - ${end}`,
-      `Source File: ${fileName || 'Pasted content'}`,
+      `Range: ${state.start} - ${state.end}`,
+      `Source File: ${state.fileName || 'Pasted content'}`,
       ``,
       `--- Statistics ---`,
-      `Total numbers in range: ${stats?.total ?? 'N/A'}`,
-      `Present: ${stats?.present ?? 'N/A'}`,
-      `Missing: ${stats?.missing ?? 'N/A'}`,
+      `Total numbers in range: ${state.stats?.total ?? 'N/A'}`,
+      `Present: ${state.stats?.present ?? 'N/A'}`,
+      `Missing: ${state.stats?.missing ?? 'N/A'}`,
       `Coverage: ${coverage !== null ? `${coverage}%` : 'N/A'}`,
       ``,
       `--- Missing IDs (Compressed) ---`,
-      result || "N/A",
+      state.result || "N/A",
       ``,
       `--- Present IDs (Compressed) ---`,
-      presentCompressed || "N/A",
+      state.presentCompressed || "N/A",
       ``,
       `--- Missing IDs (Full List) ---`,
-      missingFull || "N/A"
+      state.missingFull || "N/A"
     ];
 
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `adiarc-gap-report-${start}-${end}.txt`;
+    a.download = `adiarc-gap-report-${state.start}-${state.end}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -130,16 +147,20 @@ export function RangeGapsTab() {
   };
 
   const handleProcess = async () => {
-    setResult("");
-    setPresentCompressed("");
-    setMissingFull("");
-    setPresentFull("");
+    setState(prev => ({
+        ...prev,
+        result: "",
+        presentCompressed: "",
+        missingFull: "",
+        presentFull: "",
+        stats: null,
+        gapBuckets: null,
+    }));
     setUseCompressedMissing(true);
     setUseCompressedPresent(true);
-    setStats(null);
-    setGapBuckets(null);
 
-    if (!fileContent) {
+
+    if (!state.fileContent) {
       toast({
         title: "No file content",
         description: "Please upload a text file or paste numbers in the text area.",
@@ -148,8 +169,8 @@ export function RangeGapsTab() {
       return;
     }
 
-    const startNum = Number(start);
-    const endNum = Number(end);
+    const startNum = Number(state.start);
+    const endNum = Number(state.end);
 
     if (!Number.isInteger(startNum) || !Number.isInteger(endNum) || startNum <= 0 || endNum <= startNum) {
       toast({
@@ -167,9 +188,8 @@ export function RangeGapsTab() {
 
     try {
       const existingNumbers = new Set<number>();
-      // Optimized number extraction using a global regex match
       const numberRegex = /\d+/g;
-      const matches = fileContent.matchAll(numberRegex);
+      const matches = state.fileContent.matchAll(numberRegex);
       for (const match of Array.from(matches)) {
         existingNumbers.add(Number(match[0]));
       }
@@ -207,34 +227,32 @@ export function RangeGapsTab() {
           }
         }
       }
+      
+      const newState: Partial<RangeGapsState> = {
+        stats: { total: totalInRange, missing: missing.length, present: totalInRange - missing.length },
+        gapBuckets: buckets,
+        presentFull: presentFullString,
+        presentCompressed: compressRanges(present) || "ALL",
+      };
 
       if (missing.length === 0) {
-        setResult("NONE");
-        setMissingFull("NONE");
-        setPresentCompressed(compressRanges(present) || "ALL");
-        setPresentFull(presentFullString);
-        setStats({ total: totalInRange, missing: 0, present: totalInRange });
-        setGapBuckets(null);
+        newState.result = "NONE";
+        newState.missingFull = "NONE";
         toast({
           title: "No missing numbers",
           description: "All numbers in the range are present in the file.",
         });
-        return;
+      } else {
+        newState.result = compressRanges(missing);
+        newState.missingFull = missing.join("\n");
+        toast({
+          title: "Missing numbers computed",
+          description: "Scroll down to see the compressed result.",
+        });
       }
 
-      const missingCompressed = compressRanges(missing);
-      const missingFullString = missing.join("\n");
+      setState(prev => ({...prev, ...newState}));
 
-      setResult(missingCompressed);
-      setMissingFull(missingFullString);
-      setPresentCompressed(compressRanges(present) || "NONE");
-      setPresentFull(presentFullString);
-      setStats({ total: totalInRange, missing: missing.length, present: totalInRange - missing.length });
-      setGapBuckets(buckets);
-      toast({
-        title: "Missing numbers computed",
-        description: "Scroll down to see the compressed result.",
-      });
     } catch (error) {
       console.error("Local processing failed", error);
       toast({
@@ -247,23 +265,23 @@ export function RangeGapsTab() {
     }
   };
 
-  const coverage = stats && stats.total > 0 ? Math.round((stats.present / stats.total) * 1000) / 10 : null;
-  const missingDisplay = useCompressedMissing ? result : missingFull;
-  const presentDisplay = useCompressedPresent ? presentCompressed : presentFull;
+  const coverage = state.stats && state.stats.total > 0 ? Math.round((state.stats.present / state.stats.total) * 1000) / 10 : null;
+  const missingDisplay = useCompressedMissing ? state.result : state.missingFull;
+  const presentDisplay = useCompressedPresent ? state.presentCompressed : state.presentFull;
 
   const gapSeverity =
-    stats && stats.total > 0
-      ? stats.missing === 0
+    state.stats && state.stats.total > 0
+      ? state.stats.missing === 0
         ? "none"
-        : stats.missing / stats.total >= 0.2
+        : state.stats.missing / state.stats.total >= 0.2
         ? "high"
-        : stats.missing / stats.total >= 0.05
+        : state.stats.missing / state.stats.total >= 0.05
         ? "medium"
         : "low"
       : null;
 
   const chartData =
-    gapBuckets?.map((bucket) => ({
+    state.gapBuckets?.map((bucket) => ({
       name: `${bucket.start}-${bucket.end}`,
       missing: bucket.missing,
       present: bucket.total - bucket.missing,
@@ -275,7 +293,7 @@ export function RangeGapsTab() {
       <CardHeader>
         <CardTitle className="text-base font-semibold">Find Gaps in Sequential Numbers</CardTitle>
         <CardDescription>
-          Identify missing mutation numbers within a large range by comparing it against a text file of existing IDs.
+          Identify missing mutation numbers within a large range by comparing it against a text file of existing IDs. Your work is automatically saved and restored.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -285,11 +303,11 @@ export function RangeGapsTab() {
             <section className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="start">Range Start</Label>
-                <Input id="start" type="number" value={start} onChange={(e) => setStart(e.target.value)} min={1} />
+                <Input id="start" type="number" value={state.start} onChange={(e) => setState(prev => ({...prev, start: e.target.value}))} min={1} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="end">Range End</Label>
-                <Input id="end" type="number" value={end} onChange={(e) => setEnd(e.target.value)} min={1} />
+                <Input id="end" type="number" value={state.end} onChange={(e) => setState(prev => ({...prev, end: e.target.value}))} min={1} />
               </div>
             </section>
 
@@ -300,8 +318,8 @@ export function RangeGapsTab() {
                   You can upload a file, or paste your numbers directly into the text area below (comma, space, or new-line separated). Uploading a file will populate the text area.
               </p>
               <Textarea 
-                  value={fileContent} 
-                  onChange={(e) => setFileContent(e.target.value)} 
+                  value={state.fileContent} 
+                  onChange={(e) => setState(prev => ({...prev, fileContent: e.target.value}))}
                   placeholder="Your numbers will appear here after uploading a file, or you can paste them directly."
                   className="h-24 font-mono text-xs"
               />
@@ -333,15 +351,15 @@ export function RangeGapsTab() {
           <div className="flex flex-col gap-4 mt-6 lg:mt-0">
              <div className="grid grid-cols-4 gap-3 text-center text-xs text-muted-foreground p-3 rounded-lg border bg-muted/40">
                 <div>
-                    <p className="font-semibold text-foreground text-lg">{stats ? stats.total.toLocaleString() : "—"}</p>
+                    <p className="font-semibold text-foreground text-lg">{state.stats ? state.stats.total.toLocaleString() : "—"}</p>
                     <p>Total in Range</p>
                 </div>
                 <div>
-                    <p className="font-semibold text-foreground text-lg">{stats ? stats.present.toLocaleString() : "—"}</p>
+                    <p className="font-semibold text-foreground text-lg">{state.stats ? state.stats.present.toLocaleString() : "—"}</p>
                     <p>Present</p>
                 </div>
                 <div>
-                    <p className="font-semibold text-destructive text-lg">{stats ? stats.missing.toLocaleString() : "—"}</p>
+                    <p className="font-semibold text-destructive text-lg">{state.stats ? state.stats.missing.toLocaleString() : "—"}</p>
                     <p>Missing</p>
                 </div>
                  <div>
@@ -377,7 +395,7 @@ export function RangeGapsTab() {
           </div>
         </section>
 
-        {stats !== null && (
+        {state.stats !== null && (
         <section className="space-y-4 pt-4 border-t border-dashed border-border">
             <div className="flex flex-wrap items-center justify-between gap-2">
                  <div className="flex flex-wrap items-center gap-2">
@@ -386,7 +404,7 @@ export function RangeGapsTab() {
                     {gapSeverity === 'medium' && <Badge variant="secondary">Medium Gap Rate</Badge>}
                     {gapSeverity === 'high' && <Badge variant="destructive">High Gap Rate</Badge>}
                  </div>
-                 <Button variant="outline" size="sm" onClick={handleDownload} disabled={!stats}>
+                 <Button variant="outline" size="sm" onClick={handleDownload} disabled={!state.stats}>
                     <Download className="mr-2 h-3.5 w-3.5" />
                     Download Report
                  </Button>
@@ -471,7 +489,3 @@ export function RangeGapsTab() {
     </Card>
   );
 }
-
-    
-
-    
