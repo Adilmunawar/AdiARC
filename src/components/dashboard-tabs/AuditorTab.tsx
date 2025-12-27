@@ -122,9 +122,9 @@ export function AuditorTab() {
       const sheetNumbers = expandList(state.sheetList);
       const dbNumbers = expandList(state.dbList);
 
-      const sheetOnly = new Set([...sheetNumbers].filter(x => !dbNumbers.has(x)));
-      const dbOnly = new Set([...dbNumbers].filter(x => !sheetNumbers.has(x)));
-      const common = new Set([...sheetNumbers].filter(x => dbNumbers.has(x)));
+      const sheetOnly = new Set(Array.from(sheetNumbers).filter(x => !dbNumbers.has(x)));
+      const dbOnly = new Set(Array.from(dbNumbers).filter(x => !sheetNumbers.has(x)));
+      const common = new Set(Array.from(sheetNumbers).filter(x => dbNumbers.has(x)));
       
       const sortedSheetOnly = Array.from(sheetOnly).sort((a,b) => a-b);
       const sortedDbOnly = Array.from(dbOnly).sort((a,b) => a-b);
