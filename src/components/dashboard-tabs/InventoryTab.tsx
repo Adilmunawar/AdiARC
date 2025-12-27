@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -981,3 +982,5 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     </>
   );
 }
+
+    

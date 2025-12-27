@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 
 // A custom hook to use localStorage that is SSR-safe
@@ -38,3 +39,5 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
   return [storedValue, setStoredValue] as const;
 }
+
+    

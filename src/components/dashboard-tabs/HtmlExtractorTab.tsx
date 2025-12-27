@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useEffect, useState } from "react";
 import { Copy, Download, Search } from "lucide-react";
@@ -104,7 +105,7 @@ export function HtmlExtractorTab() {
 
       toast({
         title: "Mutation numbers extracted",
-        description: `Found ${uniqueSorted.length} numeric options in the pasted HTML.`,
+        description: `Found ${uniqueSorted.length} unique options in the pasted HTML.`,
       });
     } catch (error) {
       console.error("Failed to extract mutation numbers", error);
@@ -226,3 +227,5 @@ export function HtmlExtractorTab() {
     </Card>
   );
 }
+
+    
