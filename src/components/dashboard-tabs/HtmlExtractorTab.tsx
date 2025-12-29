@@ -1,7 +1,7 @@
 
 "use client";
-import React, { useEffect, useState } from "react";
-import { Copy, Download, Search } from "lucide-react";
+import React, { useState } from "react";
+import { Copy, Download, Loader2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 type ExtractorState = {
   source: string;
@@ -21,6 +29,10 @@ export function HtmlExtractorTab() {
     source: "",
     numbers: [],
   });
+  
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
   const mutationText = state.numbers.join("\n");
 
   const handleCopy = async (label: string, value: string) => {
@@ -117,7 +129,7 @@ export function HtmlExtractorTab() {
     }
   };
 
-  const handleDownloadMutationNumbers = () => {
+  const handleDownloadMutationNumbers = async () => {
     if (!state.numbers.length) {
       toast({
         title: "Nothing to download",
@@ -127,105 +139,162 @@ export function HtmlExtractorTab() {
       return;
     }
 
-    const blob = new Blob([state.numbers.join("\n")], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "mutation-numbers.txt";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    setIsDownloading(true);
+    setDownloadProgress(0);
 
-    toast({
-      title: "Download started",
-      description: "Your mutation numbers file is being downloaded.",
-    });
+    // Use a short timeout to allow the UI to update and show the dialog
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    try {
+        const CHUNK_SIZE = 10000; // Process 10,000 numbers at a time
+        const chunks = [];
+        for (let i = 0; i < state.numbers.length; i += CHUNK_SIZE) {
+            const chunk = state.numbers.slice(i, i + CHUNK_SIZE);
+            chunks.push(chunk.join('\n'));
+            
+            // Update progress and yield to the main thread
+            const progress = ((i + chunk.length) / state.numbers.length) * 100;
+            setDownloadProgress(progress);
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        const blob = new Blob(chunks, { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "mutation-numbers.txt";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        toast({
+            title: "Download started",
+            description: "Your mutation numbers file is being downloaded.",
+        });
+
+    } catch (error) {
+        console.error("Download preparation failed", error);
+        toast({
+            title: "Download failed",
+            description: "An error occurred while preparing the file.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsDownloading(false);
+    }
   };
 
   return (
-    <Card className="border-border/70 bg-card/80 shadow-md">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">Fetch mutation numbers from HTML dropdown</CardTitle>
-        <CardDescription>
-          Paste raw HTML containing a <code>&lt;select&gt;</code> element to extract all numeric options. This is useful for grabbing mutation lists from legacy websites. Your work is saved automatically.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
-          
-          {/* LEFT: Input Column */}
-          <div className="flex flex-col gap-4">
-             <section className="space-y-2">
-                <Label htmlFor="mutation-html">1. Paste HTML source</Label>
-                <Textarea
-                    id="mutation-html"
-                    value={state.source}
-                    onChange={(e) => setState({ ...state, source: e.target.value })}
-                    placeholder="Paste the HTML that contains &lt;option&gt; elements with mutation numbers here."
-                    className="h-64 font-mono text-xs"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                    Example: a <code>&lt;select&gt;</code> element from a website where each <code>&lt;option&gt;</code> holds a mutation number. Non-numeric options are ignored.
+    <>
+      <Dialog open={isDownloading}>
+        <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Preparing Your Download</DialogTitle>
+            <DialogDescription>
+                Please wait while we generate the large text file. This may take a moment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="space-y-2">
+                <Progress value={downloadProgress} className="h-2" />
+                <p className="text-sm text-muted-foreground text-center">
+                    Processing... {Math.round(downloadProgress)}%
                 </p>
-            </section>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Card className="border-border/70 bg-card/80 shadow-md">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Fetch mutation numbers from HTML dropdown</CardTitle>
+          <CardDescription>
+            Paste raw HTML containing a <code>&lt;select&gt;</code> element to extract all numeric options. This is useful for grabbing mutation lists from legacy websites. Your work is saved automatically.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
             
-            <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
-                <p className="text-xs text-muted-foreground max-w-xs">
-                    The extraction is done entirely in your browser for privacy and speed.
-                </p>
-                <Button type="button" onClick={handleExtractMutationNumbers} className="shrink-0">
-                    <Search className="mr-2 h-4 w-4" />
-                    <span>Extract Numbers</span>
-                </Button>
+            {/* LEFT: Input Column */}
+            <div className="flex flex-col gap-4">
+              <section className="space-y-2">
+                  <Label htmlFor="mutation-html">1. Paste HTML source</Label>
+                  <Textarea
+                      id="mutation-html"
+                      value={state.source}
+                      onChange={(e) => setState({ ...state, source: e.target.value })}
+                      placeholder="Paste the HTML that contains &lt;option&gt; elements with mutation numbers here."
+                      className="h-64 font-mono text-xs"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                      Example: a <code>&lt;select&gt;</code> element from a website where each <code>&lt;option&gt;</code> holds a mutation number. Non-numeric options are ignored.
+                  </p>
+              </section>
+              
+              <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                      The extraction is done entirely in your browser for privacy and speed.
+                  </p>
+                  <Button type="button" onClick={handleExtractMutationNumbers} className="shrink-0">
+                      <Search className="mr-2 h-4 w-4" />
+                      <span>Extract Numbers</span>
+                  </Button>
+              </div>
             </div>
-          </div>
 
-          {/* RIGHT: Output Column */}
-          <div className="flex flex-col gap-4 mt-6 lg:mt-0">
-            <section className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <Label>2. Extracted numbers</Label>
-                    {state.numbers.length > 0 && (
-                        <span className="text-[11px] text-muted-foreground">{state.numbers.length} unique numbers found</span>
+            {/* RIGHT: Output Column */}
+            <div className="flex flex-col gap-4 mt-6 lg:mt-0">
+              <section className="space-y-2">
+                  <div className="flex items-center justify-between">
+                      <Label>2. Extracted numbers</Label>
+                      {state.numbers.length > 0 && (
+                          <span className="text-[11px] text-muted-foreground">{state.numbers.length} unique numbers found</span>
+                      )}
+                  </div>
+                  <Textarea
+                      readOnly
+                      value={mutationText}
+                      placeholder={
+                      "After extraction, mutation numbers will appear here, one per line, ready to copy or download."
+                      }
+                      className="h-64 font-mono text-xs bg-muted/30"
+                  />
+              </section>
+              <div className="flex items-center justify-end gap-2">
+                  <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopy("mutation numbers", mutationText)}
+                      disabled={!mutationText}
+                  >
+                      <Copy className="mr-2 h-3.5 w-3.5" />
+                      Copy as text
+                  </Button>
+                  <Button 
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadMutationNumbers}
+                      disabled={!state.numbers.length || isDownloading}
+                  >
+                    {isDownloading ? (
+                      <>
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        Preparing...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-3.5 w-3.5" />
+                        Download as .txt
+                      </>
                     )}
-                </div>
-                <Textarea
-                    readOnly
-                    value={mutationText}
-                    placeholder={
-                    "After extraction, mutation numbers will appear here, one per line, ready to copy or download."
-                    }
-                    className="h-64 font-mono text-xs bg-muted/30"
-                />
-            </section>
-             <div className="flex items-center justify-end gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopy("mutation numbers", mutationText)}
-                    disabled={!mutationText}
-                >
-                    <Copy className="mr-2 h-3.5 w-3.5" />
-                    Copy as text
-                </Button>
-                <Button 
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadMutationNumbers}
-                    disabled={!state.numbers.length}
-                >
-                    <Download className="mr-2 h-3.5 w-3.5" />
-                    Download as .txt
-                </Button>
+                  </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </>
   );
 }
-
-    

@@ -13,6 +13,14 @@ import { compressRanges } from "@/lib/forensic-utils";
 import { Copy, Download, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 type RangeGapsState = {
   start: string;
@@ -45,6 +53,8 @@ export function RangeGapsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [useCompressedMissing, setUseCompressedMissing] = useState<boolean>(true);
   const [useCompressedPresent, setUseCompressedPresent] = useState<boolean>(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,7 +105,7 @@ export function RangeGapsTab() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!state.result && !state.presentCompressed) {
       toast({
         title: "Nothing to download",
@@ -104,46 +114,71 @@ export function RangeGapsTab() {
       });
       return;
     }
+
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    await new Promise(resolve => setTimeout(resolve, 50));
     
-    const coverage = state.stats && state.stats.total > 0 ? Math.round((state.stats.present / state.stats.total) * 1000) / 10 : null;
+    try {
+        const coverage = state.stats && state.stats.total > 0 ? Math.round((state.stats.present / state.stats.total) * 1000) / 10 : null;
 
-    const lines = [
-      `AdiARC Gap Analysis Report`,
-      `===========================`,
-      `Date: ${new Date().toISOString()}`,
-      `Range: ${state.start} - ${state.end}`,
-      `Source File: ${state.fileName || 'Pasted content'}`,
-      ``,
-      `--- Statistics ---`,
-      `Total numbers in range: ${state.stats?.total ?? 'N/A'}`,
-      `Present: ${state.stats?.present ?? 'N/A'}`,
-      `Missing: ${state.stats?.missing ?? 'N/A'}`,
-      `Coverage: ${coverage !== null ? `${coverage}%` : 'N/A'}`,
-      ``,
-      `--- Missing IDs (Compressed) ---`,
-      state.result || "N/A",
-      ``,
-      `--- Present IDs (Compressed) ---`,
-      state.presentCompressed || "N/A",
-      ``,
-      `--- Missing IDs (Full List) ---`,
-      state.missingFull || "N/A"
-    ];
+        const lines = [
+          `AdiARC Gap Analysis Report`,
+          `===========================`,
+          `Date: ${new Date().toISOString()}`,
+          `Range: ${state.start} - ${state.end}`,
+          `Source File: ${state.fileName || 'Pasted content'}`,
+          ``,
+          `--- Statistics ---`,
+          `Total numbers in range: ${state.stats?.total ?? 'N/A'}`,
+          `Present: ${state.stats?.present ?? 'N/A'}`,
+          `Missing: ${state.stats?.missing ?? 'N/A'}`,
+          `Coverage: ${coverage !== null ? `${coverage}%` : 'N/A'}`,
+          ``,
+          `--- Missing IDs (Compressed) ---`,
+          state.result || "N/A",
+          ``,
+          `--- Present IDs (Compressed) ---`,
+          state.presentCompressed || "N/A",
+          ``,
+          `--- Missing IDs (Full List) ---`,
+          state.missingFull || "N/A"
+        ];
+        
+        // Simulate progress for the report generation itself as it's small
+        let content = "";
+        for (let i = 0; i < lines.length; i++) {
+            content += lines[i] + "\n";
+            setDownloadProgress((i / lines.length) * 100);
+            await new Promise(r => setTimeout(r, 10)); // tiny delay
+        }
+        
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `adiarc-gap-report-${state.start}-${state.end}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
 
-    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `adiarc-gap-report-${state.start}-${state.end}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+        toast({
+          title: "Download started",
+          description: "Your AdiARC gap report is being downloaded.",
+        });
 
-    toast({
-      title: "Download started",
-      description: "Your AdiARC gap report is being downloaded.",
-    });
+    } catch (error) {
+        console.error("Report download failed", error);
+        toast({
+            title: "Download failed",
+            description: "Could not generate the report file.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsDownloading(false);
+    }
+
   };
 
   const handleProcess = async () => {
@@ -289,205 +324,232 @@ export function RangeGapsTab() {
     })) ?? [];
 
   return (
-    <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">Find Gaps in Sequential Numbers</CardTitle>
-        <CardDescription>
-          Identify missing mutation numbers within a large range by comparing it against a text file of existing IDs. Your work is automatically saved and restored.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <section className="grid gap-6 lg:grid-cols-2 items-start">
-          {/* LEFT: Input Column */}
-          <div className="flex flex-col gap-4">
-            <section className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="start">Range Start</Label>
-                <Input id="start" type="number" value={state.start} onChange={(e) => setState(prev => ({...prev, start: e.target.value}))} min={1} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="end">Range End</Label>
-                <Input id="end" type="number" value={state.end} onChange={(e) => setState(prev => ({...prev, end: e.target.value}))} min={1} />
-              </div>
-            </section>
-
-            <section className="space-y-2">
-              <Label htmlFor="file">Mutation Numbers File (.txt, .csv)</Label>
-              <Input id="file" type="file" accept=".txt,.csv" onChange={handleFileChange} />
-              <p className="text-xs text-muted-foreground pt-2">
-                  You can upload a file, or paste your numbers directly into the text area below (comma, space, or new-line separated). Uploading a file will populate the text area.
-              </p>
-              <Textarea 
-                  value={state.fileContent} 
-                  onChange={(e) => setState(prev => ({...prev, fileContent: e.target.value}))}
-                  placeholder="Your numbers will appear here after uploading a file, or you can paste them directly."
-                  className="h-24 font-mono text-xs"
-              />
-            </section>
-
-            <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2 mt-2">
-                <p className="text-xs text-muted-foreground max-w-xs">
-                    All processing is done locally in your browser for privacy and speed.
+    <>
+      <Dialog open={isDownloading}>
+        <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Preparing Your Download</DialogTitle>
+            <DialogDescription>
+                Please wait while we generate the report file.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="space-y-2">
+                <Progress value={downloadProgress} className="h-2" />
+                <p className="text-sm text-muted-foreground text-center">
+                    Processing... {Math.round(downloadProgress)}%
                 </p>
-                <Button
-                  type="button"
-                  onClick={handleProcess}
-                  disabled={isLoading}
-                  className="shrink-0 shadow-md"
-                >
-                  {isLoading ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Processing...
-                    </span>
-                  ) : (
-                    "Find Missing Numbers"
-                  )}
-                </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Find Gaps in Sequential Numbers</CardTitle>
+          <CardDescription>
+            Identify missing mutation numbers within a large range by comparing it against a text file of existing IDs. Your work is automatically saved and restored.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <section className="grid gap-6 lg:grid-cols-2 items-start">
+            {/* LEFT: Input Column */}
+            <div className="flex flex-col gap-4">
+              <section className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="start">Range Start</Label>
+                  <Input id="start" type="number" value={state.start} onChange={(e) => setState(prev => ({...prev, start: e.target.value}))} min={1} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end">Range End</Label>
+                  <Input id="end" type="number" value={state.end} onChange={(e) => setState(prev => ({...prev, end: e.target.value}))} min={1} />
+                </div>
+              </section>
 
-          {/* RIGHT: Stats and Chart */}
-          <div className="flex flex-col gap-4 mt-6 lg:mt-0">
-             <div className="grid grid-cols-4 gap-3 text-center text-xs text-muted-foreground p-3 rounded-lg border bg-muted/40">
-                <div>
-                    <p className="font-semibold text-foreground text-lg">{state.stats ? state.stats.total.toLocaleString() : "—"}</p>
-                    <p>Total in Range</p>
-                </div>
-                <div>
-                    <p className="font-semibold text-foreground text-lg">{state.stats ? state.stats.present.toLocaleString() : "—"}</p>
-                    <p>Present</p>
-                </div>
-                <div>
-                    <p className="font-semibold text-destructive text-lg">{state.stats ? state.stats.missing.toLocaleString() : "—"}</p>
-                    <p>Missing</p>
-                </div>
-                 <div>
-                    <p className="font-semibold text-primary text-lg">{coverage !== null ? `${coverage}%` : "—"}</p>
-                    <p>Coverage</p>
-                </div>
-            </div>
-             {chartData.length > 0 && (
-                <div className="space-y-2">
-                    <Label className="text-xs">Gap Distribution</Label>
-                    <div className="h-40 rounded-lg border bg-muted/40 p-2">
-                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: -5 }}>
-                               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3}/>
-                                <XAxis dataKey="label" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={40} />
-                                <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
-                                <Tooltip
-                                    cursor={{fill: 'hsl(var(--accent))', fillOpacity: 0.3}}
-                                    contentStyle={{
-                                        background: 'hsl(var(--background))',
-                                        border: '1px solid hsl(var(--border))',
-                                        borderRadius: 'var(--radius)',
-                                        fontSize: '11px',
-                                        padding: '4px 8px'
-                                    }}
-                                />
-                                <Bar dataKey="missing" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Missing" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            )}
-          </div>
-        </section>
+              <section className="space-y-2">
+                <Label htmlFor="file">Mutation Numbers File (.txt, .csv)</Label>
+                <Input id="file" type="file" accept=".txt,.csv" onChange={handleFileChange} />
+                <p className="text-xs text-muted-foreground pt-2">
+                    You can upload a file, or paste your numbers directly into the text area below (comma, space, or new-line separated). Uploading a file will populate the text area.
+                </p>
+                <Textarea 
+                    value={state.fileContent} 
+                    onChange={(e) => setState(prev => ({...prev, fileContent: e.target.value}))}
+                    placeholder="Your numbers will appear here after uploading a file, or you can paste them directly."
+                    className="h-24 font-mono text-xs"
+                />
+              </section>
 
-        {state.stats !== null && (
-        <section className="space-y-4 pt-4 border-t border-dashed border-border">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                 <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold">Analysis Results</h3>
-                    {gapSeverity === 'low' && <Badge variant="outline" className="border-green-500/50 text-green-700">Low Gap Rate</Badge>}
-                    {gapSeverity === 'medium' && <Badge variant="secondary" className="border-yellow-500/50 text-yellow-700">Medium Gap Rate</Badge>}
-                    {gapSeverity === 'high' && <Badge variant="destructive">High Gap Rate</Badge>}
-                 </div>
-                 <Button variant="outline" size="sm" onClick={handleDownload} disabled={!state.stats}>
-                    <Download className="mr-2 h-3.5 w-3.5" />
-                    Download Report
-                 </Button>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2 mt-2">
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                      All processing is done locally in your browser for privacy and speed.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={handleProcess}
+                    disabled={isLoading}
+                    className="shrink-0 shadow-md"
+                  >
+                    {isLoading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </span>
+                    ) : (
+                      "Find Missing Numbers"
+                    )}
+                  </Button>
+              </div>
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Missing Numbers */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="missing-results">Missing Numbers ({useCompressedMissing ? 'Compressed' : 'Full List'})</Label>
-                        <div className="flex items-center gap-1">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => setUseCompressedMissing(p => !p)}
-                                title={useCompressedMissing ? "Show Full List" : "Show Compressed"}
-                            >
-                                {useCompressedMissing ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleCopy("missing IDs", missingDisplay)}
-                                disabled={!missingDisplay || missingDisplay === "NONE"}
-                                title="Copy"
-                            >
-                                <Copy className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                    <Textarea
-                    id="missing-results"
-                    readOnly
-                    value={missingDisplay}
-                    placeholder="Missing numbers will appear here after processing."
-                    className="h-40 font-mono text-xs bg-muted/30"
-                    />
-                </div>
-                 {/* Present Numbers */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="present-results">Present Numbers ({useCompressedPresent ? 'Compressed' : 'Full List'})</Label>
-                        <div className="flex items-center gap-1">
-                             <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => setUseCompressedPresent(p => !p)}
-                                title={useCompressedPresent ? "Show Full List" : "Show Compressed"}
-                            >
-                                {useCompressedPresent ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleCopy("present IDs", presentDisplay)}
-                                disabled={!presentDisplay || presentDisplay === "NONE" || presentDisplay === "ALL"}
-                                title="Copy"
-                            >
-                                <Copy className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                    <Textarea
-                    id="present-results"
-                    readOnly
-                    value={presentDisplay}
-                    placeholder="Present numbers will appear here after processing."
-                    className="h-40 font-mono text-xs bg-muted/30"
-                    />
-                </div>
+
+            {/* RIGHT: Stats and Chart */}
+            <div className="flex flex-col gap-4 mt-6 lg:mt-0">
+              <div className="grid grid-cols-4 gap-3 text-center text-xs text-muted-foreground p-3 rounded-lg border bg-muted/40">
+                  <div>
+                      <p className="font-semibold text-foreground text-lg">{state.stats ? state.stats.total.toLocaleString() : "—"}</p>
+                      <p>Total in Range</p>
+                  </div>
+                  <div>
+                      <p className="font-semibold text-foreground text-lg">{state.stats ? state.stats.present.toLocaleString() : "—"}</p>
+                      <p>Present</p>
+                  </div>
+                  <div>
+                      <p className="font-semibold text-destructive text-lg">{state.stats ? state.stats.missing.toLocaleString() : "—"}</p>
+                      <p>Missing</p>
+                  </div>
+                  <div>
+                      <p className="font-semibold text-primary text-lg">{coverage !== null ? `${coverage}%` : "—"}</p>
+                      <p>Coverage</p>
+                  </div>
+              </div>
+              {chartData.length > 0 && (
+                  <div className="space-y-2">
+                      <Label className="text-xs">Gap Distribution</Label>
+                      <div className="h-40 rounded-lg border bg-muted/40 p-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: -5 }}>
+                                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3}/>
+                                  <XAxis dataKey="label" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={40} />
+                                  <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
+                                  <Tooltip
+                                      cursor={{fill: 'hsl(var(--accent))', fillOpacity: 0.3}}
+                                      contentStyle={{
+                                          background: 'hsl(var(--background))',
+                                          border: '1px solid hsl(var(--border))',
+                                          borderRadius: 'var(--radius)',
+                                          fontSize: '11px',
+                                          padding: '4px 8px'
+                                      }}
+                                  />
+                                  <Bar dataKey="missing" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Missing" />
+                              </BarChart>
+                          </ResponsiveContainer>
+                      </div>
+                  </div>
+              )}
             </div>
-        </section>
-        )}
-      </CardContent>
-    </Card>
+          </section>
+
+          {state.stats !== null && (
+          <section className="space-y-4 pt-4 border-t border-dashed border-border">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold">Analysis Results</h3>
+                      {gapSeverity === 'low' && <Badge variant="outline" className="border-green-500/50 text-green-700">Low Gap Rate</Badge>}
+                      {gapSeverity === 'medium' && <Badge variant="secondary" className="border-yellow-500/50 text-yellow-700">Medium Gap Rate</Badge>}
+                      {gapSeverity === 'high' && <Badge variant="destructive">High Gap Rate</Badge>}
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleDownload} disabled={!state.stats || isDownloading}>
+                    {isDownloading ? (
+                        <>
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            Preparing...
+                        </>
+                    ) : (
+                        <>
+                            <Download className="mr-2 h-3.5 w-3.5" />
+                            Download Report
+                        </>
+                    )}
+                  </Button>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                  {/* Missing Numbers */}
+                  <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                          <Label htmlFor="missing-results">Missing Numbers ({useCompressedMissing ? 'Compressed' : 'Full List'})</Label>
+                          <div className="flex items-center gap-1">
+                              <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => setUseCompressedMissing(p => !p)}
+                                  title={useCompressedMissing ? "Show Full List" : "Show Compressed"}
+                              >
+                                  {useCompressedMissing ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleCopy("missing IDs", missingDisplay)}
+                                  disabled={!missingDisplay || missingDisplay === "NONE"}
+                                  title="Copy"
+                              >
+                                  <Copy className="h-4 w-4" />
+                              </Button>
+                          </div>
+                      </div>
+                      <Textarea
+                      id="missing-results"
+                      readOnly
+                      value={missingDisplay}
+                      placeholder="Missing numbers will appear here after processing."
+                      className="h-40 font-mono text-xs bg-muted/30"
+                      />
+                  </div>
+                  {/* Present Numbers */}
+                  <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                          <Label htmlFor="present-results">Present Numbers ({useCompressedPresent ? 'Compressed' : 'Full List'})</Label>
+                          <div className="flex items-center gap-1">
+                              <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => setUseCompressedPresent(p => !p)}
+                                  title={useCompressedPresent ? "Show Full List" : "Show Compressed"}
+                              >
+                                  {useCompressedPresent ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleCopy("present IDs", presentDisplay)}
+                                  disabled={!presentDisplay || presentDisplay === "NONE" || presentDisplay === "ALL"}
+                                  title="Copy"
+                              >
+                                  <Copy className="h-4 w-4" />
+                              </Button>
+                          </div>
+                      </div>
+                      <Textarea
+                      id="present-results"
+                      readOnly
+                      value={presentDisplay}
+                      placeholder="Present numbers will appear here after processing."
+                      className="h-40 font-mono text-xs bg-muted/30"
+                      />
+                  </div>
+              </div>
+          </section>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }
-
-    
