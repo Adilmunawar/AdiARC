@@ -120,9 +120,10 @@ export function RangeGapsTab() {
     await new Promise(resolve => setTimeout(resolve, 50));
     
     try {
+        setDownloadProgress(25);
         const coverage = state.stats && state.stats.total > 0 ? Math.round((state.stats.present / state.stats.total) * 1000) / 10 : null;
 
-        const lines = [
+        const reportContent = [
           `AdiARC Gap Analysis Report`,
           `===========================`,
           `Date: ${new Date().toISOString()}`,
@@ -143,23 +144,21 @@ export function RangeGapsTab() {
           ``,
           `--- Missing IDs (Full List) ---`,
           state.missingFull || "N/A"
-        ];
+        ].join('\n');
         
-        // Simulate progress for the report generation itself as it's small
-        let content = "";
-        for (let i = 0; i < lines.length; i++) {
-            content += lines[i] + "\n";
-            setDownloadProgress((i / lines.length) * 100);
-            await new Promise(r => setTimeout(r, 10)); // tiny delay
-        }
-        
-        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        setDownloadProgress(75);
+        await new Promise(r => setTimeout(r, 10));
+
+        const blob = new Blob([reportContent], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `adiarc-gap-report-${state.start}-${state.end}.txt`;
         document.body.appendChild(a);
         a.click();
+        
+        setDownloadProgress(100);
+
         a.remove();
         URL.revokeObjectURL(url);
 

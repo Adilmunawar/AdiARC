@@ -146,25 +146,26 @@ export function HtmlExtractorTab() {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     try {
-        const CHUNK_SIZE = 10000; // Process 10,000 numbers at a time
-        const chunks = [];
-        for (let i = 0; i < state.numbers.length; i += CHUNK_SIZE) {
-            const chunk = state.numbers.slice(i, i + CHUNK_SIZE);
-            chunks.push(chunk.join('\n'));
-            
-            // Update progress and yield to the main thread
-            const progress = ((i + chunk.length) / state.numbers.length) * 100;
-            setDownloadProgress(progress);
-            await new Promise(resolve => setTimeout(resolve, 0));
-        }
+        setDownloadProgress(33);
+        await new Promise(resolve => setTimeout(resolve, 0)); 
+        
+        // Join all numbers into a single string first.
+        const fileContent = state.numbers.join('\n');
+        
+        setDownloadProgress(66);
+        await new Promise(resolve => setTimeout(resolve, 0)); 
 
-        const blob = new Blob(chunks, { type: "text/plain;charset=utf-8" });
+        // Create the Blob from the single, complete string with explicit UTF-8 encoding.
+        const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = "mutation-numbers.txt";
         document.body.appendChild(a);
         a.click();
+        
+        setDownloadProgress(100);
+        
         a.remove();
         URL.revokeObjectURL(url);
 

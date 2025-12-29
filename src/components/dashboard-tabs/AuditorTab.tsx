@@ -109,10 +109,11 @@ export function AuditorTab() {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     try {
+        setDownloadProgress(50);
         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-        // Simulate progress for blob creation
-        await new Promise(resolve => setTimeout(() => { setDownloadProgress(50); resolve(null); }, 100));
+        await new Promise(resolve => setTimeout(resolve, 50));
         
+        setDownloadProgress(100);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -121,10 +122,6 @@ export function AuditorTab() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        
-        setDownloadProgress(100);
-        await new Promise(resolve => setTimeout(resolve, 200));
-
 
     } catch (error) {
         console.error("Download preparation failed", error);
@@ -332,7 +329,7 @@ export function AuditorTab() {
                                       disabled={!result.sheetOnlyList.length || isDownloading}
                                       title="Download"
                                   >
-                                      {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                                      <Download className="h-4 w-4" />
                                   </Button>
                               </div>
                           </div>
@@ -368,7 +365,7 @@ export function AuditorTab() {
                                       disabled={!result.dbOnlyList.length || isDownloading}
                                       title="Download"
                                   >
-                                      {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                                      <Download className="h-4 w-4" />
                                   </Button>
                               </div>
                           </div>
