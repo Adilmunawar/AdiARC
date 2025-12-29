@@ -95,8 +95,6 @@ FROM (
 ) AS AllEvents
 -- Join to get User Names
 LEFT JOIN users.[User] U ON AllEvents.user_id = U.user_id
-WHERE AllEvents.user_id IS NOT NULL -- Filters out system automated tasks with no user
+WHERE AllEvents.user_id IS NOT NULL 
 ORDER BY AllEvents.ActionDate DESC;
-
--- 2. Close Key
 CLOSE MASTER KEY;
