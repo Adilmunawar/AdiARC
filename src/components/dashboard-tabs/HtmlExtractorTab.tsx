@@ -155,8 +155,10 @@ export function HtmlExtractorTab() {
         setDownloadProgress(66);
         await new Promise(resolve => setTimeout(resolve, 0)); 
 
-        // Create the Blob from the single, complete string with explicit UTF-8 encoding.
-        const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
+        // Prepend the UTF-8 BOM to force correct encoding recognition.
+        const contentWithBom = '\uFEFF' + fileContent;
+        
+        const blob = new Blob([contentWithBom], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;

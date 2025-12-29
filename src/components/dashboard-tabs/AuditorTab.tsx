@@ -110,7 +110,9 @@ export function AuditorTab() {
 
     try {
         setDownloadProgress(50);
-        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        // Prepend the UTF-8 BOM to force correct encoding recognition.
+        const contentWithBom = '\uFEFF' + content;
+        const blob = new Blob([contentWithBom], { type: "text/plain;charset=utf-8" });
         await new Promise(resolve => setTimeout(resolve, 50));
         
         setDownloadProgress(100);
