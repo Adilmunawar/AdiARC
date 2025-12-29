@@ -130,7 +130,7 @@ export function RangeGapsTab() {
       state.missingFull || "N/A"
     ];
 
-    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -401,7 +401,7 @@ export function RangeGapsTab() {
                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-semibold">Analysis Results</h3>
                     {gapSeverity === 'low' && <Badge variant="outline" className="border-green-500/50 text-green-700">Low Gap Rate</Badge>}
-                    {gapSeverity === 'medium' && <Badge variant="secondary">Medium Gap Rate</Badge>}
+                    {gapSeverity === 'medium' && <Badge variant="secondary" className="border-yellow-500/50 text-yellow-700">Medium Gap Rate</Badge>}
                     {gapSeverity === 'high' && <Badge variant="destructive">High Gap Rate</Badge>}
                  </div>
                  <Button variant="outline" size="sm" onClick={handleDownload} disabled={!state.stats}>
@@ -489,3 +489,5 @@ export function RangeGapsTab() {
     </Card>
   );
 }
+
+    
