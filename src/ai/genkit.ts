@@ -1,6 +1,6 @@
 
 'use server';
-import { genkit, AIServiceError } from 'genkit';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
 export const ai = genkit({
@@ -8,5 +8,3 @@ export const ai = genkit({
     googleAI(),
   ],
 });
-
-export { AIServiceError };
