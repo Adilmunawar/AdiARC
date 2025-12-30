@@ -6,21 +6,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Loader2, Send, User } from "lucide-react";
+import { Bot, BrainCircuit, Loader2, Send, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from "../ui/use-toast";
+import { Label } from "../ui/label";
+import { Switch } from "../ui/switch";
 
 type Message = {
     role: "user" | "assistant";
     content: string;
 };
 
+type AssistantMode = "normal" | "db";
+
 export function AiAssistantTab() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [mode, setMode] = useState<AssistantMode>("normal");
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -44,7 +49,7 @@ export function AiAssistantTab() {
         setIsLoading(true);
 
         try {
-            const assistantResponse = await askDbAssistant(currentInput);
+            const assistantResponse = await askDbAssistant({ prompt: currentInput, mode });
             const assistantMessage: Message = { role: "assistant", content: assistantResponse };
             setMessages((prev) => [...prev, assistantMessage]);
         } catch (error: any) {
@@ -54,6 +59,7 @@ export function AiAssistantTab() {
                 variant: "destructive",
                 title: "Uh oh! Something went wrong.",
                 description: errorMessage,
+                duration: 9000,
             });
             // Add a message to the chat as well
             const errorChatMessage: Message = {
@@ -76,8 +82,23 @@ export function AiAssistantTab() {
                             Virtual Assistant
                         </CardTitle>
                         <CardDescription>
-                           Engage in a conversation with AdiARC, your general purpose AI assistant.
+                           Engage in a conversation with AdiARC. Use the toggle for specialized knowledge.
                         </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2 border border-dashed rounded-lg p-2">
+                        <Label htmlFor="mode-toggle" className="text-xs text-muted-foreground">
+                            Normal
+                        </Label>
+                        <Switch
+                            id="mode-toggle"
+                            checked={mode === "db"}
+                            onCheckedChange={(checked) => setMode(checked ? "db" : "normal")}
+                            aria-label="Toggle assistant mode"
+                        />
+                         <Label htmlFor="mode-toggle" className="text-xs font-semibold text-primary flex items-center gap-1">
+                            <BrainCircuit className="h-4 w-4" />
+                            Wirasat Expert
+                        </Label>
                     </div>
                 </div>
             </CardHeader>
@@ -87,7 +108,7 @@ export function AiAssistantTab() {
                         {messages.length === 0 && (
                             <div className="text-center text-sm text-muted-foreground pt-10">
                                 <p>No messages yet. Start the conversation!</p>
-                                <p className="text-xs">e.g., "What is the capital of Pakistan?"</p>
+                                <p className="text-xs">e.g., "What is the capital of Pakistan?" or toggle expert mode and ask "Calculate shares for 1 widow, 2 sons, and 10 kanal of land."</p>
                             </div>
                         )}
                         {messages.map((message, index) => (
@@ -132,7 +153,7 @@ export function AiAssistantTab() {
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Ask me anything..."
+                        placeholder={mode === 'db' ? "Ask about inheritance partitions..." : "Ask me anything..."}
                         className="flex-1"
                         disabled={isLoading}
                     />
