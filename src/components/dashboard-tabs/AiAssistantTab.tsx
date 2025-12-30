@@ -61,11 +61,17 @@ export function AiAssistantTab() {
             const assistantResponse = await askDbAssistant({ prompt: input, mode });
             const assistantMessage: Message = { role: "assistant", content: assistantResponse };
             setMessages((prev) => [...prev, assistantMessage]);
-        } catch (error) {
+        } catch (error: any) {
             console.error("AI Assistant Error:", error);
+            toast({
+                variant: "destructive",
+                title: "Uh oh! Something went wrong.",
+                description: error.message || "Could not get a response from the AI assistant.",
+            });
+            // Optionally add a message to the chat as well
             const errorMessage: Message = {
                 role: "assistant",
-                content: "Sorry, I encountered an error while processing your request. Please check the server logs.",
+                content: "I'm sorry, but I ran into an issue. Please see the error notification for details.",
             };
             setMessages((prev) => [...prev, errorMessage]);
         } finally {
