@@ -9,8 +9,8 @@ import Image from 'next/image';
 const tools = [
     {
         name: "adil munawar",
-        description: "Chat with a virtual assistant that understands your schema.",
-        icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-md" />,
+        description: "Engage in a conversation with AdiARC. Use the toggle for specialized knowledge.",
+        icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-md object-cover" />,
         path: "/ai-assistant"
     },
     {
@@ -86,7 +86,7 @@ export default function Home() {
                     <Card className="h-full border-border/70 bg-card/80 transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:shadow-lg group-hover:-translate-y-1">
                         <CardHeader>
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg transition-colors duration-300 group-hover:bg-primary/20">
+                                <div className="p-1 bg-primary/10 rounded-lg transition-colors duration-300 group-hover:bg-primary/20">
                                     <tool.icon className="h-6 w-6 text-primary" />
                                 </div>
                                 <CardTitle className="text-base font-semibold">{tool.name}</CardTitle>
