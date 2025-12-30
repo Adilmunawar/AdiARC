@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,9 +43,12 @@ export function AuditorTab() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [sheetCount, setSheetCount] = useState(0);
+  const [dbCount, setDbCount] = useState(0);
 
   const expandList = (list: string): Set<number> => {
     const numbers = new Set<number>();
+    if (!list) return numbers;
     const tokens = list.split(/[\s,;\n]+/).map(t => t.trim()).filter(Boolean);
 
     for (const token of tokens) {
@@ -68,6 +71,11 @@ export function AuditorTab() {
     return numbers;
   };
   
+  useEffect(() => {
+    setSheetCount(expandList(state.sheetList).size);
+    setDbCount(expandList(state.dbList).size);
+  }, [state.sheetList, state.dbList]);
+
   const handleCopy = async (label: string, value: string) => {
     if (!value) {
       toast({
@@ -233,7 +241,7 @@ export function AuditorTab() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="sheet-list">1. Your Sheet List (Unverified)</Label>
                   <span className="text-[11px] text-muted-foreground">
-                    {expandList(state.sheetList).size} unique IDs
+                    {sheetCount} unique IDs
                   </span>
                 </div>
                 <Textarea
@@ -249,7 +257,7 @@ export function AuditorTab() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="db-list">2. DB Master List (Verified)</Label>
                   <span className="text-[11px] text-muted-foreground">
-                    {expandList(state.dbList).size} unique IDs
+                    {dbCount} unique IDs
                   </span>
                 </div>
                 <Textarea
