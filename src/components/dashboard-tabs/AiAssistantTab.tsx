@@ -1,4 +1,3 @@
-
 "use client";
 
 import { askDbAssistant } from "@/ai/flows/db-assistant-flow";
@@ -6,14 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BrainCircuit, Loader2, Send, User } from "lucide-react";
+import { BrainCircuit, Globe, Loader2, Send, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from "../ui/use-toast";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
-import Image from 'next/image';
 
 type Message = {
     role: "user" | "assistant";
@@ -43,14 +41,15 @@ export function AdilMunawarTab() {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
 
-        const userMessage: Message = { role: "user", content: input };
-        setMessages((prev) => [...prev, userMessage]);
-        const currentInput = input;
+        const newUserMessage: Message = { role: "user", content: input };
+        const updatedMessages = [...messages, newUserMessage];
+        
+        setMessages(updatedMessages);
         setInput("");
         setIsLoading(true);
 
         try {
-            const assistantResponse = await askDbAssistant({ prompt: currentInput, mode });
+            const assistantResponse = await askDbAssistant({ history: updatedMessages, mode });
             const assistantMessage: Message = { role: "assistant", content: assistantResponse };
             setMessages((prev) => [...prev, assistantMessage]);
         } catch (error: any) {
@@ -79,7 +78,7 @@ export function AdilMunawarTab() {
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                            <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
+                            <Globe className="h-7 w-7 text-primary" />
                             adil munawar
                         </CardTitle>
                         <CardDescription>
@@ -116,7 +115,7 @@ export function AdilMunawarTab() {
                             <div key={index} className={`flex gap-3 text-sm animate-fade-in-up ${message.role === 'user' ? 'justify-end' : ''}`}>
                                 {message.role === 'assistant' && (
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
+                                        <Globe className="w-5 h-5 text-primary" />
                                     </div>
                                 )}
                                 <div className={`max-w-xl rounded-lg p-3 transition-transform duration-200 ease-in-out hover:scale-[1.02] hover:shadow-md ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -141,7 +140,7 @@ export function AdilMunawarTab() {
                          {isLoading && (
                             <div className="flex gap-3 text-sm animate-fade-in-up">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                     <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
+                                     <Globe className="w-5 h-5 text-primary" />
                                 </div>
                                 <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center space-x-1">
                                     <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0s' }}></span>

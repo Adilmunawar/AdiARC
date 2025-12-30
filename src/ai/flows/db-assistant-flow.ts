@@ -20,8 +20,13 @@ const openai = OPENROUTER_API_KEY ? new OpenAI({
   }
 }) : null;
 
+const MessageSchema = z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string(),
+});
+
 const DbAssistantInputSchema = z.object({
-    prompt: z.string(),
+    history: z.array(MessageSchema),
     mode: z.enum(['normal', 'db']),
 });
 
@@ -39,7 +44,7 @@ const dbAssistantFlow = ai.defineFlow(
         inputSchema: DbAssistantInputSchema,
         outputSchema: DbAssistantOutputSchema,
     },
-    async ({ prompt, mode }) => {
+    async ({ history, mode }) => {
         if (!openai) {
             const errorMessage = "OpenRouter API key is not configured. Please set OPENROUTER_API_KEY in your environment variables.";
             console.error(errorMessage);
@@ -76,19 +81,18 @@ When a user asks for a partition calculation, provide a step-by-step breakdown o
 `;
         }
 
+        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+            {
+                role: "system",
+                content: systemPrompt
+            },
+            ...history // Pass the entire conversation history
+        ];
+
         try {
             const completion = await openai.chat.completions.create({
                 model: MODEL_ID,
-                messages: [
-                    {
-                        role: "system",
-                        content: systemPrompt
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
+                messages: messages,
                 temperature: mode === 'db' ? 0.2 : 0.7,
                 max_tokens: 4096,
             });
