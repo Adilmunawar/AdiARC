@@ -1,0 +1,242 @@
+"use client";
+
+import React, { useState } from "react";
+import * as XLSX from "xlsx";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/use-toast";
+import { Download, Loader2, Printer } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+
+export function PrintLayoutTab() {
+  const { toast } = useToast();
+  const [mutationNumbers, setMutationNumbers] = useState("");
+  const [rowsPerColumn, setRowsPerColumn] = useState("50");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState(0);
+
+  const handleGenerateExcel = async () => {
+    const rawNumbers = mutationNumbers
+      .split(/[\s,;\n]+/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+
+    if (rawNumbers.length === 0) {
+      toast({
+        title: "No Mutation Numbers",
+        description: "Please paste the mutation numbers you want to format.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const rows = parseInt(rowsPerColumn, 10);
+    if (isNaN(rows) || rows <= 0) {
+      toast({
+        title: "Invalid Rows Per Column",
+        description: "Please enter a positive number for rows per column.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerateProgress(0);
+    await new Promise(r => setTimeout(r, 50)); // Allow UI to update
+
+    try {
+      // Step 1: Create the snaking column layout
+      setGenerateProgress(25);
+      const grid: (string | number)[][] = [];
+      const numColumns = Math.ceil(rawNumbers.length / rows);
+
+      for (let c = 0; c < numColumns; c++) {
+        const start = c * rows;
+        const end = start + rows;
+        const columnData = rawNumbers.slice(start, end);
+        columnData.forEach((num, r) => {
+          if (!grid[r]) {
+            grid[r] = [];
+          }
+          // Ensure previous columns are filled with empty strings if this column is longer
+          while (grid[r].length < c) {
+            grid[r].push("");
+          }
+          grid[r][c] = isNaN(Number(num)) ? num : Number(num);
+        });
+      }
+      setGenerateProgress(50);
+      await new Promise(r => setTimeout(r, 10));
+
+      // Step 2: Create worksheet and workbook
+      const ws = XLSX.utils.aoa_to_sheet(grid);
+      const wb = XLSX.utils.book_new();
+
+      // Step 3: Apply Styling
+      const allCellsRange = XLSX.utils.decode_range(ws["!ref"]!);
+      const cols = [];
+      for (let C = allCellsRange.s.c; C <= allCellsRange.e.c; ++C) {
+        let max_w = 10; // default width
+        for (let R = allCellsRange.s.r; R <= allCellsRange.e.r; ++R) {
+            const cell_address = { c: C, r: R };
+            const cell_ref = XLSX.utils.encode_cell(cell_address);
+            if (!ws[cell_ref]) continue;
+
+            // Apply border
+            ws[cell_ref].s = {
+                border: {
+                    top: { style: "thin", color: { rgb: "000000" } },
+                    bottom: { style: "thin", color: { rgb: "000000" } },
+                    left: { style: "thin", color: { rgb: "000000" } },
+                    right: { style: "thin", color: { rgb: "000000" } },
+                }
+            };
+             // Check width
+            const cell_w = String(ws[cell_ref].v).length + 2;
+            if (max_w < cell_w) max_w = cell_w;
+        }
+        cols.push({ wch: max_w });
+      }
+      ws['!cols'] = cols;
+      ws['!pageMargins'] = { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
+      
+      setGenerateProgress(75);
+      await new Promise(r => setTimeout(r, 10));
+
+      // Step 4: Append sheet and download
+      XLSX.utils.book_append_sheet(wb, ws, "Mutation Layout");
+      XLSX.writeFile(wb, "mutation_print_layout.xlsx");
+      
+      setGenerateProgress(100);
+      toast({
+        title: "Excel File Generated",
+        description: "Your formatted mutation list is downloading.",
+      });
+
+    } catch (error) {
+      console.error("Failed to generate Excel file", error);
+      toast({
+        title: "Generation Failed",
+        description: "An unexpected error occurred while creating the file.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={isGenerating}>
+        <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Generating Your Excel File</DialogTitle>
+            <DialogDescription>
+              Please wait while we format the mutation numbers. This may take a moment for very large lists.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Progress value={generateProgress} className="h-2" />
+              <p className="text-sm text-muted-foreground text-center">
+                Processing... {Math.round(generateProgress)}%
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Printer className="h-5 w-5 text-primary" />
+            Mutation Print Layout Formatter
+          </CardTitle>
+          <CardDescription>
+            Paste a long list of mutation numbers and this tool will reorganize them into a print-friendly, multi-column
+            Excel file.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
+            {/* LEFT: Inputs */}
+            <div className="flex flex-col gap-4">
+              <section className="space-y-2">
+                <Label htmlFor="mutation-numbers">1. Paste Mutation Numbers Here</Label>
+                <Textarea
+                  id="mutation-numbers"
+                  value={mutationNumbers}
+                  onChange={(e) => setMutationNumbers(e.target.value)}
+                  placeholder="Paste your newline, comma, or space-separated mutation numbers here."
+                  className="h-96 font-mono text-xs"
+                  disabled={isGenerating}
+                />
+              </section>
+            </div>
+
+            {/* RIGHT: Controls */}
+            <div className="flex flex-col gap-4 mt-6 lg:mt-0">
+                <section className="space-y-2">
+                    <Label htmlFor="rows-per-column">2. Rows Per Column</Label>
+                    <Input
+                        id="rows-per-column"
+                        type="number"
+                        value={rowsPerColumn}
+                        onChange={(e) => setRowsPerColumn(e.target.value)}
+                        className="w-40"
+                        disabled={isGenerating}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                        Defaults to 50, which is optimized for printing on standard A4 paper in portrait mode.
+                    </p>
+                </section>
+
+                <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-primary/50 bg-primary/10 px-4 py-3">
+                    <p className="text-sm font-medium text-primary max-w-xs">
+                        Ready to create your printable sheet?
+                    </p>
+                    <Button
+                        type="button"
+                        onClick={handleGenerateExcel}
+                        disabled={isGenerating}
+                        className="shrink-0 shadow-md text-sm"
+                        size="lg"
+                    >
+                        {isGenerating ? (
+                        <span className="inline-flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Generating...
+                        </span>
+                        ) : (
+                        <span className="inline-flex items-center gap-2">
+                            <Download className="h-4 w-4" />
+                            Generate Excel
+                        </span>
+                        )}
+                    </Button>
+                </div>
+                 <div className="text-xs text-muted-foreground space-y-2 pt-2">
+                    <p><span className="font-semibold">How it works:</span> This tool uses a "snaking column" layout. For example, if you have 150 numbers and set 50 rows per column, the output will be:</p>
+                    <ul className="list-disc pl-5">
+                        <li>Column A: Numbers 1-50</li>
+                        <li>Column B: Numbers 51-100</li>
+                        <li>Column C: Numbers 101-150</li>
+                    </ul>
+                    <p>This process is done entirely in your browser; your data is never sent to a server.</p>
+                </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
