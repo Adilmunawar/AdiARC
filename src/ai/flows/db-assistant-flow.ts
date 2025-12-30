@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for the Virtual DB Assistant.
@@ -15,10 +16,13 @@ const schemaPath = path.join(process.cwd(), 'src', 'ai', 'schema', 'lrims_schema
 const lrimsSchema = fs.readFileSync(schemaPath, 'utf-8');
 
 
-const DbAssistantInputSchema = z.string();
+const DbAssistantInputSchema = z.object({
+    prompt: z.string(),
+    mode: z.enum(['normal', 'db']),
+});
 const DbAssistantOutputSchema = z.string();
 
-export async function askDbAssistant(input: string): Promise<string> {
+export async function askDbAssistant(input: z.infer<typeof DbAssistantInputSchema>): Promise<string> {
     const result = await dbAssistantFlow(input);
     return result;
 }
@@ -29,12 +33,11 @@ const dbAssistantFlow = ai.defineFlow(
         inputSchema: DbAssistantInputSchema,
         outputSchema: DbAssistantOutputSchema,
     },
-    async (prompt) => {
+    async ({ prompt, mode }) => {
+        let systemPrompt = "You are a helpful general assistant.";
 
-        const llmResponse = await ai.generate({
-            model: 'gemini-2.5-flash',
-            prompt: prompt,
-            system: `You are a virtual database assistant for the Land Records Management Information System (LRIMS). 
+        if (mode === 'db') {
+            systemPrompt = `You are a virtual database assistant for the Land Records Management Information System (LRIMS). 
 Your purpose is to help users understand the database schema, answer questions about it, and generate SQL queries.
 
 You have been provided with the complete database schema below. Use this schema as your single source of truth. 
@@ -46,9 +49,15 @@ Here is the LRIMS database schema:
 ---
 ${lrimsSchema}
 ---
-`,
+`;
+        }
+
+        const llmResponse = await ai.generate({
+            model: 'gemini-1.5-flash-latest',
+            prompt: prompt,
+            system: systemPrompt,
             config: {
-              temperature: 0.3, // Lower temperature for more factual, less creative responses
+              temperature: mode === 'db' ? 0.3 : 0.7, 
             }
         });
 
