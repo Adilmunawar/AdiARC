@@ -22,7 +22,7 @@ type Message = {
 
 type AssistantMode = "normal" | "db";
 
-export function AiAssistantTab() {
+export function AdilMunawarTab() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -78,12 +78,12 @@ export function AiAssistantTab() {
             <CardHeader>
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                            <Image src="/adil munawar.jpg" alt="adil munawar" width={20} height={20} className="rounded-full" />
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-full object-cover" />
                             adil munawar
                         </CardTitle>
                         <CardDescription>
-                           Engage in a conversation with AdiARC. Use the toggle for specialized knowledge.
+                           Engage in a conversation with adil munawar. Use the toggle for specialized knowledge.
                         </CardDescription>
                     </div>
                     <div className="flex items-center space-x-2 border border-dashed rounded-lg p-2">
@@ -116,7 +116,7 @@ export function AiAssistantTab() {
                             <div key={index} className={`flex gap-3 text-sm ${message.role === 'user' ? 'justify-end' : ''}`}>
                                 {message.role === 'assistant' && (
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full" />
+                                        <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
                                     </div>
                                 )}
                                 <div className={`max-w-xl rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -141,10 +141,12 @@ export function AiAssistantTab() {
                          {isLoading && (
                             <div className="flex gap-3 text-sm">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                    <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full" />
+                                     <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
                                 </div>
-                                <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center">
-                                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                                <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center space-x-1">
+                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse delay-0"></span>
+                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
+                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
                                 </div>
                             </div>
                         )}
