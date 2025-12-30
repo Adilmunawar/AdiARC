@@ -3,6 +3,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import OpenAI from 'openai';
+import wav from 'wav';
 
 // Configuration for OpenRouter
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -30,12 +31,42 @@ const DbAssistantInputSchema = z.object({
     mode: z.enum(['normal', 'db']),
 });
 
-const DbAssistantOutputSchema = z.string();
+const DbAssistantOutputSchema = z.object({
+    text: z.string(),
+    audioData: z.string().optional(),
+});
 
 
-export async function askDbAssistant(input: z.infer<typeof DbAssistantInputSchema>): Promise<string> {
+export async function askDbAssistant(input: z.infer<typeof DbAssistantInputSchema>): Promise<z.infer<typeof DbAssistantOutputSchema>> {
     const result = await dbAssistantFlow(input);
     return result;
+}
+
+async function toWav(
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.Writer({
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    let bufs: any[] = [];
+    writer.on('error', reject);
+    writer.on('data', function (d) {
+      bufs.push(d);
+    });
+    writer.on('end', function () {
+      resolve(Buffer.concat(bufs).toString('base64'));
+    });
+
+    writer.write(pcmData);
+    writer.end();
+  });
 }
 
 const dbAssistantFlow = ai.defineFlow(
@@ -48,7 +79,7 @@ const dbAssistantFlow = ai.defineFlow(
         if (!openai) {
             const errorMessage = "OpenRouter API key is not configured. Please set OPENROUTER_API_KEY in your environment variables.";
             console.error(errorMessage);
-            return errorMessage;
+            return { text: errorMessage };
         }
 
         let systemPrompt = "You are a helpful general assistant named adil munawar. You are polite, professional, and concise.";
@@ -97,12 +128,34 @@ When a user asks for a partition calculation, provide a step-by-step breakdown o
                 max_tokens: 4096,
             });
 
-            return completion.choices[0]?.message?.content || "No response received from AI.";
+            const responseText = completion.choices[0]?.message?.content || "No response received from AI.";
+            
+            let audioData;
+            try {
+                const { media } = await ai.generate({
+                    model: 'googleai/gemini-2.5-flash-preview-tts',
+                    config: {
+                        responseModalities: ['AUDIO'],
+                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Algenib' } } },
+                    },
+                    prompt: responseText,
+                });
+                if (media) {
+                    const audioBuffer = Buffer.from(media.url.substring(media.url.indexOf(',') + 1), 'base64');
+                    const wavBase64 = await toWav(audioBuffer);
+                    audioData = 'data:audio/wav;base64,' + wavBase64;
+                }
+            } catch (ttsError) {
+                console.error("TTS Error:", ttsError);
+                // Don't block the response if TTS fails
+            }
+
+            return { text: responseText, audioData };
 
         } catch (error: any) {
             console.error("OpenAI/OpenRouter API Error:", error);
-            // Provide a more specific error message to the user
-            return `An error occurred while connecting to the AI service: ${error.message || 'Please check the server logs.'}`;
+            const errorMessage = `An error occurred while connecting to the AI service: ${error.message || 'Please check the server logs.'}`;
+            return { text: errorMessage };
         }
     }
 );
