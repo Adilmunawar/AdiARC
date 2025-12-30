@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow for the Virtual DB Assistant.
@@ -53,7 +52,7 @@ ${lrimsSchema}
         }
 
         const llmResponse = await ai.generate({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             prompt: prompt,
             system: systemPrompt,
             config: {
