@@ -6,8 +6,8 @@ import Link from "next/link";
 
 const tools = [
     {
-        name: "AI Assistant",
-        description: "Chat with a virtual DB assistant that understands your schema.",
+        name: "adil munawar",
+        description: "Chat with a virtual assistant that understands your schema.",
         icon: Bot,
         path: "/ai-assistant"
     },

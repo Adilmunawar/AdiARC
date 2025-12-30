@@ -25,7 +25,7 @@ export function AiAssistantTab() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [mode, setMode] = useState<AssistantMode>("normal");
+    const [mode, setMode] = useState<AssistantMode>("db");
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -79,7 +79,7 @@ export function AiAssistantTab() {
                     <div>
                         <CardTitle className="flex items-center gap-2 text-base font-semibold">
                             <Bot className="h-5 w-5 text-primary" />
-                            Virtual Assistant
+                            adil munawar
                         </CardTitle>
                         <CardDescription>
                            Engage in a conversation with AdiARC. Use the toggle for specialized knowledge.
