@@ -107,25 +107,25 @@ export function AdilMunawarTab() {
                 <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
                     <div className="space-y-6">
                         {messages.length === 0 && (
-                            <div className="text-center text-sm text-muted-foreground pt-10">
+                            <div className="text-center text-sm text-muted-foreground pt-10 animate-fade-in-up">
                                 <p>No messages yet. Start the conversation!</p>
                                 <p className="text-xs">e.g., "What is the capital of Pakistan?" or toggle expert mode and ask "Calculate shares for 1 widow, 2 sons, and 10 kanal of land."</p>
                             </div>
                         )}
                         {messages.map((message, index) => (
-                            <div key={index} className={`flex gap-3 text-sm ${message.role === 'user' ? 'justify-end' : ''}`}>
+                            <div key={index} className={`flex gap-3 text-sm animate-fade-in-up ${message.role === 'user' ? 'justify-end' : ''}`}>
                                 {message.role === 'assistant' && (
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                         <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
                                     </div>
                                 )}
-                                <div className={`max-w-xl rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                                <div className={`max-w-xl rounded-lg p-3 transition-transform duration-200 ease-in-out hover:scale-[1.02] hover:shadow-md ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                     <ReactMarkdown
                                       className="prose prose-sm dark:prose-invert max-w-none"
                                       remarkPlugins={[remarkGfm]}
                                       components={{
                                         pre: ({node, ...props}) => <pre className="bg-background/50 p-2 rounded-md" {...props} />,
-                                        code: ({node, ...props}) => <code className="bg-background/50 px-1 py-0.5 rounded-md" {...props} />,
+                                        code: ({node, ...props}) => <code className="bg-background/50 px-1 py-0.5 rounded-md font-mono text-xs" {...props} />,
                                       }}
                                     >
                                         {message.content}
@@ -139,14 +139,14 @@ export function AdilMunawarTab() {
                             </div>
                         ))}
                          {isLoading && (
-                            <div className="flex gap-3 text-sm">
+                            <div className="flex gap-3 text-sm animate-fade-in-up">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                      <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
                                 </div>
                                 <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center space-x-1">
-                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse delay-0"></span>
-                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
-                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
+                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0s' }}></span>
+                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
+                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></span>
                                 </div>
                             </div>
                         )}
