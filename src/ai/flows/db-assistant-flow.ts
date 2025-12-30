@@ -62,7 +62,7 @@ ${schemaContent}
 
         // Generate the response
         const llmResponse = await ai.generate({
-            model: 'gemini-1.5-flash', // Corrected model name
+            model: 'gemini-2.5-flash', // Corrected model name
             prompt: prompt,
             system: systemPrompt,
             config: {
