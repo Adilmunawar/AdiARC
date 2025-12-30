@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, BrainCircuit, Loader2, Send, User } from "lucide-react";
+import { BrainCircuit, Loader2, Send, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from "../ui/use-toast";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
+import Image from 'next/image';
 
 type Message = {
     role: "user" | "assistant";
@@ -25,7 +26,7 @@ export function AiAssistantTab() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [mode, setMode] = useState<AssistantMode>("db");
+    const [mode, setMode] = useState<AssistantMode>("normal");
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -78,7 +79,7 @@ export function AiAssistantTab() {
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                            <Bot className="h-5 w-5 text-primary" />
+                            <Image src="/adil.png" alt="adil munawar" width={20} height={20} className="rounded-full" />
                             adil munawar
                         </CardTitle>
                         <CardDescription>
@@ -115,7 +116,7 @@ export function AiAssistantTab() {
                             <div key={index} className={`flex gap-3 text-sm ${message.role === 'user' ? 'justify-end' : ''}`}>
                                 {message.role === 'assistant' && (
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <Bot className="w-5 h-5 text-primary" />
+                                        <Image src="/adil.png" alt="adil munawar" width={32} height={32} className="rounded-full" />
                                     </div>
                                 )}
                                 <div className={`max-w-xl rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -140,7 +141,7 @@ export function AiAssistantTab() {
                          {isLoading && (
                             <div className="flex gap-3 text-sm">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                    <Bot className="w-5 h-5 text-primary" />
+                                    <Image src="/adil.png" alt="adil munawar" width={32} height={32} className="rounded-full" />
                                 </div>
                                 <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center">
                                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

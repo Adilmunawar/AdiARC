@@ -1,14 +1,16 @@
+
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, Bot } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer } from "lucide-react";
 import Link from "next/link";
+import Image from 'next/image';
 
 const tools = [
     {
         name: "adil munawar",
         description: "Chat with a virtual assistant that understands your schema.",
-        icon: Bot,
+        icon: () => <Image src="/adil.png" alt="adil munawar" width={24} height={24} className="rounded-md" />,
         path: "/ai-assistant"
     },
     {
