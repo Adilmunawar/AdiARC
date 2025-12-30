@@ -14,6 +14,10 @@ const openai = OPENROUTER_API_KEY ? new OpenAI({
   apiKey: OPENROUTER_API_KEY,
   maxRetries: 0,
   timeout: 30 * 1000,
+  defaultHeaders: {
+    "HTTP-Referer": "https://adilarc.vercel.app",
+    "X-Title": "adil munawar",
+  }
 }) : null;
 
 const DbAssistantInputSchema = z.object({
@@ -87,10 +91,6 @@ When a user asks for a partition calculation, provide a step-by-step breakdown o
                 ],
                 temperature: mode === 'db' ? 0.2 : 0.7,
                 max_tokens: 4096,
-                extraHeaders: {
-                    "HTTP-Referer": "https://adilarc.vercel.app",
-                    "X-Title": "adil munawar",
-                }
             });
 
             return completion.choices[0]?.message?.content || "No response received from AI.";
