@@ -5,16 +5,16 @@ import { z } from 'zod';
 import OpenAI from 'openai';
 
 // Configuration for OpenRouter
-const OPENROUTER_API_KEY = "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";
-const MODEL_ID = "google/gemini-2.5-flash";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const MODEL_ID = "google/gemini-flash-1.5";
 
-// Initialize OpenAI Client for OpenRouter
-const openai = new OpenAI({
+// Initialize OpenAI Client for OpenRouter - only if the key is present
+const openai = OPENROUTER_API_KEY ? new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: OPENROUTER_API_KEY,
   maxRetries: 0,
   timeout: 30 * 1000,
-});
+}) : null;
 
 const DbAssistantInputSchema = z.object({
     prompt: z.string(),
@@ -36,7 +36,13 @@ const dbAssistantFlow = ai.defineFlow(
         outputSchema: DbAssistantOutputSchema,
     },
     async ({ prompt, mode }) => {
-        let systemPrompt = "You are a helpful general assistant named AdiARC. You are polite, professional, and concise.";
+        if (!openai) {
+            const errorMessage = "OpenRouter API key is not configured. Please set OPENROUTER_API_KEY in your environment variables.";
+            console.error(errorMessage);
+            return errorMessage;
+        }
+
+        let systemPrompt = "You are a helpful general assistant named adil munawar. You are polite, professional, and concise.";
         
         if (mode === 'db') {
             systemPrompt = `You are a virtual assistant and an expert in Islamic inheritance law, specifically for land partitions (Wirasat). Your purpose is to help users calculate and understand inheritance shares based on Sunni Hanafi jurisprudence.
@@ -83,7 +89,7 @@ When a user asks for a partition calculation, provide a step-by-step breakdown o
                 max_tokens: 4096,
                 extraHeaders: {
                     "HTTP-Referer": "https://adilarc.vercel.app",
-                    "X-Title": "AdiARC",
+                    "X-Title": "adil munawar",
                 }
             });
 
