@@ -32,7 +32,7 @@ const dbAssistantFlow = ai.defineFlow(
     async (prompt) => {
 
         const llmResponse = await ai.generate({
-            model: 'gemini-1.5-flash-latest',
+            model: 'gemini-2.5-flash',
             prompt: prompt,
             system: `You are a virtual database assistant for the Land Records Management Information System (LRIMS). 
 Your purpose is to help users understand the database schema, answer questions about it, and generate SQL queries.
