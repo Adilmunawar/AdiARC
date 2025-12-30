@@ -8,18 +8,15 @@ import OpenAI from 'openai';
 
 // Configuration for OpenRouter
 const OPENROUTER_API_KEY = "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";
-const SITE_URL = "https://adilarc.vercel.app";
-const SITE_NAME = "AdiARC";
 const MODEL_ID = "google/gemini-2.5-flash";
 
 // Initialize OpenAI Client for OpenRouter
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": SITE_URL,
-    "X-Title": SITE_NAME,
-  },
+  // These settings are crucial for compatibility with OpenRouter
+  maxRetries: 0,
+  timeout: 30 * 1000,
 });
 
 const DbAssistantInputSchema = z.object({
@@ -84,13 +81,19 @@ ${schemaContent}
                     }
                 ],
                 temperature: mode === 'db' ? 0.2 : 0.7,
+                // Required headers for free models on OpenRouter
+                extraHeaders: {
+                    "HTTP-Referer": "https://adilarc.vercel.app",
+                    "X-Title": "AdiARC",
+                }
             });
 
             return completion.choices[0]?.message?.content || "No response received from AI.";
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("OpenAI/OpenRouter API Error:", error);
-            return "An error occurred while connecting to the AI service. Please check the server logs.";
+            // Provide a more specific error message to the user
+            return `An error occurred while connecting to the AI service: ${error.message || 'Please check the server logs.'}`;
         }
     }
 );
