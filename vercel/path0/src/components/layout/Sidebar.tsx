@@ -13,7 +13,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Database,
-  ClipboardCheck
+  ClipboardCheck,
+  Printer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const navItems = [
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
   { name: "Server Sync", icon: Database, path: "/sync" },
   { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
+  { name: "Mutation Print Layout", icon: Printer, path: "/print-layout" },
 ];
 
 export function Sidebar() {
@@ -94,3 +96,5 @@ export function Sidebar() {
     </aside>
   );
 }
+
+    
