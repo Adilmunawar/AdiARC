@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer } from "lucide-react";
 import Link from "next/link";
 
 const tools = [
@@ -52,6 +52,12 @@ const tools = [
         description: "Compare two lists of mutations to find discrepancies.",
         icon: ClipboardCheck,
         path: "/auditor"
+    },
+    {
+        name: "Mutation Print Layout",
+        description: "Format a list of numbers into a print-friendly Excel file.",
+        icon: Printer,
+        path: "/print-layout"
     }
 ];
 
