@@ -8,10 +8,13 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 
-// Dynamically import the schema file content.
-// Note: In a real app, you might fetch this from a file storage or have a build step.
-import lrimsSchema from '@/ai/schema/lrims_schema.txt';
+// Read the schema file content directly from the filesystem.
+const schemaPath = path.join(process.cwd(), 'src', 'ai', 'schema', 'lrims_schema.txt');
+const lrimsSchema = fs.readFileSync(schemaPath, 'utf-8');
+
 
 const DbAssistantInputSchema = z.string();
 const DbAssistantOutputSchema = z.string();
@@ -42,7 +45,7 @@ When a user asks a question, provide a clear, concise answer based on the schema
 
 Here is the LRIMS database schema:
 ---
-${lrimsSchema.raw}
+${lrimsSchema}
 ---
 `,
             config: {
