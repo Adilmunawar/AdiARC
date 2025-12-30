@@ -79,14 +79,14 @@ export function AdilMunawarTab() {
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                            <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-full object-cover" />
+                            <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full object-cover" />
                             adil munawar
                         </CardTitle>
                         <CardDescription>
                            Engage in a conversation with adil munawar. Use the toggle for specialized knowledge.
                         </CardDescription>
                     </div>
-                    <div className="flex items-center space-x-2 border border-dashed rounded-lg p-2">
+                    <div className="flex items-center space-x-2 border border-dashed rounded-lg p-2 animate-pulse hover:animate-none">
                         <Label htmlFor="mode-toggle" className="text-xs text-muted-foreground">
                             Normal
                         </Label>
