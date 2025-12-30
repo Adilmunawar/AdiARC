@@ -107,9 +107,9 @@ export function AdilMunawarTab() {
                 <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
                     <div className="space-y-6">
                         {messages.length === 0 && (
-                            <div className="text-center text-sm text-muted-foreground pt-10 animate-fade-in-up">
-                                <p>No messages yet. Start the conversation!</p>
-                                <p className="text-xs">e.g., "What is the capital of Pakistan?" or toggle expert mode and ask "Calculate shares for 1 widow, 2 sons, and 10 kanal of land."</p>
+                             <div className="text-center text-sm text-muted-foreground pt-10 animate-fade-in-up">
+                                <p>Start the conversation below.</p>
+                                <p className="text-xs mt-1">e.g., "What is the capital of Pakistan?" or toggle expert mode and ask "Calculate shares for 1 widow, 2 sons, and 10 kanal of land."</p>
                             </div>
                         )}
                         {messages.map((message, index) => (
