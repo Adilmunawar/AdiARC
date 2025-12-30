@@ -9,7 +9,7 @@ import Image from 'next/image';
 const tools = [
     {
         name: "adil munawar",
-        description: "Engage in a conversation with AdiARC. Use the toggle for specialized knowledge.",
+        description: "Engage in a conversation with adil munawar. Use the toggle for specialized knowledge.",
         icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-md object-cover" />,
         path: "/ai-assistant"
     },
