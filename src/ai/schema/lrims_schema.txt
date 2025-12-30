@@ -1,0 +1,101 @@
+## LRIMS Database Schema
+
+**Instructions for the AI:** You are an expert SQL developer and database architect specializing in the Land Records Management Information System (LRIMS). Your task is to analyze the provided schema, answer questions about it, and generate accurate SQL queries.
+
+**PASTE YOUR FULL DATABASE SCHEMA HERE.**
+
+You can include `CREATE TABLE` statements, column descriptions, primary/foreign key relationships, and any other relevant details. The more detail you provide, the better the AI will understand your database.
+
+**Example Schema (replace with your actual LRIMS schema):**
+
+```sql
+
+-- This table stores information about land owners (Mauza).
+CREATE TABLE [dbo].[Mauza](
+	[mauza_id] [uniqueidentifier] NOT NULL,
+	[mauza_name] [varchar](50) NOT NULL,
+	[tehsil_id] [uniqueidentifier] NOT NULL,
+	[qanoongoi_halqa_id] [uniqueidentifier] NULL,
+	[patwar_circle_id] [uniqueidentifier] NULL,
+	[hadbast_number] [varchar](50) NULL,
+	[access_datetime] [datetime] NULL,
+	[computerization_status] [bit] NULL,
+ CONSTRAINT [PK_Mauza] PRIMARY KEY CLUSTERED 
+(
+	[mauza_id] ASC
+)
+) ON [PRIMARY]
+
+
+-- This table stores information about land parcels (Khasra).
+CREATE TABLE [dbo].[Khasra](
+	[khasra_id] [uniqueidentifier] NOT NULL,
+	[mauza_id] [uniqueidentifier] NOT NULL,
+	[khasra_number] [varchar](50) NOT NULL,
+	[area] [decimal](18, 4) NULL,
+	[access_datetime] [datetime] NULL,
+ CONSTRAINT [PK_Khasra] PRIMARY KEY CLUSTERED 
+(
+	[khasra_id] ASC
+)
+) ON [PRIMARY]
+
+
+-- This table stores information about transactions.
+CREATE TABLE [transactions].[Transactions](
+	[transaction_id] [uniqueidentifier] NOT NULL,
+	[mauza_id] [uniqueidentifier] NOT NULL,
+	[doc_number] [varchar](50) NOT NULL,
+	[transaction_type] [varchar](50) NOT NULL,
+	[status] [varchar](50) NOT NULL,
+	[access_datetime] [datetime] NULL,
+ CONSTRAINT [PK_Transactions] PRIMARY KEY CLUSTERED 
+(
+	[transaction_id] ASC
+)
+) ON [PRIMARY]
+
+-- This table stores images associated with transactions.
+CREATE TABLE [transactions].[TransactionImages](
+	[transaction_image_id] [uniqueidentifier] NOT NULL,
+	[image_id] [uniqueidentifier] NOT NULL,
+	[doc_number] [varchar](50) NULL,
+	[transaction_type] [varchar](50) NULL,
+	[access_datetime] [datetime] NULL,
+	[status_primary_db] [int] NULL,
+ CONSTRAINT [PK_TransactionImages] PRIMARY KEY CLUSTERED 
+(
+	[transaction_image_id] ASC
+)
+) ON [PRIMARY]
+
+
+-- This table stores scanned images.
+CREATE TABLE [transactions].[ScanImages](
+	[image_id] [uniqueidentifier] NOT NULL,
+	[name] [varchar](100) NULL,
+	[image_type] [varchar](50) NULL,
+	[image_file_path] [varchar](255) NULL,
+	[access_datetime] [datetime] NULL,
+ CONSTRAINT [PK_ScanImages] PRIMARY KEY CLUSTERED 
+(
+	[image_id] ASC
+)
+) ON [PRIMARY]
+
+
+-- Foreign Key Relationships
+ALTER TABLE [dbo].[Khasra]  WITH CHECK ADD  CONSTRAINT [FK_Khasra_Mauza] FOREIGN KEY([mauza_id])
+REFERENCES [dbo].[Mauza] ([mauza_id])
+GO
+
+ALTER TABLE [transactions].[Transactions]  WITH CHECK ADD  CONSTRAINT [FK_Transactions_Mauza] FOREIGN KEY([mauza_id])
+REFERENCES [dbo].[Mauza] ([mauza_id])
+GO
+
+ALTER TABLE [transactions].[TransactionImages]  WITH CHECK ADD  CONSTRAINT [FK_TransactionImages_ScanImages] FOREIGN KEY([image_id])
+REFERENCES [transactions].[ScanImages] ([image_id])
+GO
+```
+
+**End of Schema**

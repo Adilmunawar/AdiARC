@@ -14,7 +14,8 @@ import {
   ChevronsRight,
   Database,
   ClipboardCheck,
-  Printer
+  Printer,
+  Bot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
+  { name: "AI Assistant", icon: Bot, path: "/ai-assistant" },
   { name: "DB Status", icon: DatabaseZap, path: "/db-status"},
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
