@@ -66,7 +66,7 @@ ${schemaContent}
 
         // Generate the response using the correct model name
         const llmResponse = await ai.generate({
-            model: 'gemini-1.5-flash', // FIXED: Changed from 'gemini-2.5-flash'
+            model: 'gemini-1.5-flash',
             prompt: prompt,
             system: systemPrompt,
             config: {
