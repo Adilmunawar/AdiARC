@@ -1,31 +1,38 @@
 'use server';
-/**
- * @fileOverview A flow for the Virtual DB Assistant.
- *
- * - askDbAssistant - A function that takes a user's question and returns an AI-generated answer.
- */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 
-// Read the schema file content directly from the filesystem.
-const schemaPath = path.join(process.cwd(), 'src', 'ai', 'schema', 'lrims_schema.txt');
-const lrimsSchema = fs.readFileSync(schemaPath, 'utf-8');
-
-
+// Define the input and output schemas
 const DbAssistantInputSchema = z.object({
     prompt: z.string(),
     mode: z.enum(['normal', 'db']),
 });
 const DbAssistantOutputSchema = z.string();
 
+// Helper to safely read the schema
+function getLrimsSchema() {
+    try {
+        const schemaPath = path.join(process.cwd(), 'src', 'ai', 'schema', 'lrims_schema.txt');
+        if (fs.existsSync(schemaPath)) {
+            return fs.readFileSync(schemaPath, 'utf-8');
+        }
+        return "Schema file not found.";
+    } catch (error) {
+        console.error("Error reading schema:", error);
+        return "Error reading schema file.";
+    }
+}
+
+// The server action called by the UI
 export async function askDbAssistant(input: z.infer<typeof DbAssistantInputSchema>): Promise<string> {
     const result = await dbAssistantFlow(input);
     return result;
 }
 
+// The Genkit Flow
 const dbAssistantFlow = ai.defineFlow(
     {
         name: 'dbAssistantFlow',
@@ -33,9 +40,11 @@ const dbAssistantFlow = ai.defineFlow(
         outputSchema: DbAssistantOutputSchema,
     },
     async ({ prompt, mode }) => {
-        let systemPrompt = "You are a helpful general assistant.";
+        let systemPrompt = "You are a helpful general assistant named AdiARC. You are polite, professional, and concise.";
 
         if (mode === 'db') {
+            const schemaContent = getLrimsSchema();
+            
             systemPrompt = `You are a virtual database assistant for the Land Records Management Information System (LRIMS). 
 Your purpose is to help users understand the database schema, answer questions about it, and generate SQL queries.
 
@@ -46,17 +55,18 @@ When a user asks a question, provide a clear, concise answer based on the schema
 
 Here is the LRIMS database schema:
 ---
-${lrimsSchema}
+${schemaContent}
 ---
 `;
         }
 
+        // Generate the response
         const llmResponse = await ai.generate({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash', // Corrected model name
             prompt: prompt,
             system: systemPrompt,
             config: {
-              temperature: mode === 'db' ? 0.3 : 0.7, 
+              temperature: mode === 'db' ? 0.2 : 0.7, // Lower temp for DB mode to be more precise
             }
         });
 
