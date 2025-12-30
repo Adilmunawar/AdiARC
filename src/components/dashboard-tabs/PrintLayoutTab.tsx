@@ -20,6 +20,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 
 export function PrintLayoutTab() {
   const { toast } = useToast();
@@ -29,6 +30,7 @@ export function PrintLayoutTab() {
   const [generateProgress, setGenerateProgress] = useState(0);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [fileName, setFileName] = useState("mutation_print_layout.xlsx");
+  const [shouldSort, setShouldSort] = useState(true);
 
   const handleGenerateClick = () => {
     const rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
@@ -58,8 +60,16 @@ export function PrintLayoutTab() {
 
   const handleGenerateExcel = async () => {
     setIsPromptOpen(false); // Close the name prompt
-    const rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
+    let rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
     const rows = parseInt(rowsPerColumn, 10);
+
+    if (shouldSort) {
+        const numericSorted = rawNumbers
+            .map(n => parseInt(n, 10))
+            .filter(n => !isNaN(n))
+            .sort((a, b) => a - b);
+        rawNumbers = numericSorted.map(String);
+    }
 
     setIsGenerating(true);
     setGenerateProgress(0);
@@ -233,22 +243,29 @@ export function PrintLayoutTab() {
               </section>
             </div>
             <div className="flex flex-col gap-4 mt-6 lg:mt-0">
-                <section className="space-y-2">
-                    <Label htmlFor="rows-per-column">2. Rows Per Column</Label>
-                    <Input
-                        id="rows-per-column"
-                        type="number"
-                        value={rowsPerColumn}
-                        onChange={(e) => setRowsPerColumn(e.target.value)}
-                        className="w-40"
-                        disabled={isGenerating}
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                        Defaults to 50, which is optimized for printing on standard A4 paper in portrait mode.
-                    </p>
+                <section className="space-y-4">
+                    <div>
+                        <Label htmlFor="rows-per-column">2. Rows Per Column</Label>
+                        <Input
+                            id="rows-per-column"
+                            type="number"
+                            value={rowsPerColumn}
+                            onChange={(e) => setRowsPerColumn(e.target.value)}
+                            className="w-40 mt-2"
+                            disabled={isGenerating}
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            Defaults to 50, which is optimized for printing on standard A4 paper in portrait mode.
+                        </p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                        <Switch id="sort-numbers" checked={shouldSort} onCheckedChange={setShouldSort} />
+                        <Label htmlFor="sort-numbers" className="cursor-pointer">Sort Numbers Numerically</Label>
+                    </div>
                 </section>
 
-                <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-primary/50 bg-primary/10 px-4 py-3">
+                <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-primary/50 bg-primary/10 px-4 py-3 mt-4">
                     <p className="text-sm font-medium text-primary max-w-xs">
                         Ready to create your printable sheet?
                     </p>
@@ -288,3 +305,4 @@ export function PrintLayoutTab() {
     </>
   );
 }
+
