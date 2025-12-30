@@ -6,25 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Database, Loader2, MessageSquare, Send, User } from "lucide-react";
+import { Bot, Loader2, Send, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from "../ui/use-toast";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 type Message = {
     role: "user" | "assistant";
     content: string;
 };
 
-type AssistantMode = 'normal' | 'db';
-
 export function AiAssistantTab() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [mode, setMode] = useState<AssistantMode>('normal');
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -36,17 +32,6 @@ export function AiAssistantTab() {
             });
         }
     }, [messages]);
-    
-    const handleToggleMode = () => {
-        const newMode = mode === 'normal' ? 'db' : 'normal';
-        setMode(newMode);
-        toast({
-            title: `Mode Switched to ${newMode === 'db' ? 'DB Assistant' : 'Normal Chat'}`,
-            description: newMode === 'db' 
-                ? 'The AI will now use the database schema for context.' 
-                : 'The AI is now in general conversation mode.',
-        });
-    }
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -54,26 +39,28 @@ export function AiAssistantTab() {
 
         const userMessage: Message = { role: "user", content: input };
         setMessages((prev) => [...prev, userMessage]);
+        const currentInput = input;
         setInput("");
         setIsLoading(true);
 
         try {
-            const assistantResponse = await askDbAssistant({ prompt: input, mode });
+            const assistantResponse = await askDbAssistant(currentInput);
             const assistantMessage: Message = { role: "assistant", content: assistantResponse };
             setMessages((prev) => [...prev, assistantMessage]);
         } catch (error: any) {
             console.error("AI Assistant Error:", error);
+            const errorMessage = error.message || "An unknown error occurred while fetching the response.";
             toast({
                 variant: "destructive",
                 title: "Uh oh! Something went wrong.",
-                description: error.message || "Could not get a response from the AI assistant.",
+                description: errorMessage,
             });
-            // Optionally add a message to the chat as well
-            const errorMessage: Message = {
+            // Add a message to the chat as well
+            const errorChatMessage: Message = {
                 role: "assistant",
-                content: "I'm sorry, but I ran into an issue. Please see the error notification for details.",
+                content: `I'm sorry, but I ran into an issue: ${errorMessage}`,
             };
-            setMessages((prev) => [...prev, errorMessage]);
+            setMessages((prev) => [...prev, errorChatMessage]);
         } finally {
             setIsLoading(false);
         }
@@ -89,24 +76,9 @@ export function AiAssistantTab() {
                             Virtual Assistant
                         </CardTitle>
                         <CardDescription>
-                            {mode === 'db' 
-                                ? "DB Mode: Ask questions about the LRIMS database schema."
-                                : "Normal Mode: Engage in a general conversation."
-                            }
+                           Engage in a conversation with AdiARC, your general purpose AI assistant.
                         </CardDescription>
                     </div>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={handleToggleMode}>
-                                    {mode === 'normal' ? <Database className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Switch to {mode === 'normal' ? 'DB Assistant Mode' : 'Normal Chat Mode'}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
                 </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
@@ -115,7 +87,7 @@ export function AiAssistantTab() {
                         {messages.length === 0 && (
                             <div className="text-center text-sm text-muted-foreground pt-10">
                                 <p>No messages yet. Start the conversation!</p>
-                                <p className="text-xs">e.g., "What are the primary keys in the transactions table?"</p>
+                                <p className="text-xs">e.g., "What is the capital of Pakistan?"</p>
                             </div>
                         )}
                         {messages.map((message, index) => (
@@ -160,7 +132,7 @@ export function AiAssistantTab() {
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder={mode === 'db' ? "Ask about your database schema..." : "Ask me anything..."}
+                        placeholder="Ask me anything..."
                         className="flex-1"
                         disabled={isLoading}
                     />
