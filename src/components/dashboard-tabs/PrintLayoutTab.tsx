@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -15,6 +16,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 
@@ -24,12 +27,11 @@ export function PrintLayoutTab() {
   const [rowsPerColumn, setRowsPerColumn] = useState("50");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateProgress, setGenerateProgress] = useState(0);
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [fileName, setFileName] = useState("mutation_print_layout.xlsx");
 
-  const handleGenerateExcel = async () => {
-    const rawNumbers = mutationNumbers
-      .split(/[\s,;\n]+/)
-      .map((n) => n.trim())
-      .filter(Boolean);
+  const handleGenerateClick = () => {
+    const rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
 
     if (rawNumbers.length === 0) {
       toast({
@@ -49,6 +51,15 @@ export function PrintLayoutTab() {
       });
       return;
     }
+    
+    setFileName(`mutation_print_layout_${rawNumbers.length}_items.xlsx`);
+    setIsPromptOpen(true);
+  }
+
+  const handleGenerateExcel = async () => {
+    setIsPromptOpen(false); // Close the name prompt
+    const rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
+    const rows = parseInt(rowsPerColumn, 10);
 
     setIsGenerating(true);
     setGenerateProgress(0);
@@ -68,7 +79,6 @@ export function PrintLayoutTab() {
           if (!grid[r]) {
             grid[r] = [];
           }
-          // Ensure previous columns are filled with empty strings if this column is longer
           while (grid[r].length < c) {
             grid[r].push("");
           }
@@ -86,13 +96,12 @@ export function PrintLayoutTab() {
       const allCellsRange = XLSX.utils.decode_range(ws["!ref"]!);
       const cols = [];
       for (let C = allCellsRange.s.c; C <= allCellsRange.e.c; ++C) {
-        let max_w = 10; // default width
+        let max_w = 10;
         for (let R = allCellsRange.s.r; R <= allCellsRange.e.r; ++R) {
             const cell_address = { c: C, r: R };
             const cell_ref = XLSX.utils.encode_cell(cell_address);
             if (!ws[cell_ref]) continue;
 
-            // Apply border
             ws[cell_ref].s = {
                 border: {
                     top: { style: "thin", color: { rgb: "000000" } },
@@ -101,7 +110,6 @@ export function PrintLayoutTab() {
                     right: { style: "thin", color: { rgb: "000000" } },
                 }
             };
-             // Check width
             const cell_w = String(ws[cell_ref].v).length + 2;
             if (max_w < cell_w) max_w = cell_w;
         }
@@ -115,12 +123,14 @@ export function PrintLayoutTab() {
 
       // Step 4: Append sheet and download
       XLSX.utils.book_append_sheet(wb, ws, "Mutation Layout");
-      XLSX.writeFile(wb, "mutation_print_layout.xlsx");
+      
+      const finalFileName = fileName.trim() ? (fileName.trim().endsWith('.xlsx') ? fileName.trim() : `${fileName.trim()}.xlsx`) : "mutation_print_layout.xlsx";
+      XLSX.writeFile(wb, finalFileName);
       
       setGenerateProgress(100);
       toast({
         title: "Excel File Generated",
-        description: "Your formatted mutation list is downloading.",
+        description: `Your formatted mutation list is downloading as ${finalFileName}.`,
       });
 
     } catch (error) {
@@ -155,6 +165,47 @@ export function PrintLayoutTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isPromptOpen} onOpenChange={setIsPromptOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Name Your Excel File</DialogTitle>
+            <DialogDescription>
+              Enter the desired name for your Excel file. The `.xlsx` extension will be added automatically if you omit it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="filename" className="text-right">
+                File Name
+              </Label>
+              <Input
+                id="filename"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                className="col-span-3"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleGenerateExcel();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="button" onClick={handleGenerateExcel}>
+              Confirm & Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
@@ -168,7 +219,6 @@ export function PrintLayoutTab() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
-            {/* LEFT: Inputs */}
             <div className="flex flex-col gap-4">
               <section className="space-y-2">
                 <Label htmlFor="mutation-numbers">1. Paste Mutation Numbers Here</Label>
@@ -182,8 +232,6 @@ export function PrintLayoutTab() {
                 />
               </section>
             </div>
-
-            {/* RIGHT: Controls */}
             <div className="flex flex-col gap-4 mt-6 lg:mt-0">
                 <section className="space-y-2">
                     <Label htmlFor="rows-per-column">2. Rows Per Column</Label>
@@ -206,7 +254,7 @@ export function PrintLayoutTab() {
                     </p>
                     <Button
                         type="button"
-                        onClick={handleGenerateExcel}
+                        onClick={handleGenerateClick}
                         disabled={isGenerating}
                         className="shrink-0 shadow-md text-sm"
                         size="lg"
