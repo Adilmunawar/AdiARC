@@ -48,6 +48,7 @@ const dbAssistantFlow = ai.defineFlow(
                     }
                 ],
                 temperature: 0.7,
+                max_tokens: 4096, // Limit the response tokens
                 // Required headers for free models on OpenRouter
                 extraHeaders: {
                     "HTTP-Referer": "https://adilarc.vercel.app",
