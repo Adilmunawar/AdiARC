@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -24,7 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
-  { name: "AI Assistant", icon: Bot, path: "/ai-assistant" },
+  { name: "adil munawar", icon: Bot, path: "/ai-assistant" },
   { name: "DB Status", icon: DatabaseZap, path: "/db-status"},
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
@@ -93,5 +94,3 @@ export function Sidebar() {
     </aside>
   );
 }
-
-    
