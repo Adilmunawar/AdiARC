@@ -15,7 +15,8 @@ import {
   ChevronsRight,
   Database,
   ClipboardCheck,
-  Printer
+  Printer,
+  Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export function Sidebar() {
     >
       <div className={cn("flex h-16 items-center border-b px-4 transition-all duration-300", isOpen ? "justify-start" : "justify-center")}>
          <Link href="/" className="flex items-center gap-2 group">
-            <Image src="/adil munawar.jpg" alt="adil munawar" width={28} height={28} className="rounded-md transition-transform duration-300 group-hover:scale-110" />
+            <Globe className="h-7 w-7 text-primary transition-transform duration-300 group-hover:scale-110" />
             {isOpen && <span className="font-bold text-lg transition-opacity duration-300">AdiARC</span>}
         </Link>
       </div>
