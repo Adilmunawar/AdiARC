@@ -79,7 +79,7 @@ export function AiAssistantTab() {
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                            <Image src="/adil.png" alt="adil munawar" width={20} height={20} className="rounded-full" />
+                            <Image src="/adil munawar.jpg" alt="adil munawar" width={20} height={20} className="rounded-full" />
                             adil munawar
                         </CardTitle>
                         <CardDescription>
@@ -116,7 +116,7 @@ export function AiAssistantTab() {
                             <div key={index} className={`flex gap-3 text-sm ${message.role === 'user' ? 'justify-end' : ''}`}>
                                 {message.role === 'assistant' && (
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <Image src="/adil.png" alt="adil munawar" width={32} height={32} className="rounded-full" />
+                                        <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full" />
                                     </div>
                                 )}
                                 <div className={`max-w-xl rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -141,7 +141,7 @@ export function AiAssistantTab() {
                          {isLoading && (
                             <div className="flex gap-3 text-sm">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                    <Image src="/adil.png" alt="adil munawar" width={32} height={32} className="rounded-full" />
+                                    <Image src="/adil munawar.jpg" alt="adil munawar" width={32} height={32} className="rounded-full" />
                                 </div>
                                 <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center">
                                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

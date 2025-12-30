@@ -10,7 +10,7 @@ const tools = [
     {
         name: "adil munawar",
         description: "Chat with a virtual assistant that understands your schema.",
-        icon: () => <Image src="/adil.png" alt="adil munawar" width={24} height={24} className="rounded-md" />,
+        icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-md" />,
         path: "/ai-assistant"
     },
     {

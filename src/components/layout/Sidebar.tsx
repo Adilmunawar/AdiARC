@@ -25,7 +25,7 @@ import Image from 'next/image';
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
-  { name: "adil munawar", icon: () => <Image src="/adil.png" alt="adil munawar" width={20} height={20} className="rounded-md" />, path: "/ai-assistant" },
+  { name: "adil munawar", icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={20} height={20} className="rounded-md" />, path: "/ai-assistant" },
   { name: "DB Status", icon: DatabaseZap, path: "/db-status"},
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
@@ -50,7 +50,7 @@ export function Sidebar() {
     >
       <div className={cn("flex h-16 items-center border-b px-4 transition-all duration-300", isOpen ? "justify-start" : "justify-center")}>
          <Link href="/" className="flex items-center gap-2 group">
-            <Image src="/adil.png" alt="adil munawar" width={28} height={28} className="rounded-md transition-transform duration-300 group-hover:scale-110" />
+            <Image src="/adil munawar.jpg" alt="adil munawar" width={28} height={28} className="rounded-md transition-transform duration-300 group-hover:scale-110" />
             {isOpen && <span className="font-bold text-lg transition-opacity duration-300">AdiARC</span>}
         </Link>
       </div>
