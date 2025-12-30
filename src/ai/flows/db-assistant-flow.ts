@@ -4,12 +4,23 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
+import OpenAI from 'openai';
 
 // Configuration for OpenRouter
 const OPENROUTER_API_KEY = "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";
 const SITE_URL = "https://adilarc.vercel.app";
 const SITE_NAME = "AdiARC";
-const MODEL_ID = "google/gemma-3-4b-it:free";
+const MODEL_ID = "google/gemini-2.5-flash";
+
+// Initialize OpenAI Client for OpenRouter
+const openai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: OPENROUTER_API_KEY,
+  defaultHeaders: {
+    "HTTP-Referer": SITE_URL,
+    "X-Title": SITE_NAME,
+  },
+});
 
 const DbAssistantInputSchema = z.object({
     prompt: z.string(),
@@ -60,42 +71,26 @@ ${schemaContent}
         }
 
         try {
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                    "HTTP-Referer": SITE_URL,
-                    "X-Title": SITE_NAME,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    model: MODEL_ID,
-                    messages: [
-                        {
-                            role: "system",
-                            content: systemPrompt
-                        },
-                        {
-                            role: "user",
-                            content: prompt
-                        }
-                    ],
-                    temperature: mode === 'db' ? 0.2 : 0.7,
-                })
+            const completion = await openai.chat.completions.create({
+                model: MODEL_ID,
+                messages: [
+                    {
+                        role: "system",
+                        content: systemPrompt
+                    },
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                temperature: mode === 'db' ? 0.2 : 0.7,
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error("OpenRouter API Error:", errorData);
-                return `Error: ${response.statusText}. Please check server logs.`;
-            }
-
-            const data = await response.json();
-            return data.choices[0]?.message?.content || "No response received from AI.";
+            return completion.choices[0]?.message?.content || "No response received from AI.";
 
         } catch (error) {
-            console.error("Fetch Error:", error);
-            return "An error occurred while connecting to the AI service.";
+            console.error("OpenAI/OpenRouter API Error:", error);
+            return "An error occurred while connecting to the AI service. Please check the server logs.";
         }
     }
 );
