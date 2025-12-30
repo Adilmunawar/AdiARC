@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 
 // Configuration for OpenRouter
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL_ID = "google/gemini-flash-1.5";
+const MODEL_ID = "google/gemini-2.5-flash";
 
 // Initialize OpenAI Client for OpenRouter - only if the key is present
 const openai = OPENROUTER_API_KEY ? new OpenAI({
