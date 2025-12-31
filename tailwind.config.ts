@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 const config = {
@@ -11,6 +12,10 @@ const config = {
       screens: { "2xl": "1400px" },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)"],
+        urdu: ["var(--font-urdu)"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

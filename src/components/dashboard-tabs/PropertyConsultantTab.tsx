@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BrainCircuit, UserCircle, Loader2, Send, User } from "lucide-react";
+import { BrainCircuit, Briefcase, Loader2, Send, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -90,11 +90,11 @@ export function PropertyConsultantTab() {
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                            <UserCircle className="h-6 w-6 text-primary" />
+                            <Briefcase className="h-6 w-6 text-primary" />
                             Property Consultant
                         </CardTitle>
-                        <CardDescription>
-                           Your AI assistant for Pakistani property law and inheritance. All conversations are in Urdu.
+                        <CardDescription className="font-urdu">
+                           آپ کا اے-آئی اسسٹنٹ برائے پاکستانی پراپرٹی قانون اور وراثت۔ تمام گفتگو اردو میں ہوتی ہے۔
                         </CardDescription>
                     </div>
                     <div className="flex items-center space-x-2 border border-dashed rounded-lg p-2 animate-pulse hover:animate-none">
@@ -118,7 +118,7 @@ export function PropertyConsultantTab() {
                 <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
                     <div className="space-y-6">
                         {messages.length === 0 && (
-                             <div className="text-center text-sm text-muted-foreground pt-10 animate-fade-in-up">
+                             <div className="text-center text-sm text-muted-foreground pt-10 animate-fade-in-up font-urdu">
                                 <p>پراپرٹی یا وراثت کے بارے میں اردو میں پوچھیں۔</p>
                                 <p className="text-xs mt-1">For example: "وراثت کی تقسیم کے لیے 1 بیوہ، 2 بیٹے اور 10 کنال زمین کا حساب لگائیں۔"</p>
                             </div>
@@ -127,15 +127,15 @@ export function PropertyConsultantTab() {
                             <div key={index} className={`flex gap-3 text-sm animate-fade-in-up ${message.role === 'user' ? 'justify-end' : ''}`}>
                                 {message.role === 'assistant' && (
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <UserCircle className="w-5 h-5 text-primary" />
+                                        <Briefcase className="w-5 h-5 text-primary" />
                                     </div>
                                 )}
-                                <div className={`max-w-xl rounded-lg p-3 transition-transform duration-200 ease-in-out hover:scale-[1.02] hover:shadow-md ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                                <div className={`font-urdu max-w-xl rounded-lg p-3 text-lg transition-transform duration-200 ease-in-out hover:scale-[1.02] hover:shadow-md ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                     <ReactMarkdown
                                       className="prose prose-sm dark:prose-invert max-w-none"
                                       remarkPlugins={[remarkGfm]}
                                       components={{
-                                        pre: ({node, ...props}) => <pre className="bg-background/50 p-2 rounded-md" {...props} />,
+                                        pre: ({node, ...props}) => <pre className="bg-background/50 p-2 rounded-md font-sans" {...props} />,
                                         code: ({node, ...props}) => <code className="bg-background/50 px-1 py-0.5 rounded-md font-mono text-xs" {...props} />,
                                       }}
                                     >
@@ -152,7 +152,7 @@ export function PropertyConsultantTab() {
                          {isLoading && (
                             <div className="flex gap-3 text-sm animate-fade-in-up">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                     <UserCircle className="w-5 h-5 text-primary" />
+                                     <Briefcase className="w-5 h-5 text-primary" />
                                 </div>
                                 <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center space-x-1">
                                     <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0s' }}></span>
@@ -168,8 +168,9 @@ export function PropertyConsultantTab() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder={mode === 'db' ? "وراثت کی تقسیم کے بارے میں پوچھیں۔۔۔" : "پاکستان میں پراپرٹی کے بارے میں کچھ بھی پوچھیں۔۔۔"}
-                        className="flex-1"
+                        className="flex-1 font-urdu text-base"
                         disabled={isLoading}
+                        dir="rtl"
                     />
                     <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
