@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -44,6 +45,9 @@
     --ring: 221.2 83.2% 53.3%;
 
     --radius: 0.75rem;
+
+    --font-sans: "Inter", sans-serif;
+    --font-urdu: "Noto Nastaliq Urdu", serif;
   }
 
   .dark {

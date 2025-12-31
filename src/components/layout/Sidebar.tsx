@@ -16,7 +16,8 @@ import {
   Database,
   ClipboardCheck,
   Printer,
-  Globe
+  Globe,
+  UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import Image from 'next/image';
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
-  { name: "adil munawar", icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={20} height={20} className="rounded-md" />, path: "/ai-assistant" },
+  { name: "Property Consultant", icon: UserCircle, path: "/ai-assistant" },
   { name: "DB Status", icon: DatabaseZap, path: "/db-status"},
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
@@ -41,6 +42,12 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
+  
+  const sortedNavItems = [
+      ...navItems.filter(item => item.path === '/'),
+      ...navItems.filter(item => item.path === '/ai-assistant'),
+      ...navItems.filter(item => item.path !== '/' && item.path !== '/ai-assistant').sort((a,b) => a.name.localeCompare(b.name))
+  ];
 
   return (
     <aside
@@ -58,7 +65,7 @@ export function Sidebar() {
 
       <ScrollArea className="flex-1">
         <nav className="p-2 space-y-1">
-            {navItems.sort((a,b) => a.path === '/' ? -1 : b.path === '/' ? 1 : a.name.localeCompare(b.name)).map((item) => {
+            {sortedNavItems.map((item) => {
                 const isActive = pathname === item.path;
                 return (
                     <Link href={item.path} key={item.name}>

@@ -2,15 +2,15 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 
 const tools = [
     {
-        name: "adil munawar",
-        description: "Engage in a conversation with adil munawar. Use the toggle for specialized knowledge.",
-        icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-md object-cover" />,
+        name: "Property Consultant",
+        description: "Get advice on Pakistani property laws and inheritance. All conversations are in Urdu.",
+        icon: UserCircle,
         path: "/ai-assistant"
     },
     {

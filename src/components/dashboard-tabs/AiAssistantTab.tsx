@@ -1,3 +1,4 @@
+
 "use client";
 
 import { askDbAssistant } from "@/ai/flows/db-assistant-flow";
@@ -5,14 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BrainCircuit, Loader2, Send, User } from "lucide-react";
+import { BrainCircuit, Briefcase, Loader2, Send, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from "../ui/use-toast";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
-import Image from "next/image";
 
 type Message = {
     role: "user" | "assistant";
@@ -22,7 +22,7 @@ type Message = {
 
 type AssistantMode = "normal" | "db";
 
-export function AdilMunawarTab() {
+export function PropertyConsultantTab() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -76,7 +76,7 @@ export function AdilMunawarTab() {
             // Add a message to the chat as well
             const errorChatMessage: Message = {
                 role: "assistant",
-                content: `I'm sorry, but I ran into an issue: ${errorMessage}`,
+                content: `An error occurred: ${errorMessage}`,
             };
             setMessages((prev) => [...prev, errorChatMessage]);
         } finally {
@@ -90,11 +90,11 @@ export function AdilMunawarTab() {
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                            <Image src="/adil munawar.jpg" alt="adil munawar" width={28} height={28} className="rounded-full object-cover" />
-                            adil munawar
+                            <Briefcase className="h-6 w-6 text-primary" />
+                            Property Consultant
                         </CardTitle>
                         <CardDescription>
-                           Engage in a conversation with adil munawar. Use the toggle for specialized knowledge.
+                           Your AI assistant for Pakistani property law and inheritance. All conversations are in Urdu.
                         </CardDescription>
                     </div>
                     <div className="flex items-center space-x-2 border border-dashed rounded-lg p-2 animate-pulse hover:animate-none">
@@ -119,15 +119,15 @@ export function AdilMunawarTab() {
                     <div className="space-y-6">
                         {messages.length === 0 && (
                              <div className="text-center text-sm text-muted-foreground pt-10 animate-fade-in-up">
-                                <p>Start the conversation below.</p>
-                                <p className="text-xs mt-1">e.g., "What is the capital of Pakistan?" or toggle expert mode and ask "Calculate shares for 1 widow, 2 sons, and 10 kanal of land."</p>
+                                <p>پراپرٹی یا وراثت کے بارے میں اردو میں پوچھیں۔</p>
+                                <p className="text-xs mt-1">For example: "وراثت کی تقسیم کے لیے 1 بیوہ، 2 بیٹے اور 10 کنال زمین کا حساب لگائیں۔"</p>
                             </div>
                         )}
                         {messages.map((message, index) => (
                             <div key={index} className={`flex gap-3 text-sm animate-fade-in-up ${message.role === 'user' ? 'justify-end' : ''}`}>
                                 {message.role === 'assistant' && (
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-full object-cover" />
+                                        <Briefcase className="w-5 h-5 text-primary" />
                                     </div>
                                 )}
                                 <div className={`max-w-xl rounded-lg p-3 transition-transform duration-200 ease-in-out hover:scale-[1.02] hover:shadow-md ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -152,7 +152,7 @@ export function AdilMunawarTab() {
                          {isLoading && (
                             <div className="flex gap-3 text-sm animate-fade-in-up">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                     <Image src="/adil munawar.jpg" alt="adil munawar" width={24} height={24} className="rounded-full object-cover" />
+                                     <Briefcase className="w-5 h-5 text-primary" />
                                 </div>
                                 <div className="max-w-xl rounded-lg p-3 bg-muted flex items-center space-x-1">
                                     <span className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0s' }}></span>
@@ -167,7 +167,7 @@ export function AdilMunawarTab() {
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder={mode === 'db' ? "Ask about inheritance partitions..." : "Ask me anything..."}
+                        placeholder={mode === 'db' ? "وراثت کی تقسیم کے بارے میں پوچھیں۔۔۔" : "پاکستان میں پراپرٹی کے بارے میں کچھ بھی پوچھیں۔۔۔"}
                         className="flex-1"
                         disabled={isLoading}
                     />
