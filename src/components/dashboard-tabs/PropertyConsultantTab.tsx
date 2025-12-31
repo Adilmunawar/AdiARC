@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BrainCircuit, Briefcase, Loader2, Send, Sparkles, User, UserCircle } from "lucide-react";
+import { BrainCircuit, Loader2, Send, Sparkles, User, UserCircle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -53,7 +53,7 @@ export function PropertyConsultantTab() {
                 behavior: 'smooth'
             });
         }
-    }, [messages]);
+    }, [messages, isLoading]);
 
     const handleSendMessage = async (e?: React.FormEvent, messageContent?: string) => {
         if (e) e.preventDefault();
@@ -140,7 +140,7 @@ export function PropertyConsultantTab() {
             <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden p-0">
                 <ScrollArea className="flex-1" ref={scrollAreaRef}>
                     <div className="p-4 sm:p-6 space-y-6">
-                        {messages.length === 0 && (
+                        {messages.length === 0 && !isLoading && (
                             <div className="text-center text-muted-foreground animate-fade-in-up flex flex-col items-center justify-center h-full pt-10">
                                 <Sparkles className="h-10 w-10 text-primary/70 mb-4" />
                                 <h2 className="text-lg font-semibold text-foreground font-urdu">کنسلٹنٹ سے پوچھیں</h2>
@@ -223,3 +223,5 @@ export function PropertyConsultantTab() {
         </Card>
     );
 }
+
+    
