@@ -77,6 +77,16 @@ const config = {
             from: { opacity: "0", transform: "translateY(5px)" },
             to: { opacity: "1", transform: "translateY(0)" },
         },
+        "bounce": {
+          "0%, 100%": {
+            transform: "translateY(-25%)",
+            animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)",
+          },
+          "50%": {
+            transform: "translateY(0)",
+            animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -84,6 +94,7 @@ const config = {
         "fade-in": "fade-in 0.3s ease-out",
         "enter": "enter 0.3s ease-out",
         "fade-in-up": "fade-in-up 0.4s ease-out forwards",
+        "bounce": "bounce 1s infinite",
       },
       transitionProperty: {
         'width': 'width',
