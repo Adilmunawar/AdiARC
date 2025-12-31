@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, Briefcase } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 
@@ -10,7 +10,7 @@ const tools = [
     {
         name: "Property Consultant",
         description: "Get advice on Pakistani property laws and inheritance. All conversations are in Urdu.",
-        icon: Briefcase,
+        icon: UserCircle,
         path: "/ai-assistant"
     },
     {
