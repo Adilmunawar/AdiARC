@@ -1,8 +1,8 @@
 
 "use client";
 
-import { AdilMunawarTab } from "@/components/dashboard-tabs/AiAssistantTab";
+import { PropertyConsultantTab } from "@/components/dashboard-tabs/PropertyConsultantTab";
 
 export default function AiAssistantPage() {
-    return <AdilMunawarTab />;
+    return <PropertyConsultantTab />;
 }

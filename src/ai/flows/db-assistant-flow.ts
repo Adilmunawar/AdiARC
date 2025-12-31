@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -7,7 +8,7 @@ import wav from 'wav';
 
 // Configuration for OpenRouter
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL_ID = "google/gemini-2.5-flash";
+const MODEL_ID = "google/gemini-flash-1.5";
 
 // Initialize OpenAI Client for OpenRouter - only if the key is present
 const openai = OPENROUTER_API_KEY ? new OpenAI({
@@ -17,7 +18,7 @@ const openai = OPENROUTER_API_KEY ? new OpenAI({
   timeout: 30 * 1000,
   defaultHeaders: {
     "HTTP-Referer": "https://adilarc.vercel.app",
-    "X-Title": "adil munawar",
+    "X-Title": "Property Consultant",
   }
 }) : null;
 
@@ -82,11 +83,20 @@ const dbAssistantFlow = ai.defineFlow(
             return { text: errorMessage };
         }
 
-        let systemPrompt = "You are a helpful general assistant named adil munawar. You are polite, professional, and concise.";
+        let systemPrompt = `You are an expert AI Property Consultant specializing in Pakistani property law and real estate. Your name is Property Consultant.
+You MUST always respond in URDU.
+Your expertise includes:
+- Property transfer procedures (sale, gift, inheritance).
+- Taxation (Capital Gains Tax, Stamp Duty, etc.) for property transactions in Punjab, Sindh, KPK, and Balochistan.
+- Terminology used in property documents (e.g., Fard, Inteqal, Khewat, Khatuni).
+- Legal regulations for buying and selling property for residents and overseas Pakistanis.
+- General advice on property verification and due diligence.
+
+When a user asks a question, provide a clear, accurate, and concise answer in URDU. Be polite and professional.`;
         
         if (mode === 'db') {
-            systemPrompt = `You are a virtual assistant and an expert in Islamic inheritance law, specifically for land partitions (Wirasat). Your purpose is to help users calculate and understand inheritance shares based on Sunni Hanafi jurisprudence.
-
+            systemPrompt = `You are a virtual assistant and an expert in Islamic inheritance law, specifically for land partitions (Wirasat) under Sunni Hanafi jurisprudence.
+You MUST always respond in URDU.
 You must follow these rules strictly:
 
 1.  **Spouse's Share:**
@@ -108,7 +118,7 @@ You must follow these rules strictly:
     *   The presence of a son blocks all grandchildren, brothers, and sisters.
     *   The presence of the father blocks all brothers and sisters.
 
-When a user asks for a partition calculation, provide a step-by-step breakdown of how you arrived at the shares and then give the final share for each heir. Be precise and clear.
+When a user asks for a partition calculation, provide a step-by-step breakdown in URDU of how you arrived at the shares and then give the final share for each heir. Be precise and clear.
 `;
         }
 
@@ -128,7 +138,7 @@ When a user asks for a partition calculation, provide a step-by-step breakdown o
                 max_tokens: 4096,
             });
 
-            const responseText = completion.choices[0]?.message?.content || "No response received from AI.";
+            const responseText = completion.choices[0]?.message?.content || "AI سے کوئی جواب موصول نہیں ہوا۔";
             
             let audioData;
             try {
@@ -154,7 +164,7 @@ When a user asks for a partition calculation, provide a step-by-step breakdown o
 
         } catch (error: any) {
             console.error("OpenAI/OpenRouter API Error:", error);
-            const errorMessage = `An error occurred while connecting to the AI service: ${error.message || 'Please check the server logs.'}`;
+            const errorMessage = `AI سروس سے منسلک ہوتے وقت ایک خرابی پیش آگئی: ${error.message || 'Please check the server logs.'}`;
             return { text: errorMessage };
         }
     }

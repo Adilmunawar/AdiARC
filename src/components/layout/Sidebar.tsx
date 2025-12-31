@@ -16,7 +16,8 @@ import {
   Database,
   ClipboardCheck,
   Printer,
-  Globe
+  Globe,
+  Briefcase
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import Image from 'next/image';
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
-  { name: "adil munawar", icon: () => <Image src="/adil munawar.jpg" alt="adil munawar" width={20} height={20} className="rounded-md" />, path: "/ai-assistant" },
+  { name: "Property Consultant", icon: Briefcase, path: "/ai-assistant" },
   { name: "DB Status", icon: DatabaseZap, path: "/db-status"},
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
