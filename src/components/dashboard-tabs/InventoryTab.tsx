@@ -3,7 +3,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import type React from "react";
-import { Loader2, Pause, Play } from "lucide-react";
+import { Loader2, Pause, Play, Box } from "lucide-react";
 import JSZip from "jszip";
 import ExifReader from "exifreader";
 
@@ -49,6 +49,18 @@ type InventoryFilterPreset = {
 interface InventoryTabProps {
   setInventoryItems: React.Dispatch<React.SetStateAction<InventoryItem[]>>;
 }
+
+const AnimatedStat = ({ value }: { value: number }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const animation = requestAnimationFrame(() => setDisplayValue(value));
+    return () => cancelAnimationFrame(animation);
+  }, [value]);
+
+  return <p className="text-2xl font-semibold transition-all duration-500">{value.toLocaleString()}</p>;
+};
+
 
 export function InventoryTab({ setInventoryItems: setAppInventoryItems }: InventoryTabProps) {
   const { toast } = useToast();
@@ -180,50 +192,53 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     setScanProgress({ current: scanQueueRef.current.length, total: scanQueueRef.current.length });
   }
 
-  const processScanChunk = async () => {
+  const processFile = async (file: File): Promise<InventoryItem | null> => {
+    try {
+        const tags = await ExifReader.load(file, { expanded: true });
+        const folder = (file as any).webkitRelativePath ? (file as any).webkitRelativePath.split("/").slice(0, -1).join("/") || "(root)" : "(unknown)";
+
+        if (Object.keys(tags).length < 2 || (tags.file && Object.keys(tags.file).length < 2)) {
+            return { id: null, file: file.name, folder, source: "Minimal Metadata", status: "stripped", fileObject: file };
+        }
+        
+        const findings = extractMutationNumber(tags);
+        const goldenKeyFinding = findings.find(f => f.isGoldenKey);
+
+        if (goldenKeyFinding) {
+            return { id: goldenKeyFinding.number, file: file.name, folder, source: goldenKeyFinding.source, status: "valid", fileObject: file };
+        } else {
+            return { id: null, file: file.name, folder, source: "No XMP:DocumentNo", status: "no-match", fileObject: file };
+        }
+    } catch (err) {
+        return { id: null, file: file.name, folder: "(unknown)", source: "Read Error", status: "stripped", fileObject: file };
+    }
+  };
+
+  const processScanQueue = async () => {
     if (!isScanningRef.current) return;
-
-    const chunkSize = 50;
-    const chunk = scanQueueRef.current.slice(currentScanIndexRef.current, currentScanIndexRef.current + chunkSize);
-
-    if (chunk.length === 0) {
+  
+    const file = scanQueueRef.current[currentScanIndexRef.current];
+  
+    if (!file) {
       finishScan();
       return;
     }
-    
-    const processedChunk: InventoryItem[] = [];
-    await Promise.all(
-        chunk.map(async (file) => {
-            try {
-                const tags = await ExifReader.load(file, { expanded: true });
-                const folder = (file as any).webkitRelativePath ? (file as any).webkitRelativePath.split("/").slice(0, -1).join("/") || "(root)" : "(unknown)";
-
-                if (Object.keys(tags).length < 2 || (tags.file && Object.keys(tags.file).length < 2)) {
-                    processedChunk.push({ id: null, file: file.name, folder, source: "Minimal Metadata", status: "stripped", fileObject: file });
-                    return;
-                }
-                
-                const findings = extractMutationNumber(tags);
-                const goldenKeyFinding = findings.find(f => f.isGoldenKey);
-
-                if (goldenKeyFinding) {
-                    processedChunk.push({ id: goldenKeyFinding.number, file: file.name, folder, source: goldenKeyFinding.source, status: "valid", fileObject: file });
-                } else {
-                    processedChunk.push({ id: null, file: file.name, folder, source: "No XMP:DocumentNo", status: "no-match", fileObject: file });
-                }
-            } catch (err) {
-                processedChunk.push({ id: null, file: file.name, folder: "(unknown)", source: "Read Error", status: "stripped", fileObject: file });
-            }
-        })
-    );
-
-    currentScanIndexRef.current += chunk.length;
-    
-    setInventoryItems(prev => [...prev, ...processedChunk]);
+  
+    const result = await processFile(file);
+    if (result) {
+      // Use a functional update to prevent stale state issues in the loop
+      setInventoryItems(prevItems => [...prevItems, result]);
+    }
+  
+    currentScanIndexRef.current++;
     setScanProgress({ current: currentScanIndexRef.current, total: scanQueueRef.current.length });
-    
-    // Schedule the next chunk
-    setTimeout(processScanChunk, 0);
+  
+    // Schedule the next file processing
+    if (currentScanIndexRef.current < scanQueueRef.current.length) {
+      requestAnimationFrame(processScanQueue);
+    } else {
+      finishScan();
+    }
   };
 
   const handleStartScan = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,7 +258,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     setScanProgress({ current: 0, total: scanQueueRef.current.length });
     
     toast({ title: "Scan started", description: `Found ${scanQueueRef.current.length} images to process.` });
-    processScanChunk();
+    processScanQueue();
   };
 
   const handleStopScan = () => {
@@ -467,7 +482,10 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
       </Dialog>
       <Card className="border-border/70 bg-card/80 shadow-md">
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Mutation Inventory Dashboard</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+             <Box className="h-5 w-5 text-primary" />
+             XMP Mutation Inventory
+          </CardTitle>
           <CardDescription>
             Forensic scan of a local folder to inventory all mutation IDs embedded in XMP metadata.
           </CardDescription>
@@ -542,9 +560,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                 <CardDescription>Total files with a valid DocumentNo value.</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-semibold">
-                  {inventoryItems.filter((item) => item.status === "valid").length}
-                </p>
+                <AnimatedStat value={inventoryItems.filter((item) => item.status === "valid").length} />
               </CardContent>
             </Card>
 
@@ -554,9 +570,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                 <CardDescription>Files where metadata exists but no DocumentNo was detected.</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-semibold">
-                  {inventoryItems.filter((item) => item.status === "no-match").length}
-                </p>
+                <AnimatedStat value={inventoryItems.filter((item) => item.status === "no-match").length} />
               </CardContent>
             </Card>
 
@@ -566,9 +580,7 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                 <CardDescription>Files with missing or minimal metadata (likely stripped).</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-semibold">
-                  {inventoryItems.filter((item) => item.status === "stripped").length}
-                </p>
+                 <AnimatedStat value={inventoryItems.filter((item) => item.status === "stripped").length} />
               </CardContent>
             </Card>
           </section>
