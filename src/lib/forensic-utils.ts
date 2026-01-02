@@ -1,4 +1,12 @@
 
+export type InventoryItem = {
+  id: string | null;
+  file: string;
+  folder: string;
+  source: string;
+  status: "valid" | "stripped" | "no-match";
+  fileObject?: File; // This will only be present in the main thread's state
+};
 // --- CORE ENGINE: UNIVERSAL MUTATION HUNTER (Ported from Mutation Hunter Pro) ---
 export const extractMutationNumber = (tags: any): { number: string; source: string; isGoldenKey: boolean }[] => {
   const findings: { number: string; source: string; isGoldenKey: boolean }[] = [];
