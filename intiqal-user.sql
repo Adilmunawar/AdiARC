@@ -4,4 +4,4 @@ intiqal_no,
 is_approved,
 intiqal_status
 from transactions.vw_Intiqaal
-where intiqal_no = '46838'
+where intiqal_no = '35965'
