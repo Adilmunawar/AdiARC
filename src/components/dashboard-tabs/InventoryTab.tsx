@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import JSZip from "jszip";
+import { cn } from "@/lib/utils";
 
 export type InventoryItem = {
   id: string | null;
