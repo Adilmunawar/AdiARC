@@ -1,4 +1,4 @@
-OPEN MASTER KEY DECRYPTION BY PASSWORD = 'youwilllose';
+OPEN MASTER KEY DECRYPTION BY PASSWORD = 'KEY';
 DECLARE @TargetUserID UNIQUEIDENTIFIER = '4643f1ea-d275-4b64-b6d3-d4f46a05ef41';
 SELECT 
     U.first_name + ' ' + ISNULL(U.last_name, '') AS [Full Name],

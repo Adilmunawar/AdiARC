@@ -1,8 +1,4 @@
--- Query to see the progress of today: which user has implemented how many mutations and how many are pending
--- Implemented: mutations approved today (is_approved = 1 and intiqal_aprove_date = today)
--- Pending: mutations with intiqal_status = 1 (first page saved)
-
-OPEN MASTER KEY DECRYPTION BY PASSWORD = 'youwilllose';
+OPEN MASTER KEY DECRYPTION BY PASSWORD = 'DECRUPT KEY';
 
 SELECT
     ISNULL(U.first_name + ' ' + ISNULL(U.last_name, ''), 'Unknown') AS [User Name],
