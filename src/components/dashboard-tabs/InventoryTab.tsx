@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Loader2, Box, X, ChevronsUpDown, Download, Copy, Play, Pause } from "lucide-react";
+import { Loader2, Box, X, ChevronsUpDown, Download, Copy, Pause } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,11 +31,17 @@ export type InventoryItem = {
   folder: string;
   source: string;
   status: "valid" | "stripped" | "no-match";
-  fileObject?: File; // This will only be present in the main thread's state
+  fileObject?: File;
 };
 
 type SortKey = "id" | "file" | "status" | "folder";
 type SortDirection = "asc" | "desc";
+
+type Stats = {
+  valid: number;
+  noMatch: number;
+  stripped: number;
+};
 
 const AnimatedStat = ({ value }: { value: number }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -61,6 +67,19 @@ export function InventoryTab() {
     total: 0,
     filename: "",
   });
+  
+  const [stats, setStats] = useState<Stats>({ valid: 0, noMatch: 0, stripped: 0 });
+
+  useEffect(() => {
+    // Recalculate stats when inventoryItems changes from any source (e.g., local storage)
+    const newStats: Stats = { valid: 0, noMatch: 0, stripped: 0 };
+    for (const item of inventoryItems) {
+        if (item.status === 'valid') newStats.valid++;
+        else if (item.status === 'no-match') newStats.noMatch++;
+        else newStats.stripped++;
+    }
+    setStats(newStats);
+  }, [inventoryItems]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InventoryItem["status"] | "all">("all");
@@ -81,7 +100,17 @@ export function InventoryTab() {
       if (type === 'progress') {
         setScanProgress(payload);
       } else if (type === 'result') {
+        // Append result to state for live table update
         setInventoryItems(prev => [...prev, payload]);
+        // Update stats based on the new result
+        setStats(prevStats => {
+            const newStats = { ...prevStats };
+            if (payload.status === 'valid') newStats.valid++;
+            else if (payload.status === 'no-match') newStats.noMatch++;
+            else newStats.stripped++;
+            return newStats;
+        });
+
       } else if (type === 'complete') {
         setIsScanning(false);
         setScanProgress(prev => ({ ...prev, filename: "" }));
@@ -98,6 +127,7 @@ export function InventoryTab() {
     }
     
     setInventoryItems([]);
+    setStats({ valid: 0, noMatch: 0, stripped: 0 }); // Reset stats at start
     setIsScanning(true);
     setScanProgress({ current: 0, total: imageFiles.length, filename: "" });
     workerRef.current.postMessage({ type: 'start', files: imageFiles });
@@ -254,9 +284,9 @@ export function InventoryTab() {
           )}
 
           <div className="grid gap-3 md:grid-cols-3 text-xs">
-            <Card className="border-border/70 bg-card/80"><CardHeader className="pb-2"><CardTitle className="text-sm">Found IDs</CardTitle><CardDescription>Files with a valid DocumentNo.</CardDescription></CardHeader><CardContent><AnimatedStat value={inventoryItems.filter(i => i.status === "valid").length} /></CardContent></Card>
-            <Card className="border-border/70 bg-card/80"><CardHeader className="pb-2"><CardTitle className="text-sm">No Tag Found</CardTitle><CardDescription>Files with metadata but no DocumentNo.</CardDescription></CardHeader><CardContent><AnimatedStat value={inventoryItems.filter(i => i.status === "no-match").length} /></CardContent></Card>
-            <Card className="border-border/70 bg-card/80"><CardHeader className="pb-2"><CardTitle className="text-sm">Stripped Files</CardTitle><CardDescription>Files with missing or minimal metadata.</CardDescription></CardHeader><CardContent><AnimatedStat value={inventoryItems.filter(i => i.status === "stripped").length} /></CardContent></Card>
+            <Card className="border-border/70 bg-card/80"><CardHeader className="pb-2"><CardTitle className="text-sm">Found IDs</CardTitle><CardDescription>Files with a valid DocumentNo.</CardDescription></CardHeader><CardContent><AnimatedStat value={stats.valid} /></CardContent></Card>
+            <Card className="border-border/70 bg-card/80"><CardHeader className="pb-2"><CardTitle className="text-sm">No Tag Found</CardTitle><CardDescription>Files with metadata but no DocumentNo.</CardDescription></CardHeader><CardContent><AnimatedStat value={stats.noMatch} /></CardContent></Card>
+            <Card className="border-border/70 bg-card/80"><CardHeader className="pb-2"><CardTitle className="text-sm">Stripped Files</CardTitle><CardDescription>Files with missing or minimal metadata.</CardDescription></CardHeader><CardContent><AnimatedStat value={stats.stripped} /></CardContent></Card>
           </div>
 
           <div className="space-y-3">
@@ -310,7 +340,7 @@ export function InventoryTab() {
                 </ScrollArea>
             </div>
             <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleCopy('Compressed IDs', compressRanges(filteredAndSortedItems.map(i => Number(i.id)).filter(Boolean)))}><Copy className="h-3 w-3 mr-2"/>Copy Compressed IDs</Button>
+                <Button variant="outline" size="sm" onClick={() => handleCopy('Compressed IDs', compressRanges(filteredAndSortedItems.filter(i => i.status === 'valid').map(i => Number(i.id)).filter(Boolean)))}><Copy className="h-3 w-3 mr-2"/>Copy Compressed IDs</Button>
                 <Button variant="outline" size="sm" onClick={() => handleCloneMatchedImages()} disabled={isCloning}><Download className="h-3 w-3 mr-2"/>Clone Valid Images to ZIP</Button>
             </div>
           </div>
