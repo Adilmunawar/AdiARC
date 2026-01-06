@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BrainCircuit, Copy, Loader2, Mic, Palette, PenSquare, Play, RefreshCw, Send, Sparkles, User, UserCircle, Video, Volume2, Wand2 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from "../ui/use-toast";
@@ -36,10 +36,15 @@ export function PropertyConsultantTab() {
     const [mode, setMode] = useState<AssistantMode>("normal");
     const [activeAudioId, setActiveAudioId] = useState<number | null>(null);
 
+    // State for Speech-to-Text
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
+
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const { toast } = useToast();
 
+    // Scroll to bottom on new messages
     useEffect(() => {
         if (scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({
@@ -49,6 +54,7 @@ export function PropertyConsultantTab() {
         }
     }, [messages, isLoading]);
 
+    // --- Audio Playback Logic ---
     const playAudio = (audioData: string, messageId: number) => {
         if (audioRef.current) {
             if (activeAudioId === messageId) {
@@ -72,6 +78,88 @@ export function PropertyConsultantTab() {
         }
     }, []);
 
+    // --- Speech Recognition Logic ---
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            toast({
+                variant: 'destructive',
+                title: "Speech Recognition Not Supported",
+                description: "Your browser does not support the Web Speech API.",
+            });
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US'; // Can be changed, e.g., 'ur-PK' for Urdu
+
+        recognition.onresult = (event) => {
+            let finalTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                }
+            }
+            if (finalTranscript) {
+                 setInput(prev => prev ? `${prev.trim()} ${finalTranscript.trim()}` : finalTranscript.trim());
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error', event.error);
+            toast({
+                variant: 'destructive',
+                title: "Speech Recognition Error",
+                description: event.error === 'not-allowed' ? 'Microphone permission was denied.' : `An error occurred: ${event.error}`,
+            });
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+             if (isListening) { // Auto-restart if still supposed to be listening
+                recognition.start();
+            }
+        };
+        
+        recognitionRef.current = recognition;
+
+        return () => {
+            recognition.stop();
+        };
+    }, []);
+
+    const toggleListening = () => {
+        if (!recognitionRef.current) return;
+        
+        if (isListening) {
+            recognitionRef.current.stop();
+            setIsListening(false);
+        } else {
+            try {
+                recognitionRef.current.start();
+                setIsListening(true);
+            } catch (err) {
+                 console.error("Could not start recognition:", err);
+                 // This can happen if it's already started, so we try stopping and starting.
+                 try {
+                    recognitionRef.current.stop();
+                    setTimeout(() => {
+                        recognitionRef.current.start();
+                        setIsListening(true);
+                    }, 100);
+                 } catch (stopErr) {
+                     toast({ variant: 'destructive', title: "Mic Error", description: "Could not activate the microphone."});
+                 }
+            }
+        }
+    };
+
+
+    // --- Core Chat Logic ---
     const processAndSendMessage = async (messageHistory: Message[], currentMode: AssistantMode) => {
         setIsLoading(true);
         try {
@@ -110,6 +198,10 @@ export function PropertyConsultantTab() {
         const content = messageContent || input;
         if (!content.trim() || isLoading) return;
         
+        if (isListening) {
+            toggleListening(); // Stop listening when a message is sent
+        }
+
         const newUserMessage: Message = { id: Date.now(), role: "user", content };
         const updatedMessages = [...messages, newUserMessage];
         
@@ -164,7 +256,7 @@ export function PropertyConsultantTab() {
                                         </p>
                                         <div className={cn("text-base", message.role === 'user' ? 'text-foreground/80' : 'text-foreground')}>
                                             <ReactMarkdown
-                                            className="prose prose-sm dark:prose-invert max-w-none font-urdu leading-relaxed"
+                                            className="prose prose-sm dark:prose-invert font-urdu leading-relaxed max-w-none"
                                             remarkPlugins={[remarkGfm]}
                                             components={{
                                                 pre: ({node, ...props}) => <pre className="bg-muted/50 p-2 rounded-md font-sans text-xs" {...props} />,
@@ -229,7 +321,14 @@ export function PropertyConsultantTab() {
                             disabled={isLoading}
                         />
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                             <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:bg-muted" disabled={isLoading}>
+                             <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className={cn("text-muted-foreground hover:bg-muted", isListening && "text-red-500 animate-pulse")} 
+                                onClick={toggleListening}
+                                disabled={isLoading}
+                             >
                                 <Mic className="h-5 w-5" />
                             </Button>
                             <Button type="submit" size="icon" className="rounded-full" disabled={isLoading || !input.trim()}>
