@@ -234,15 +234,13 @@ export function OcrTab() {
                 />
               </div>
             </div>
-            {/* @ts-ignore */}
             <input
               ref={ocrFolderInputRef}
               type="file"
               multiple
-              webkitdirectory=""
-              directory=""
               className="hidden"
               onChange={handleOcrFolderSelected}
+              {...({ webkitdirectory: "", directory: "" } as any)}
             />
           </div>
 
