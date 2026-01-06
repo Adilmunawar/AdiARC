@@ -1,18 +1,14 @@
-
 "use client";
 
 import { askDbAssistant } from "@/ai/flows/db-assistant-flow";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BrainCircuit, Copy, Loader2, Play, RefreshCw, Send, Sparkles, Trash2, User, UserCircle, Volume2 } from "lucide-react";
+import { BrainCircuit, Copy, Loader2, Mic, Palette, PenSquare, Play, RefreshCw, Send, Sparkles, User, UserCircle, Video, Volume2, Wand2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from "../ui/use-toast";
-import { Label } from "../ui/label";
-import { Switch } from "../ui/switch";
 import { cn } from "@/lib/utils";
 
 type Message = {
@@ -24,20 +20,14 @@ type Message = {
 
 type AssistantMode = "normal" | "db";
 
-const quickQuestions = [
-    {
-        question: "ایک پراپرٹی خریدنے کے لیے کیا قانونی اقدامات ہیں؟",
-        mode: "normal",
-    },
-    {
-        question: "وراثت کی تقسیم کے لیے 1 بیوہ، 2 بیٹے اور 10 کنال زمین کا حساب لگائیں۔",
-        mode: "db",
-    },
-    {
-        question: "پاکستان میں پراپرٹی پر کون سے ٹیکس لاگو ہوتے ہیں؟",
-        mode: "normal",
-    },
-];
+const suggestionChips = [
+    { text: "Create image", icon: Palette },
+    { text: "Create video", icon: Video },
+    { text: "Write anything", icon: PenSquare },
+    { text: "Help me learn", icon: BrainCircuit },
+    { text: "Boost my day", icon: Sparkles },
+    { text: "Explore visually", icon: Wand2 },
+]
 
 export function PropertyConsultantTab() {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -115,11 +105,12 @@ export function PropertyConsultantTab() {
         }
     };
 
-    const handleSendMessage = async (e?: React.FormEvent) => {
+    const handleSendMessage = async (e?: React.FormEvent, messageContent?: string) => {
         if (e) e.preventDefault();
-        if (!input.trim() || isLoading) return;
+        const content = messageContent || input;
+        if (!content.trim() || isLoading) return;
         
-        const newUserMessage: Message = { id: Date.now(), role: "user", content: input };
+        const newUserMessage: Message = { id: Date.now(), role: "user", content };
         const updatedMessages = [...messages, newUserMessage];
         
         setMessages(updatedMessages);
@@ -130,27 +121,13 @@ export function PropertyConsultantTab() {
 
     const handleRegenerateResponse = async () => {
         if (isLoading || messages.length === 0) return;
-        // Find the last user message to resubmit
         const lastUserMessageIndex = messages.map(m => m.role).lastIndexOf('user');
         if (lastUserMessageIndex === -1) return;
 
         const historyToResend = messages.slice(0, lastUserMessageIndex + 1);
-        setMessages(historyToResend); // Trim the history to the last user question
+        setMessages(historyToResend);
         
         await processAndSendMessage(historyToResend, mode);
-    };
-    
-    const handleQuickQuestion = (question: string, questionMode: AssistantMode) => {
-        if(isLoading) return;
-
-        setMode(questionMode);
-        const newUserMessage: Message = { id: Date.now(), role: "user", content: question };
-        const updatedMessages = [...messages, newUserMessage];
-        
-        setMessages(updatedMessages);
-        setInput("");
-
-        processAndSendMessage(updatedMessages, questionMode);
     };
 
     const handleCopy = (text: string) => {
@@ -161,141 +138,109 @@ export function PropertyConsultantTab() {
         });
     };
 
-    const handleClearChat = () => {
-        setMessages([]);
-        if (audioRef.current) {
-            audioRef.current.pause();
-            setActiveAudioId(null);
-        }
-    };
-
     return (
-        <Card className="w-full max-w-3xl mx-auto h-[85vh] flex flex-col animate-enter border-border/70 bg-gradient-to-br from-card/80 to-muted/20 shadow-lg">
-            <CardHeader className="border-b">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                            <UserCircle className="h-7 w-7 text-primary" />
-                            Property Consultant
-                        </CardTitle>
-                        <CardDescription className="font-urdu pt-1 leading-relaxed">
-                           آپ کا اے-آئی اسسٹنٹ برائے پاکستانی پراپرٹی قانون اور وراثت۔
-                        </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                         <Button variant="ghost" size="icon" onClick={handleClearChat} disabled={messages.length === 0 || isLoading} title="Clear Chat">
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                        <div className="flex items-center space-x-2 border border-dashed rounded-lg p-2 bg-background/50 hover:border-primary/50 transition-all duration-300">
-                            <Label htmlFor="mode-toggle" className="text-xs text-muted-foreground">Normal</Label>
-                            <Switch id="mode-toggle" checked={mode === "db"} onCheckedChange={(checked) => setMode(checked ? "db" : "normal")} aria-label="Toggle assistant mode" />
-                            <Label htmlFor="mode-toggle" className="text-xs font-semibold text-primary flex items-center gap-1">
-                                <BrainCircuit className="h-4 w-4" />Wirasat Expert
-                            </Label>
+       <div className="flex flex-col h-full w-full">
+            <ScrollArea className="flex-1" ref={scrollAreaRef}>
+                <div className="max-w-4xl mx-auto px-4 pt-8 pb-20">
+                    {messages.length === 0 && !isLoading ? (
+                        <div className="flex flex-col items-start animate-fade-in-up">
+                            <h1 className="text-4xl sm:text-5xl font-bold text-foreground/80 mb-2">
+                                <span className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-yellow-500 text-transparent bg-clip-text">Hi Adil,</span>
+                            </h1>
+                            <h2 className="text-4xl sm:text-5xl font-bold text-foreground/40">
+                                Where should we start?
+                            </h2>
                         </div>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden p-0">
-                <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                    <div className="p-4 sm:p-6 space-y-6">
-                        {messages.length === 0 && !isLoading && (
-                            <div className="text-center text-muted-foreground animate-fade-in-up flex flex-col items-center justify-center h-full pt-10">
-                                <Sparkles className="h-10 w-10 text-primary/70 mb-4" />
-                                <h2 className="text-lg font-semibold text-foreground font-urdu leading-relaxed">کنسلٹنٹ سے پوچھیں</h2>
-                                <p className="text-sm mt-1 font-urdu leading-relaxed">پراپرٹی یا وراثت کے بارے میں اردو میں سوال کریں۔</p>
-                                <div className="w-full max-w-md mt-8">
-                                    <p className="text-xs font-semibold text-muted-foreground mb-3 font-urdu">فوری سوالات</p>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {quickQuestions.map((item, index) => (
-                                            <button
-                                                key={index}
-                                                onClick={() => handleQuickQuestion(item.question, item.mode as AssistantMode)}
-                                                className="font-urdu text-sm text-left p-3 bg-background/60 rounded-lg border border-border/50 hover:bg-muted/80 hover:border-primary/50 transition-all duration-200"
-                                            >
-                                                {item.question}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        {messages.map((message) => (
-                            <div key={message.id} className={cn("group flex items-end gap-3 text-sm animate-fade-in-up", message.role === 'user' ? 'justify-end' : 'justify-start')}>
-                                {message.role === 'assistant' && (
-                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <UserCircle className="w-5 h-5 text-primary" />
-                                    </div>
-                                )}
-                                <div className={cn("max-w-xl rounded-lg p-3 text-base relative", message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-background border')}>
-                                    <ReactMarkdown
-                                      className="prose prose-sm dark:prose-invert max-w-none font-urdu leading-relaxed"
-                                      remarkPlugins={[remarkGfm]}
-                                      components={{
-                                        pre: ({node, ...props}) => <pre className="bg-muted/50 p-2 rounded-md font-sans text-xs" {...props} />,
-                                        code: ({node, ...props}) => <code className="bg-muted/50 px-1 py-0.5 rounded-md font-mono text-xs" {...props} />,
-                                      }}
-                                    >
-                                        {message.content}
-                                    </ReactMarkdown>
-                                    {message.role === 'assistant' && (
-                                        <div className="absolute -bottom-4 right-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            {message.audioData && (
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => playAudio(message.audioData!, message.id)}>
-                                                    <Volume2 className={cn("h-4 w-4 text-muted-foreground", activeAudioId === message.id && "text-primary animate-pulse")} />
-                                                </Button>
-                                            )}
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)}>
-                                                <Copy className="h-4 w-4 text-muted-foreground" />
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                                {message.role === 'user' && (
+                    ) : (
+                        <div className="space-y-8">
+                             {messages.map((message) => (
+                                <div key={message.id} className={cn("group flex items-start gap-4 text-sm animate-fade-in-up")}>
                                     <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                        <User className="w-5 h-5 text-muted-foreground" />
+                                        {message.role === 'assistant' ? <UserCircle className="w-6 h-6 text-primary" /> : <User className="w-5 h-5 text-muted-foreground" />}
                                     </div>
-                                )}
-                            </div>
+                                    <div className="flex-1 space-y-2">
+                                        <p className="font-semibold text-foreground">
+                                            {message.role === 'assistant' ? 'Property Consultant' : 'You'}
+                                        </p>
+                                        <div className={cn("text-base", message.role === 'user' ? 'text-foreground/80' : 'text-foreground')}>
+                                            <ReactMarkdown
+                                            className="prose prose-sm dark:prose-invert max-w-none font-urdu leading-relaxed"
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                pre: ({node, ...props}) => <pre className="bg-muted/50 p-2 rounded-md font-sans text-xs" {...props} />,
+                                                code: ({node, ...props}) => <code className="bg-muted/50 px-1 py-0.5 rounded-md font-mono text-xs" {...props} />,
+                                            }}
+                                            >
+                                                {message.content}
+                                            </ReactMarkdown>
+                                        </div>
+                                         {message.role === 'assistant' && (
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -ml-2">
+                                                {message.audioData && (
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => playAudio(message.audioData!, message.id)}>
+                                                        <Volume2 className={cn("h-4 w-4 text-muted-foreground", activeAudioId === message.id && "text-primary animate-pulse")} />
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.content)}>
+                                                    <Copy className="h-4 w-4 text-muted-foreground" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                             {isLoading && (
+                                <div className="flex items-start gap-4 text-sm animate-fade-in-up">
+                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                         <UserCircle className="w-6 h-6 text-primary" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <p className="font-semibold text-foreground">Property Consultant</p>
+                                        <div className="flex items-center space-x-1 pt-2">
+                                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </ScrollArea>
+             <div className="w-full max-w-4xl mx-auto px-4 pb-4">
+                {messages.length === 0 && !isLoading && (
+                    <div className="flex flex-wrap justify-center gap-3 mb-4 animate-fade-in-up" style={{ animationDelay: '150ms'}}>
+                        {suggestionChips.map((chip) => (
+                            <Button key={chip.text} variant="outline" className="rounded-full bg-card hover:bg-muted" onClick={() => handleSendMessage(undefined, chip.text)}>
+                                <chip.icon className="h-4 w-4 mr-2 text-muted-foreground" />
+                                {chip.text}
+                            </Button>
                         ))}
-                         {isLoading && (
-                            <div className="flex gap-3 text-sm animate-fade-in-up">
-                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                     <UserCircle className="w-5 h-5 text-primary" />
-                                </div>
-                                <div className="max-w-xl rounded-lg p-3 bg-background border flex items-center space-x-1">
-                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-                                    <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                                </div>
-                            </div>
-                        )}
                     </div>
-                </ScrollArea>
-            </CardContent>
-             <CardFooter className="p-4 border-t bg-background/80">
-                <div className="relative w-full">
-                    <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                )}
+                 <div className="relative">
+                    <form onSubmit={handleSendMessage}>
                         <Input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={mode === 'db' ? "وراثت کی تقسیم کے بارے میں پوچھیں۔۔۔" : "پاکستان میں پراپرٹی کے بارے میں کچھ بھی پوچھیں۔۔۔"}
-                            className="flex-1 font-urdu text-base h-11 pr-24"
+                            placeholder="Ask Property Consultant..."
+                            className="w-full h-14 pl-5 pr-28 rounded-full bg-card shadow-lg text-base"
                             disabled={isLoading}
-                            dir="rtl"
                         />
-                        <Button type="submit" size="icon" className="h-11 w-11 shrink-0" disabled={isLoading || !input.trim()}>
-                            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                            <span className="sr-only">Send</span>
-                        </Button>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                             <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:bg-muted" disabled={isLoading}>
+                                <Mic className="h-5 w-5" />
+                            </Button>
+                            <Button type="submit" size="icon" className="rounded-full" disabled={isLoading || !input.trim()}>
+                                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                                <span className="sr-only">Send</span>
+                            </Button>
+                        </div>
                     </form>
-                    <Button variant="outline" size="sm" onClick={handleRegenerateResponse} disabled={isLoading || messages.length === 0} className="absolute right-16 top-1/2 -translate-y-1/2 h-8 text-xs">
-                        <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                        Regenerate
-                    </Button>
-                </div>
-                <audio ref={audioRef} className="hidden" />
-            </CardFooter>
-        </Card>
+                 </div>
+             </div>
+             <audio ref={audioRef} className="hidden" />
+       </div>
     );
 }

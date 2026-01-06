@@ -5,43 +5,34 @@
 
 @layer base {
   :root {
-    /* Base: Slate-50 background for a clean, forensic look */
-    --background: 210 40% 98%; 
+    /* Gemini Light Mode */
+    --background: 220 20% 97%; 
     --foreground: 222.2 84% 4.9%;
 
-    /* Card: White with distinct shadow support */
-    --card: 0 0% 100%;
+    --card: 220 20% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
-    /* Popover: White */
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Primary: Indigo-600 (The main brand color) */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
 
-    /* Secondary: Slate-100 */
-    --secondary: 210 40% 96.1%;
+    --secondary: 220 15% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    /* Muted: Slate-100 */
-    --muted: 210 40% 96.1%;
+    --muted: 220 15% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    /* Accent: Slate-100 */
-    --accent: 210 40% 96.1%;
+    --accent: 220 15% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
-    /* Destructive: Rose-600 (For "Stripped" or Error states) */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    /* Borders and Inputs: Slate-200 */
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 220 15% 91.4%;
+    --input: 220 15% 91.4%;
     
-    /* Ring: Matches Primary (Indigo) */
     --ring: 221.2 83.2% 53.3%;
 
     --radius: 0.75rem;
@@ -51,7 +42,7 @@
   }
 
   .dark {
-    /* Dark Mode: Deep Slate/Navy background */
+    /* Gemini Dark Mode */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
@@ -61,7 +52,6 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    /* Primary: Indigo-500 in dark mode */
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
