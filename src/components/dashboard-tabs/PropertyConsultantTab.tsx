@@ -83,7 +83,7 @@ export function PropertyConsultantTab() {
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
             toast({
                 variant: 'destructive',
@@ -98,7 +98,7 @@ export function PropertyConsultantTab() {
         recognition.interimResults = true;
         recognition.lang = 'en-US'; // Can be changed, e.g., 'ur-PK' for Urdu
 
-        recognition.onresult = (event) => {
+        recognition.onresult = (event: any) => {
             let finalTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
@@ -110,7 +110,7 @@ export function PropertyConsultantTab() {
             }
         };
 
-        recognition.onerror = (event) => {
+        recognition.onerror = (event: any) => {
             console.error('Speech recognition error', event.error);
             toast({
                 variant: 'destructive',
