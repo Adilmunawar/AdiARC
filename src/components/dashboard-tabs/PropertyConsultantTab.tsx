@@ -237,7 +237,7 @@ export function PropertyConsultantTab() {
                     {messages.length === 0 && !isLoading ? (
                         <div className="flex flex-col items-start animate-fade-in-up">
                             <h1 className="text-4xl sm:text-5xl font-bold text-foreground/80 mb-2">
-                                <span className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-yellow-500 text-transparent bg-clip-text">Hi Adil,</span>
+                                <span className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-yellow-500 text-transparent bg-clip-text">Hello Admin,</span>
                             </h1>
                             <h2 className="text-4xl sm:text-5xl font-bold text-foreground/40">
                                 Where should we start?
