@@ -1,10 +1,11 @@
+
 "use client";
 
 import { askDbAssistant } from "@/ai/flows/db-assistant-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BrainCircuit, Copy, Loader2, Mic, Palette, PenSquare, Play, RefreshCw, Send, Sparkles, User, UserCircle, Video, Volume2, Wand2 } from "lucide-react";
+import { BrainCircuit, Copy, Loader2, Mic, Palette, PenSquare, Play, RefreshCw, Send, Sparkles, User, UserCircle, Video, Volume2, Wand2, Scale, ArrowRightLeft, Percent, Gift, FileText, Briefcase } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -21,12 +22,12 @@ type Message = {
 type AssistantMode = "normal" | "db";
 
 const suggestionChips = [
-    { text: "Create image", icon: Palette },
-    { text: "Create video", icon: Video },
-    { text: "Write anything", icon: PenSquare },
-    { text: "Help me learn", icon: BrainCircuit },
-    { text: "Boost my day", icon: Sparkles },
-    { text: "Explore visually", icon: Wand2 },
+    { text: "Inheritance Law", icon: Scale },
+    { text: "Property Transfer", icon: ArrowRightLeft },
+    { text: "Capital Gains Tax", icon: Percent },
+    { text: "Gift (Hiba) Rules", icon: Gift },
+    { text: "Fard vs. Inteqal", icon: FileText },
+    { text: "Power of Attorney", icon: Briefcase },
 ]
 
 export function PropertyConsultantTab() {
@@ -130,7 +131,7 @@ export function PropertyConsultantTab() {
         return () => {
             recognition.stop();
         };
-    }, []);
+    }, [isListening, toast]);
 
     const toggleListening = () => {
         if (!recognitionRef.current) return;
@@ -304,7 +305,7 @@ export function PropertyConsultantTab() {
                 {messages.length === 0 && !isLoading && (
                     <div className="flex flex-wrap justify-center gap-3 mb-4 animate-fade-in-up" style={{ animationDelay: '150ms'}}>
                         {suggestionChips.map((chip) => (
-                            <Button key={chip.text} variant="outline" className="rounded-full bg-card hover:bg-muted" onClick={() => handleSendMessage(undefined, chip.text)}>
+                            <Button key={chip.text} variant="outline" className="rounded-full bg-card hover:bg-muted" onClick={() => handleSendMessage(undefined, `Tell me about ${chip.text}`)}>
                                 <chip.icon className="h-4 w-4 mr-2 text-muted-foreground" />
                                 {chip.text}
                             </Button>
