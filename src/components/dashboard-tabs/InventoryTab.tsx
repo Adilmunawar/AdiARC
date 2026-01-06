@@ -24,15 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import { cn } from "@/lib/utils";
+import type { InventoryItem } from "@/lib/forensic-utils";
 
-export type InventoryItem = {
-  id: string | null;
-  file: string;
-  folder: string;
-  source: string;
-  status: "valid" | "stripped" | "no-match";
-  fileObject?: File;
-};
 
 type SortKey = "id" | "file" | "status" | "folder";
 type SortDirection = "asc" | "desc";
@@ -102,15 +95,6 @@ export function InventoryTab() {
       } else if (type === 'result') {
         // Append result to state for live table update
         setInventoryItems(prev => [...prev, payload]);
-        // Update stats based on the new result
-        setStats(prevStats => {
-            const newStats = { ...prevStats };
-            if (payload.status === 'valid') newStats.valid++;
-            else if (payload.status === 'no-match') newStats.noMatch++;
-            else newStats.stripped++;
-            return newStats;
-        });
-
       } else if (type === 'complete') {
         setIsScanning(false);
         setScanProgress(prev => ({ ...prev, filename: "" }));
@@ -127,7 +111,6 @@ export function InventoryTab() {
     }
     
     setInventoryItems([]);
-    setStats({ valid: 0, noMatch: 0, stripped: 0 }); // Reset stats at start
     setIsScanning(true);
     setScanProgress({ current: 0, total: imageFiles.length, filename: "" });
     workerRef.current.postMessage({ type: 'start', files: imageFiles });
@@ -270,6 +253,7 @@ export function InventoryTab() {
               </Button>
               {isScanning && <Button type="button" variant="destructive" size="sm" onClick={stopScan}><Pause className="h-4 w-4 mr-2"/>Stop</Button>}
             </div>
+            {/* @ts-ignore */}
             <input ref={fileInputRef} type="file" multiple webkitdirectory="" directory="" className="hidden" onChange={handleFileChange} />
           </div>
 
@@ -340,7 +324,7 @@ export function InventoryTab() {
                 </ScrollArea>
             </div>
             <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleCopy('Compressed IDs', compressRanges(filteredAndSortedItems.filter(i => i.status === 'valid').map(i => Number(i.id)).filter(Boolean)))}><Copy className="h-3 w-3 mr-2"/>Copy Compressed IDs</Button>
+                <Button variant="outline" size="sm" onClick={() => handleCopy('Compressed IDs', compressRanges(filteredAndSortedItems.filter(i => i.status === 'valid' && i.id !== null).map(i => Number(i.id)).filter(Boolean)))}><Copy className="h-3 w-3 mr-2"/>Copy Compressed IDs</Button>
                 <Button variant="outline" size="sm" onClick={() => handleCloneMatchedImages()} disabled={isCloning}><Download className="h-3 w-3 mr-2"/>Clone Valid Images to ZIP</Button>
             </div>
           </div>

@@ -5,7 +5,7 @@ export type InventoryItem = {
   folder: string;
   source: string;
   status: "valid" | "stripped" | "no-match";
-  fileObject?: File; // This will only be present in the main thread's state
+  fileObject?: File;
 };
 // --- CORE ENGINE: UNIVERSAL MUTATION HUNTER (Ported from Mutation Hunter Pro) ---
 export const extractMutationNumber = (tags: any): { number: string; source: string; isGoldenKey: boolean }[] => {
@@ -80,7 +80,7 @@ export const extractMutationNumber = (tags: any): { number: string; source: stri
 };
 
 export function compressRanges(numbers: number[]): string {
-  if (!numbers.length) return "";
+  if (!numbers || numbers.length === 0) return "";
 
   // Ensure input is sorted and deduplicated to get clean ranges
   const sorted = Array.from(new Set(numbers)).sort((a, b) => a - b);
