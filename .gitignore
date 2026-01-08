@@ -31,3 +31,6 @@ pnpm-debug.log*
 .DS_Store
 .cache
 *.local
+
+#SCHEMA
+.Schemas
