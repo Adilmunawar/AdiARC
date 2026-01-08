@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Image as ImageIcon, Trash2, Download, Eye, FileArchive } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Trash2, Download, Eye, FileArchive, Copy } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -163,9 +163,7 @@ export function BinaryConverterTab() {
                 src = URL.createObjectURL(blob);
             } else {
                 // 3. Assume it's a raw base64 string. Validate and format it.
-                // A simple regex to check for base64 characters. Allows for whitespace.
-                if (/^[A-Za-z0-9+/=\s]+$/.test(cleanStr)) {
-                    // Remove any whitespace before creating the data URI
+                if (/^[A-Za-z0-9+/=\s]+$/.test(cleanStr.replace(/\s/g, ''))) {
                     src = `data:image/jpeg;base64,${cleanStr.replace(/\s/g, '')}`;
                 } else {
                     throw new Error("String is not a valid Data URI, Hex, or Base64.");
@@ -215,6 +213,29 @@ export function BinaryConverterTab() {
     setBinaryData('');
     setImages([]);
     toast({ title: 'Cleared', description: 'Input and results have been cleared.' });
+  };
+    
+  const sqlQuery = `SELECT 
+    TI.page_no AS [Page_No],
+    (
+        SELECT SI.image_file AS [*] 
+        FROM transactions.ScanImages SI 
+        WHERE SI.image_id = TI.image_id 
+        FOR XML PATH(''), TYPE
+    ) AS [Click_This_Link_For_Full_Hex]
+FROM 
+    transactions.TransactionImages TI
+WHERE 
+    TI.transaction_id = '6b9cc057-a786-4745-9592-781e12896a17'
+ORDER BY 
+    TI.page_no ASC;`;
+
+  const handleCopyQuery = () => {
+      navigator.clipboard.writeText(sqlQuery).then(() => {
+          toast({ title: 'Query Copied!', description: 'The SQL query has been copied to your clipboard.' });
+      }).catch(err => {
+          toast({ title: 'Copy Failed', description: 'Could not copy the query to your clipboard.', variant: 'destructive' });
+      });
   };
 
   return (
@@ -328,6 +349,25 @@ export function BinaryConverterTab() {
                   </div>
               </section>
           )}
+
+           <section className="space-y-4 pt-6 border-t border-dashed">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold">Instructions for Data Extraction</h3>
+                        <p className="text-xs text-muted-foreground">Use the following SQL query to extract image data as clickable hex strings from your database.</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleCopyQuery}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Query
+                    </Button>
+                </div>
+                <div className="bg-muted/50 p-4 rounded-md font-mono text-xs overflow-x-auto">
+                    <pre><code>{sqlQuery}</code></pre>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    After running this query in your SQL client, click the XML link in the `Click_This_Link_For_Full_Hex` column. This will open the full hexadecimal string in a new tab. Copy the content from that tab and paste it into the input area above.
+                </p>
+            </section>
         </CardContent>
       </Card>
     </>
