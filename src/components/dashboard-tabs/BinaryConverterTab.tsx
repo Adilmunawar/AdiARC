@@ -215,7 +215,28 @@ export function BinaryConverterTab() {
     toast({ title: 'Cleared', description: 'Input and results have been cleared.' });
   };
     
-  const sqlQuery = `SELECT 
+  const sqlQueryForDisplay = (
+    <pre>
+      <code>
+        <span className="text-pink-500">SELECT</span>{`
+    TI.page_no `}<span className="text-blue-400">AS</span>{` [`}<span className="text-teal-400">Page_No</span>{`],
+    (
+        `}<span className="text-pink-500">SELECT</span>{` SI.image_file `}<span className="text-blue-400">AS</span>{` [*] 
+        `}<span className="text-pink-500">FROM</span>{` `}<span className="text-purple-400">transactions.ScanImages</span>{` SI 
+        `}<span className="text-pink-500">WHERE</span>{` SI.image_id = TI.image_id 
+        `}<span className="text-pink-500">FOR</span>{` `}<span className="text-purple-400">XML</span>{` `}<span className="text-teal-400">PATH</span>{`(`}<span className="text-green-400">''</span>{`), `}<span className="text-teal-400">TYPE</span>{`
+    ) `}<span className="text-blue-400">AS</span>{` [`}<span className="text-teal-400">Click_This_Link_For_Full_Hex</span>{`]
+`}<span className="text-pink-500">FROM</span>{` 
+    `}<span className="text-purple-400">transactions.TransactionImages</span>{` TI
+`}<span className="text-pink-500">WHERE</span>{` 
+    TI.transaction_id = `}<span className="text-green-400">'6b9cc057-a786-4745-9592-781e12896a17'</span>{`
+`}<span className="text-pink-500">ORDER BY</span>{` 
+    TI.page_no `}<span className="text-blue-400">ASC</span>;
+      </code>
+    </pre>
+  );
+
+  const sqlQueryForCopy = `SELECT 
     TI.page_no AS [Page_No],
     (
         SELECT SI.image_file AS [*] 
@@ -231,7 +252,7 @@ ORDER BY
     TI.page_no ASC;`;
 
   const handleCopyQuery = () => {
-      navigator.clipboard.writeText(sqlQuery).then(() => {
+      navigator.clipboard.writeText(sqlQueryForCopy).then(() => {
           toast({ title: 'Query Copied!', description: 'The SQL query has been copied to your clipboard.' });
       }).catch(err => {
           toast({ title: 'Copy Failed', description: 'Could not copy the query to your clipboard.', variant: 'destructive' });
@@ -362,7 +383,7 @@ ORDER BY
                     </Button>
                 </div>
                 <div className="bg-muted/50 p-4 rounded-md font-mono text-xs overflow-x-auto">
-                    <pre><code>{sqlQuery}</code></pre>
+                    {sqlQueryForDisplay}
                 </div>
                 <p className="text-xs text-muted-foreground">
                     After running this query in your SQL client, click the XML link in the `Click_This_Link_For_Full_Hex` column. This will open the full hexadecimal string in a new tab. Copy the content from that tab and paste it into the input area above.
