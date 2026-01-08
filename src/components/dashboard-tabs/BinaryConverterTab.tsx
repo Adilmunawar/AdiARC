@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Image as ImageIcon, Trash2, Download } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Trash2, Download, Eye } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '../ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type ImageData = {
   id: number;
@@ -31,6 +32,7 @@ export function BinaryConverterTab() {
   const [binaryData, setBinaryData] = useState('');
   const [images, setImages] = useState<ImageData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<ImageData | null>(null);
 
   const handleDownloadImage = (imageSrc: string, label: string) => {
     const link = document.createElement("a");
@@ -160,77 +162,108 @@ export function BinaryConverterTab() {
   };
 
   return (
-    <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <ImageIcon className="h-5 w-5 text-primary" />
-          Binary Data to Image Converter
-        </CardTitle>
-        <CardDescription>
-          Paste raw binary data (as hex or base64 strings) to visualize the corresponding images. Supports JSON arrays or line-separated text.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <section className="space-y-2">
-            <Label htmlFor="binary-data-input">Binary Data Input</Label>
-            <Textarea
-                id="binary-data-input"
-                value={binaryData}
-                onChange={(e) => setBinaryData(e.target.value)}
-                placeholder="Paste binary data here (JSON array or line-separated hex/base64 string)..."
-                className="h-64 font-mono text-xs"
-                disabled={isLoading}
-            />
-        </section>
+    <>
+      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+        <DialogContent className="max-w-4xl h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Image Preview: {previewImage?.label}</DialogTitle>
+          </DialogHeader>
+          <div className="relative h-full w-full">
+            {previewImage && (
+              <Image
+                src={previewImage.src}
+                alt={`Preview of ${previewImage.label}`}
+                fill
+                className="object-contain"
+                unoptimized
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <ImageIcon className="h-5 w-5 text-primary" />
+            Binary Data to Image Converter
+          </CardTitle>
+          <CardDescription>
+            Paste raw binary data (as hex or base64 strings) to visualize the corresponding images. Supports JSON arrays or line-separated text.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <section className="space-y-2">
+              <Label htmlFor="binary-data-input">Binary Data Input</Label>
+              <Textarea
+                  id="binary-data-input"
+                  value={binaryData}
+                  onChange={(e) => setBinaryData(e.target.value)}
+                  placeholder="Paste binary data here (JSON array or line-separated hex/base64 string)..."
+                  className="h-64 font-mono text-xs"
+                  disabled={isLoading}
+              />
+          </section>
 
-        <div className="flex flex-wrap items-center justify-end gap-3">
-             <Button variant="outline" onClick={handleClear} disabled={isLoading || (!binaryData && images.length === 0)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Clear
-            </Button>
-            <Button onClick={handleConvert} disabled={isLoading}>
-                {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                )}
-                Convert to Images
-            </Button>
-        </div>
-        
-        {images.length > 0 && (
-            <section className="space-y-4 pt-4 border-t border-dashed">
-                <h3 className="text-sm font-semibold">Generated Images ({images.length})</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {images.map(image => (
-                        <div key={image.id} className="group relative aspect-square overflow-hidden rounded-md border">
-                            <Image
-                                src={image.src}
-                                alt={image.label}
-                                fill
-                                className="object-contain transition-transform duration-300 group-hover:scale-105"
-                                unoptimized // Important for blob URLs and base64
-                            />
-                             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className="h-7 w-7 rounded-full"
-                                    onClick={() => handleDownloadImage(image.src, image.label)}
-                                >
-                                    <Download className="h-4 w-4" />
-                                    <span className="sr-only">Download image</span>
-                                </Button>
-                            </div>
-                            <div className="absolute bottom-0 w-full bg-black/50 p-1 text-center">
-                                <p className="text-xs font-medium text-white">{image.label}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-        )}
-      </CardContent>
-    </Card>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+               <Button variant="outline" onClick={handleClear} disabled={isLoading || (!binaryData && images.length === 0)}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear
+              </Button>
+              <Button onClick={handleConvert} disabled={isLoading}>
+                  {isLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                  )}
+                  Convert to Images
+              </Button>
+          </div>
+          
+          {images.length > 0 && (
+              <section className="space-y-4 pt-4 border-t border-dashed">
+                  <h3 className="text-sm font-semibold">Generated Images ({images.length})</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {images.map(image => (
+                          <div key={image.id} className="group relative aspect-square overflow-hidden rounded-md border">
+                              <Image
+                                  src={image.src}
+                                  alt={image.label}
+                                  fill
+                                  className="object-contain transition-transform duration-300 group-hover:scale-105"
+                                  unoptimized // Important for blob URLs and base64
+                              />
+                               <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  <Button
+                                      variant="secondary"
+                                      size="icon"
+                                      className="h-7 w-7 rounded-full"
+                                      onClick={() => setPreviewImage(image)}
+                                      title="Preview"
+                                  >
+                                      <Eye className="h-4 w-4" />
+                                      <span className="sr-only">Preview image</span>
+                                  </Button>
+                                  <Button
+                                      variant="secondary"
+                                      size="icon"
+                                      className="h-7 w-7 rounded-full"
+                                      onClick={() => handleDownloadImage(image.src, image.label)}
+                                      title="Download"
+                                  >
+                                      <Download className="h-4 w-4" />
+                                      <span className="sr-only">Download image</span>
+                                  </Button>
+                              </div>
+                              <div className="absolute bottom-0 w-full bg-black/50 p-1 text-center">
+                                  <p className="text-xs font-medium text-white">{image.label}</p>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </section>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }
