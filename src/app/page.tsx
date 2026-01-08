@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 
@@ -66,6 +66,12 @@ const tools = [
         description: "Format a list of numbers into a print-friendly Excel file.",
         icon: Printer,
         path: "/print-layout"
+    },
+    {
+        name: "Binary Converter",
+        description: "Convert raw hex or base64 data into viewable images.",
+        icon: ImageIcon,
+        path: "/binary-converter"
     }
 ];
 

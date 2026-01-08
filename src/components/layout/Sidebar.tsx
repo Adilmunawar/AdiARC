@@ -17,7 +17,8 @@ import {
   ClipboardCheck,
   Printer,
   Globe,
-  UserCircle
+  UserCircle,
+  ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ const navItems = [
   { name: "Server Sync", icon: Database, path: "/sync" },
   { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
   { name: "Mutation Print Layout", icon: Printer, path: "/print-layout" },
+  { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
 ];
 
 export function Sidebar() {
