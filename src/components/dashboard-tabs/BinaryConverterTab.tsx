@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Image as ImageIcon, Trash2, Download } from 'lucide-react';
 import Image from 'next/image';
-import { Label } from '@/components/ui/label';
+import { Label } from '../ui/label';
 
 type ImageData = {
   id: number;
@@ -206,7 +206,7 @@ export function BinaryConverterTab() {
                                 src={image.src}
                                 alt={image.label}
                                 fill
-                                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                className="object-contain transition-transform duration-300 group-hover:scale-105"
                                 unoptimized // Important for blob URLs and base64
                             />
                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
