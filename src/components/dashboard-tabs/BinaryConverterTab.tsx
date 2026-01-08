@@ -96,15 +96,17 @@ export function BinaryConverterTab() {
 
           try {
             let src = '';
-            // 2. Determine if it's hex or base64
-            if (/^(0x)?[0-9a-fA-F]+$/.test(cleanStr)) {
+            // 2. Determine if it's hex or base64 or a full data URI
+            if (cleanStr.startsWith('data:')) {
+                // It's already a full data URI
+                src = cleanStr;
+            } else if (/^(0x)?[0-9a-fA-F]+$/.test(cleanStr)) {
               // It's a hex string
               const bytes = hexToBytes(cleanStr);
-              const blob = new Blob([bytes], { type: 'image/jpeg' }); // Assume jpeg, can be changed
+              const blob = new Blob([bytes], { type: 'image/jpeg' }); // Assume jpeg
               src = URL.createObjectURL(blob);
             } else {
-              // Assume it's a base64 string
-              // Basic check if it looks like base64
+              // Assume it's a raw base64 string
               if (/^[A-Za-z0-9+/=]+$/.test(cleanStr.replace(/\s/g, ''))) {
                  src = `data:image/jpeg;base64,${cleanStr}`;
               } else {
