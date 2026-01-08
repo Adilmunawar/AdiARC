@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
 import Image from 'next/image';
+import { Label } from '@/components/ui/label';
 
 type ImageData = {
   id: number;
