@@ -98,22 +98,25 @@ export function BinaryConverterTab() {
 
           try {
             let src = '';
-            // 2. Determine if it's hex or base64 or a full data URI
-            if (cleanStr.startsWith('data:')) {
-                // It's already a full data URI
+            
+            // Re-engineered format detection
+            if (cleanStr.startsWith('data:image')) {
+                // 1. Already a full data URI
                 src = cleanStr;
             } else if (/^(0x)?[0-9a-fA-F]+$/.test(cleanStr)) {
-              // It's a hex string
-              const bytes = hexToBytes(cleanStr);
-              const blob = new Blob([bytes], { type: 'image/jpeg' }); // Assume jpeg
-              src = URL.createObjectURL(blob);
+                // 2. It's a hex string. Convert it.
+                const bytes = hexToBytes(cleanStr);
+                const blob = new Blob([bytes], { type: 'image/jpeg' });
+                src = URL.createObjectURL(blob);
             } else {
-              // Assume it's a raw base64 string
-              if (/^[A-Za-z0-9+/=]+$/.test(cleanStr.replace(/\s/g, ''))) {
-                 src = `data:image/jpeg;base64,${cleanStr}`;
-              } else {
-                  throw new Error("String is not valid Hex or Base64.");
-              }
+                // 3. Assume it's a raw base64 string. Validate and format it.
+                // A simple regex to check for base64 characters. Allows for whitespace.
+                if (/^[A-Za-z0-9+/=\s]+$/.test(cleanStr)) {
+                    // Remove any whitespace before creating the data URI
+                    src = `data:image/jpeg;base64,${cleanStr.replace(/\s/g, '')}`;
+                } else {
+                    throw new Error("String is not a valid Data URI, Hex, or Base64.");
+                }
             }
             
             generatedImages.push({
