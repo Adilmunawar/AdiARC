@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Trash2, Download } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 
@@ -30,6 +31,19 @@ export function BinaryConverterTab() {
   const [binaryData, setBinaryData] = useState('');
   const [images, setImages] = useState<ImageData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleDownloadImage = (imageSrc: string, label: string) => {
+    const link = document.createElement("a");
+    link.href = imageSrc;
+    link.download = `${label.replace(/\s+/g, '_')}.jpg`; // e.g., "Image_1.jpg"
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({
+      title: 'Download Started',
+      description: `Downloading ${link.download}.`,
+    });
+  };
 
   const handleConvert = () => {
     if (!binaryData.trim()) {
@@ -191,11 +205,21 @@ export function BinaryConverterTab() {
                             <Image
                                 src={image.src}
                                 alt={image.label}
-                                layout="fill"
-                                objectFit="cover"
-                                className="transition-transform duration-300 group-hover:scale-105"
+                                fill
+                                className="object-cover transition-transform duration-300 group-hover:scale-105"
                                 unoptimized // Important for blob URLs and base64
                             />
+                             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="h-7 w-7 rounded-full"
+                                    onClick={() => handleDownloadImage(image.src, image.label)}
+                                >
+                                    <Download className="h-4 w-4" />
+                                    <span className="sr-only">Download image</span>
+                                </Button>
+                            </div>
                             <div className="absolute bottom-0 w-full bg-black/50 p-1 text-center">
                                 <p className="text-xs font-medium text-white">{image.label}</p>
                             </div>
