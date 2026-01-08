@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Image as ImageIcon, Trash2, Download, Eye } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Trash2, Download, Eye, FileArchive } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import JSZip from 'jszip';
 
 type ImageData = {
   id: number;
@@ -32,6 +33,7 @@ export function BinaryConverterTab() {
   const [binaryData, setBinaryData] = useState('');
   const [images, setImages] = useState<ImageData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [previewImage, setPreviewImage] = useState<ImageData | null>(null);
 
   const handleDownloadImage = (imageSrc: string, label: string) => {
@@ -46,6 +48,57 @@ export function BinaryConverterTab() {
       description: `Downloading ${link.download}.`,
     });
   };
+
+  const handleDownloadAll = async () => {
+    if (images.length === 0) {
+      toast({
+        title: 'No Images to Download',
+        description: 'Please convert some data to images first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsDownloadingAll(true);
+    toast({
+      title: 'Preparing ZIP File...',
+      description: `Archiving ${images.length} images. This may take a moment.`,
+    });
+
+    try {
+      const zip = new JSZip();
+      for (const image of images) {
+        // Fetch the base64 data from the data URI
+        const response = await fetch(image.src);
+        const blob = await response.blob();
+        zip.file(`${image.label.replace(/\s+/g, '_')}.jpg`, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = 'generated_images.zip';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      toast({
+        title: 'Download Started',
+        description: 'Your ZIP file with all images is downloading.',
+      });
+    } catch (error) {
+      console.error('Failed to create ZIP file:', error);
+      toast({
+        title: 'ZIP Creation Failed',
+        description: 'An error occurred while preparing the ZIP file.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
 
   const handleConvert = () => {
     if (!binaryData.trim()) {
@@ -224,7 +277,17 @@ export function BinaryConverterTab() {
           
           {images.length > 0 && (
               <section className="space-y-4 pt-4 border-t border-dashed">
-                  <h3 className="text-sm font-semibold">Generated Images ({images.length})</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Generated Images ({images.length})</h3>
+                    <Button variant="outline" size="sm" onClick={handleDownloadAll} disabled={isDownloadingAll}>
+                      {isDownloadingAll ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileArchive className="mr-2 h-4 w-4" />
+                      )}
+                      Download All (.zip)
+                    </Button>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {images.map(image => (
                           <div key={image.id} className="group relative aspect-square overflow-hidden rounded-md border">
