@@ -82,7 +82,7 @@ export function PrintLayoutTab() {
       const numRows = parseInt(numberOfRows, 10);
       const numColsInput = numberOfColumns ? parseInt(numberOfColumns, 10) : 0;
       
-      const numColumns = numColsInput > 0 
+      let numColumns = numColsInput > 0 
           ? numColsInput 
           : Math.ceil(rawNumbers.length / numRows);
 
@@ -92,10 +92,11 @@ export function PrintLayoutTab() {
         const row = i % numRows;
         const col = Math.floor(i / numRows);
         
-        if (col >= grid[0].length) {
-            for(let r=0; r < grid.length; r++) {
-                grid[r].push("");
-            }
+        if (col >= numColumns) {
+           numColumns = col + 1;
+           for(let r=0; r < grid.length; r++) {
+               grid[r].push("");
+           }
         }
         
         const numValue = Number(rawNumbers[i]);
@@ -108,37 +109,41 @@ export function PrintLayoutTab() {
       await new Promise(r => setTimeout(r, 10));
 
       const ws = XLSX.utils.aoa_to_sheet(grid);
-      const wb = XLSX.utils.book_new();
-
-      const allCellsRange = XLSX.utils.decode_range(ws["!ref"]!);
       const cols = [];
-      for (let C = allCellsRange.s.c; C <= allCellsRange.e.c; ++C) {
+
+      for (let C = 0; C < numColumns; ++C) {
         let max_w = 10;
-        for (let R = allCellsRange.s.r; R <= allCellsRange.e.r; ++R) {
+        for (let R = 0; R < numRows; ++R) {
             const cell_address = { c: C, r: R };
             const cell_ref = XLSX.utils.encode_cell(cell_address);
-            if (!ws[cell_ref]) continue;
+            
+            if (!ws[cell_ref]) {
+              ws[cell_ref] = { t: 's', v: '' }; // Ensure empty cells exist for styling
+            }
 
             if (shouldAddBorders) {
-                ws[cell_ref].s = {
-                  ...(ws[cell_ref].s || {}),
-                  border: {
-                    top: { style: "thin", color: { rgb: "000000" } },
-                    bottom: { style: "thin", color: { rgb: "000000" } },
-                    left: { style: "thin", color: { rgb: "000000" } },
-                    right: { style: "thin", color: { rgb: "000000" } },
-                  }
+                if (!ws[cell_ref].s) {
+                    ws[cell_ref].s = {};
+                }
+                ws[cell_ref].s.border = {
+                  top: { style: "thin", color: { rgb: "000000" } },
+                  bottom: { style: "thin", color: { rgb: "000000" } },
+                  left: { style: "thin", color: { rgb: "000000" } },
+                  right: { style: "thin", color: { rgb: "000000" } },
                 };
             }
             
-            const cell_w = String(ws[cell_ref].v).length + 2;
-            if (max_w < cell_w) max_w = cell_w;
+            if(ws[cell_ref].v) {
+              const cell_w = String(ws[cell_ref].v).length + 2;
+              if (max_w < cell_w) max_w = cell_w;
+            }
         }
         cols.push({ wch: max_w });
       }
       ws['!cols'] = cols;
       ws['!pageMargins'] = { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
       
+      const wb = XLSX.utils.book_new();
       setGenerateProgress(75);
       await new Promise(r => setTimeout(r, 10));
 
