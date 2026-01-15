@@ -1,6 +1,6 @@
 
 "use client";
-import React, from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Draggable from "react-draggable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { calculateWirasatShares, WirasatMode, WirasatRow } from "@/lib/wirasat-calculator";
 import { cn } from "@/lib/utils";
-import { useState, useMemo, useEffect } from "react";
 
 // --- Diagram Component ---
 const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[]; totalAreaFormatted: string }) => {
@@ -79,8 +78,9 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   
   const Node = ({ title, area, share, isDeceased = false }: { title: string; area: string; share?: string; isDeceased?: boolean }) => {
     const shape = getNodeShape(title);
+    
     const content = (
-         <div className={cn("flex flex-col items-center justify-center text-center p-1", shape === 'triangle' && 'pt-5')}>
+         <div className="flex flex-col items-center justify-center text-center p-1 w-full h-full">
             <p className="font-semibold text-xs whitespace-nowrap">{title}</p>
             <p className="text-[10px] text-muted-foreground whitespace-nowrap">{area}</p>
             {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
@@ -92,12 +92,12 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
     if (shape === "triangle") {
       return (
-        <div className={cn(baseClasses, sizeClasses, "border-none bg-transparent shadow-none")}>
+         <div className={cn("relative", sizeClasses)}>
             <div 
                 className="absolute top-0 left-0 w-full h-full bg-card border-2 border-border" 
                 style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
             />
-            <div className="relative z-10 w-full h-full flex items-center justify-center">{content}</div>
+            <div className="relative z-10 w-full h-full flex items-center justify-center pt-4">{content}</div>
         </div>
       );
     }
@@ -130,46 +130,45 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
               {/* Parent lines */}
               {fatherPos && motherPos && deceasedPos && (
                 <>
-                  <SvgPath d={`M ${fatherPos.x + NODE_WIDTH},${fatherPos.y + NODE_HEIGHT / 2} H ${motherPos.x}`} />
+                  <SvgPath d={`M ${fatherPos.x + NODE_WIDTH / 2},${fatherPos.y + NODE_HEIGHT / 2} H ${motherPos.x + NODE_WIDTH / 2}`} />
                   <SvgPath d={getElbowPath(
-                    fatherPos.x + NODE_WIDTH + (motherPos.x - (fatherPos.x + NODE_WIDTH)) / 2,
+                    fatherPos.x + NODE_WIDTH, // Midpoint between parents
                     fatherPos.y + NODE_HEIGHT / 2,
                     deceasedPos.x + NODE_WIDTH / 2,
-                    deceasedPos.y
+                    deceasedPos.y + NODE_HEIGHT / 2
                   )} />
                 </>
               )}
-              {/* Single parent lines */}
+               {/* Single parent lines */}
               {fatherPos && !motherPos && deceasedPos && (
-                <SvgPath d={getElbowPath(fatherPos.x + NODE_WIDTH / 2, fatherPos.y + NODE_HEIGHT, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y)} />
+                <SvgPath d={getElbowPath(fatherPos.x + NODE_WIDTH / 2, fatherPos.y + NODE_HEIGHT / 2, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y + NODE_HEIGHT / 2)} />
               )}
               {!fatherPos && motherPos && deceasedPos && (
-                <SvgPath d={getElbowPath(motherPos.x + NODE_WIDTH / 2, motherPos.y + NODE_HEIGHT, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y)} />
+                <SvgPath d={getElbowPath(motherPos.x + NODE_WIDTH / 2, motherPos.y + NODE_HEIGHT / 2, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y + NODE_HEIGHT / 2)} />
               )}
+
 
               {/* Spouse line */}
               {spouses.length > 0 && spouses[0].pos && deceasedPos && (
-                <SvgPath d={`M ${spouses[0].pos.x + NODE_WIDTH},${spouses[0].pos.y + NODE_HEIGHT / 2} H ${deceasedPos.x}`} />
+                <SvgPath d={`M ${spouses[0].pos.x + NODE_WIDTH / 2},${spouses[0].pos.y + NODE_HEIGHT / 2} H ${deceasedPos.x + NODE_WIDTH / 2}`} />
               )}
               
               {/* Children lines */}
                 {children.length > 0 && deceasedPos && (
                     <>
-                        {/* Main drop from deceased */}
-                        <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT} V ${deceasedPos.y + NODE_HEIGHT + 20}`} />
-                        
-                        {/* Horizontal bus line */}
+                        {/* Main bus line */}
                         {children.length > 0 && children[0].pos && children[children.length - 1].pos && (
-                           <SvgPath d={`M ${children[0].pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 20} H ${children[children.length - 1].pos.x + NODE_WIDTH / 2}`} />
+                           <SvgPath d={`M ${children[0].pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2 + 60} H ${children[children.length - 1].pos.x + NODE_WIDTH / 2}`} />
                         )}
+
+                        {/* Drop from deceased to bus */}
+                        <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2} V ${deceasedPos.y + NODE_HEIGHT / 2 + 60}`} />
 
                         {/* Vertical lines to each child */}
                         {children.map((child, i) => {
                             if (!child.pos) return null;
-                            const isTriangle = getNodeShape(child.relation) === 'triangle';
-                            const targetY = child.pos.y + (isTriangle ? 0 : 0); // Connect to the top point of triangle
                             return (
-                                <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 20} V ${targetY}`} />
+                                <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2 + 60} V ${child.pos.y + NODE_HEIGHT / 2}`} />
                             )
                         })}
                     </>
@@ -231,7 +230,7 @@ export function WirasatTab() {
     areaSqFt: number,
     marlaSize: number,
   ): { kanal: number; marla: number; feet: number; areaSqFtRounded: number } => {
-    if (isNaN(areaSqFt) || areaSqFt < 0) {
+    if (isNaN(areaSqFt) || areaSqFt <= 0) {
         return { kanal: 0, marla: 0, feet: 0, areaSqFtRounded: 0 };
     }
     const rounded = Math.round(areaSqFt);
@@ -652,3 +651,5 @@ export function WirasatTab() {
     </Card>
   );
 }
+
+    
