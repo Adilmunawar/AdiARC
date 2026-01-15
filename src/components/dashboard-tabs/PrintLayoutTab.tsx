@@ -32,6 +32,7 @@ export function PrintLayoutTab() {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [fileName, setFileName] = useState("mutation_print_layout.xlsx");
   const [shouldSort, setShouldSort] = useState(true);
+  const [shouldAddBorders, setShouldAddBorders] = useState(true);
 
   const handleGenerateClick = () => {
     const rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
@@ -81,7 +82,6 @@ export function PrintLayoutTab() {
       const numRows = parseInt(numberOfRows, 10);
       const numColsInput = numberOfColumns ? parseInt(numberOfColumns, 10) : 0;
       
-      // If columns are specified, use that. Otherwise, calculate based on rows.
       const numColumns = numColsInput > 0 
           ? numColsInput 
           : Math.ceil(rawNumbers.length / numRows);
@@ -92,7 +92,6 @@ export function PrintLayoutTab() {
         const row = i % numRows;
         const col = Math.floor(i / numRows);
         
-        // Ensure grid is large enough if user-defined columns are too few
         if (col >= grid[0].length) {
             for(let r=0; r < grid.length; r++) {
                 grid[r].push("");
@@ -118,14 +117,16 @@ export function PrintLayoutTab() {
             const cell_ref = XLSX.utils.encode_cell(cell_address);
             if (!ws[cell_ref]) continue;
 
-            ws[cell_ref].s = {
-                border: {
-                    top: { style: "thin", color: { rgb: "000000" } },
-                    bottom: { style: "thin", color: { rgb: "000000" } },
-                    left: { style: "thin", color: { rgb: "000000" } },
-                    right: { style: "thin", color: { rgb: "000000" } },
-                }
-            };
+            if (shouldAddBorders) {
+                ws[cell_ref].s = {
+                    border: {
+                        top: { style: "thin", color: { rgb: "000000" } },
+                        bottom: { style: "thin", color: { rgb: "000000" } },
+                        left: { style: "thin", color: { rgb: "000000" } },
+                        right: { style: "thin", color: { rgb: "000000" } },
+                    }
+                };
+            }
             const cell_w = String(ws[cell_ref].v).length + 2;
             if (max_w < cell_w) max_w = cell_w;
         }
@@ -274,12 +275,16 @@ export function PrintLayoutTab() {
                         </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                        Set the number of rows and columns for your grid. If columns are left empty, they will be calculated automatically based on the number of rows.
+                        Set the number of rows and columns for your grid. If columns are left empty, they will be calculated automatically.
                     </p>
 
                     <div className="flex items-center space-x-2 pt-2">
                         <Switch id="sort-numbers" checked={shouldSort} onCheckedChange={setShouldSort} />
-                        <Label htmlFor="sort-numbers" className="cursor-pointer">Sort Numbers Numerically Before Layout</Label>
+                        <Label htmlFor="sort-numbers" className="cursor-pointer">Sort Numbers Numerically</Label>
+                    </div>
+                     <div className="flex items-center space-x-2 pt-1">
+                        <Switch id="add-borders" checked={shouldAddBorders} onCheckedChange={setShouldAddBorders} />
+                        <Label htmlFor="add-borders" className="cursor-pointer">Add Cell Borders</Label>
                     </div>
                 </section>
 
@@ -317,3 +322,5 @@ export function PrintLayoutTab() {
     </>
   );
 }
+
+    
