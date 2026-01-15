@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,13 +48,20 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
         {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
       </>
     );
+    
+    const baseClasses = "flex flex-col items-center justify-center text-center p-2 border-2 shadow-sm bg-background z-10 shrink-0";
+    const shapeClasses = {
+        oval: "rounded-full h-24 w-24",
+        square: "rounded-lg h-24 w-28",
+        triangle: "relative w-28 h-24",
+    };
 
     if (shape === 'triangle') {
       return (
-        <div className="relative w-28 h-24 flex flex-col items-center justify-center text-center">
-            <div className="w-0 h-0 border-x-[50px] border-x-transparent border-b-[90px] border-b-background absolute top-0" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.1))' }}></div>
-            <div className="w-0 h-0 border-x-[48px] border-x-transparent border-b-[86px] border-b-border absolute top-0"></div>
-            <div className="w-0 h-0 border-x-[47px] border-x-transparent border-b-[84px] border-b-background absolute top-[1px]"></div>
+        <div className={cn(baseClasses, shapeClasses.triangle)}>
+            <div className="absolute top-0 w-0 h-0 border-x-[50px] border-x-transparent border-b-[90px] border-b-background" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.1))' }}></div>
+            <div className="absolute top-0 w-0 h-0 border-x-[48px] border-x-transparent border-b-[86px] border-b-border"></div>
+            <div className="absolute top-[1px] w-0 h-0 border-x-[47px] border-x-transparent border-b-[84px] border-b-background"></div>
             <div className="relative z-10 -mt-2">
                {content}
             </div>
@@ -63,11 +70,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     }
     
     return (
-        <div className={cn(
-            "flex flex-col items-center justify-center text-center p-2 border-2 shadow-sm bg-background z-10",
-             shape === 'oval' ? 'rounded-full h-24 w-24' : 'rounded-lg h-24 w-[120px]',
-            isDeceased ? "bg-primary/10 border-primary" : "border-border",
-        )}>
+        <div className={cn(baseClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>
            {content}
         </div>
     );
@@ -79,43 +82,40 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
   return (
     <div className="flex flex-col items-center space-y-4 p-4 bg-muted/30 rounded-lg border min-h-[500px] w-full overflow-x-auto">
-        <div className="relative pt-6">
+        <div className="relative flex flex-col items-center pt-6 space-y-12">
+            
             {/* Parents Row */}
             {hasParents && (
                 <div className="relative flex justify-center items-center gap-8">
-                     {/* Connecting line between parents */}
+                    {/* Connecting line between parents */}
                     {parents.length > 1 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-8 h-px bg-border -z-0"></div>}
                     {parents.map((p, i) => <Node key={i} title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />)}
-                    {/* Line dropping down from parents' midpoint */}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-10 bg-border"></div>
+                    {/* Line dropping down from parents' midpoint to meet deceased */}
+                    <div className="absolute top-[calc(50%_+_3rem)] left-1/2 -translate-x-1/2 w-px h-[4.5rem] bg-border -z-0"></div>
                 </div>
             )}
 
             {/* Middle Row (Deceased & Spouse) */}
-            <div className={cn("relative flex items-center justify-center pt-10", hasSpouse ? "gap-8" : "")}>
-                {hasSpouse && (
-                    <>
-                        {spouses.map((s, i) => <Node key={i} title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} />)}
-                        {/* Horizontal line connecting spouse and deceased */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-8 h-px bg-border -z-0"></div>
-                    </>
-                )}
+            <div className={cn("relative flex items-center justify-center", hasSpouse ? "gap-8" : "")}>
+                {hasSpouse && spouses.map((s, i) => <Node key={i} title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} />)}
+                {hasSpouse && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-8 h-px bg-border -z-0"></div>}
+
                 <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
-                 {/* Line down to children */}
-                {hasChildren && <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-10 bg-border"></div>}
+                 
+                {/* Line down to children */}
+                {hasChildren && <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-12 bg-border -z-0"></div>}
             </div>
             
             {/* Children/Heirs Row */}
             {hasChildren && (
-                 <div className="relative flex justify-center items-start gap-4 flex-wrap pt-10">
-                    {/* Horizontal line across top of children */}
+                 <div className="relative flex justify-center items-start gap-4 flex-wrap pt-8">
                     {[...children, ...others].length > 1 && (
                         <div className="absolute top-0 left-[10%] w-[80%] h-px bg-border"></div>
                     )}
                     {[...children, ...others].map((child, index) => (
                         <div key={index} className="relative flex flex-col items-center">
                             {/* Vertical line connecting child to horizontal bar */}
-                            <div className="absolute bottom-full w-px h-10 bg-border"></div>
+                            <div className="absolute bottom-full w-px h-8 bg-border"></div>
                             <Node title={child.relation} area={`${child.kanal}K-${child.marla}M-${child.feet}ft`} share={child.shareLabel} />
                         </div>
                     ))}
@@ -156,6 +156,9 @@ export function WirasatTab() {
     areaSqFt: number,
     marlaSize: number,
   ): { kanal: number; marla: number; feet: number; areaSqFtRounded: number } => {
+    if (isNaN(areaSqFt) || areaSqFt < 0) {
+        return { kanal: 0, marla: 0, feet: 0, areaSqFtRounded: 0 };
+    }
     const rounded = Math.round(areaSqFt);
     const totalMarlas = Math.floor(rounded / marlaSize);
     const feet = rounded - totalMarlas * marlaSize;
@@ -265,8 +268,12 @@ export function WirasatTab() {
     setWirasatTotalSqFt(targetTotal);
   };
   
-  const totalAreaFormatted = fromSqFt(toTotalSqFt(Number(wirasatKanal) || 0, Number(wirasatMarla) || 0, Number(wirasatFeet) || 0), Number(wirasatMarlaSize));
-  const totalAreaDisplay = `${totalAreaFormatted.kanal}K-${totalAreaFormatted.marla}M-${totalAreaFormatted.feet}ft`;
+  const totalAreaFormatted = useMemo(() => {
+    const totalFt = toTotalSqFt(Number(wirasatKanal) || 0, Number(wirasatMarla) || 0, Number(wirasatFeet) || 0, Number(wirasatMarlaSize));
+    const { kanal, marla, feet } = fromSqFt(totalFt, Number(wirasatMarlaSize));
+    return `${kanal}K-${marla}M-${feet}ft`;
+  }, [wirasatKanal, wirasatMarla, wirasatFeet, wirasatMarlaSize]);
+
 
   return (
     <Card className="border-border/70 bg-card/80 shadow-md">
@@ -551,7 +558,7 @@ export function WirasatTab() {
            {wirasatRows.length > 0 && (
                 <div className="pt-4 space-y-3">
                      <h3 className="text-sm font-semibold">Distribution Diagram</h3>
-                     <DistributionDiagram rows={wirasatRows} totalAreaFormatted={totalAreaDisplay} />
+                     <DistributionDiagram rows={wirasatRows} totalAreaFormatted={totalAreaFormatted} />
                 </div>
             )}
         </section>
@@ -559,3 +566,5 @@ export function WirasatTab() {
     </Card>
   );
 }
+
+    
