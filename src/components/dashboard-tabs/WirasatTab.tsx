@@ -31,32 +31,29 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   useEffect(() => {
     const initialPositions: Record<string, { x: number, y: number }> = {};
     const center = (containerRef.current?.offsetWidth || 800) / 2;
-    const nodeWidth = 112;
+    const nodeWidth = 112; 
 
-    // Parents
     if (heirGroups.parents.length === 1) {
         const parentKey = heirGroups.parents[0].relation;
         initialPositions[parentKey] = { x: center - nodeWidth / 2, y: 20 };
     } else if (heirGroups.parents.length > 1) {
-        initialPositions['Father'] = { x: center - nodeWidth - 40, y: 20 };
-        initialPositions['Mother'] = { x: center + 40, y: 20 };
+        initialPositions['Father'] = { x: center - nodeWidth - 20, y: 20 };
+        initialPositions['Mother'] = { x: center + 20, y: 20 };
     }
 
-    // Deceased & Spouse
+    initialPositions['Deceased'] = { x: center - nodeWidth / 2, y: 160 };
+
     if (heirGroups.spouses.length > 0) {
-        initialPositions['Deceased'] = { x: center - nodeWidth / 2 + 70, y: 160 };
         heirGroups.spouses.forEach((s, i) => {
-            initialPositions[s.relation] = { x: center - nodeWidth / 2 - 70, y: 160 + i * 110 };
+             initialPositions[s.relation] = { x: center - nodeWidth - 140, y: 160 + i * 110 };
         });
-    } else {
-        initialPositions['Deceased'] = { x: center - nodeWidth / 2, y: 160 };
     }
 
-    // Children
-    const childrenCount = heirGroups.children.length + heirGroups.others.length;
+    const childrenAndOthers = [...heirGroups.children, ...heirGroups.others];
+    const childrenCount = childrenAndOthers.length;
     const childrenTotalWidth = childrenCount * (nodeWidth + 16) - 16;
     let startX = center - childrenTotalWidth / 2;
-    [...heirGroups.children, ...heirGroups.others].forEach((c) => {
+    childrenAndOthers.forEach((c) => {
         initialPositions[c.relation] = { x: startX, y: 320 };
         startX += nodeWidth + 16;
     });
@@ -85,18 +82,16 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
       </div>
     );
 
-    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10 w-28";
-    const shapeClasses = { oval: "rounded-full h-24", square: "rounded-lg h-24", triangle: "h-24" };
+    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10 w-28 h-24";
+    const shapeClasses = { oval: "rounded-full", square: "rounded-lg", triangle: "border-none bg-transparent shadow-none" };
     
     if (shape === "triangle") {
       return (
-        <div className={cn(baseClasses, "border-none bg-transparent shadow-none")}>
+        <div className={cn(baseClasses, shapeClasses[shape])}>
             <div 
-                className="absolute top-0 left-0 w-full h-full" 
+                className="absolute top-0 left-0 w-full h-full bg-card border-2 border-border" 
                 style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
-            >
-                <div className="w-full h-full bg-card border-2 border-border" />
-            </div>
+            />
             <div className="relative z-10 mt-4">{content}</div>
         </div>
       );
@@ -105,7 +100,9 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     return <div className={cn(baseClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>{content}</div>;
   };
   
-  const SvgPath = ({ d }: { d: string }) => <path d={d} stroke="hsl(var(--border))" strokeWidth="1.5" fill="none" />;
+  const SvgPath = ({ d, className }: { d: string, className?: string }) => (
+    <path d={d} className={cn("stroke-border", className)} strokeWidth="1.5" fill="none" />
+  );
   
   const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
     const midY = y1 + (y2 - y1) / 2;
@@ -126,42 +123,46 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
       {Object.keys(positions).length > 0 && (
         <>
             <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
-                {/* Parent lines */}
-                {fatherPos && motherPos && deceasedPos && (
-                    <>
-                        <SvgPath d={`M ${fatherPos.x + nodeWidth},${fatherPos.y + nodeHeight / 2} H ${motherPos.x}`} />
-                        <SvgPath d={getElbowPath(
-                            fatherPos.x + nodeWidth / 2, 
-                            fatherPos.y + nodeHeight,
-                            deceasedPos.x + nodeWidth / 2,
-                            deceasedPos.y
-                        )} />
-                    </>
-                )}
-                {(fatherPos && !motherPos && deceasedPos) && (
-                    <SvgPath d={getElbowPath(fatherPos.x + nodeWidth / 2, fatherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
-                )}
-                {(!fatherPos && motherPos && deceasedPos) && (
-                     <SvgPath d={getElbowPath(motherPos.x + nodeWidth / 2, motherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
-                )}
-
-                {/* Spouse line */}
-                {spouses.length > 0 && spouses[0].pos && deceasedPos && (
-                     <SvgPath d={`M ${spouses[0].pos.x + nodeWidth},${spouses[0].pos.y + nodeHeight / 2} H ${deceasedPos.x}`} />
-                )}
-
-                {/* Children lines */}
-                {children.length > 0 && deceasedPos && (
-                    <>
-                        <SvgPath d={`M ${deceasedPos.x + nodeWidth/2},${deceasedPos.y + nodeHeight} V ${deceasedPos.y + nodeHeight + 30}`} />
-                        {children.length > 1 && children[0].pos && children[children.length-1].pos && (
-                            <SvgPath d={`M ${children[0].pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} H ${children[children.length-1].pos.x + nodeWidth/2}`} />
-                        )}
-                        {children.map((child, i) => child.pos && (
-                           <SvgPath key={i} d={`M ${child.pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} V ${child.pos.y}`} />
-                        ))}
-                    </>
-                )}
+              {/* Parent lines */}
+              {fatherPos && motherPos && deceasedPos && (
+                <>
+                  {/* Line between parents */}
+                  <SvgPath d={`M ${fatherPos.x + nodeWidth},${fatherPos.y + nodeHeight / 2} H ${motherPos.x}`} />
+                  {/* Elbow from midpoint to deceased */}
+                  <SvgPath d={getElbowPath(
+                    fatherPos.x + nodeWidth + (motherPos.x - (fatherPos.x + nodeWidth)) / 2,
+                    fatherPos.y + nodeHeight / 2,
+                    deceasedPos.x + nodeWidth / 2,
+                    deceasedPos.y
+                  )} />
+                </>
+              )}
+              {/* Single parent lines */}
+              {(fatherPos && !motherPos && deceasedPos) && (
+                <SvgPath d={getElbowPath(fatherPos.x + nodeWidth / 2, fatherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
+              )}
+              {(!fatherPos && motherPos && deceasedPos) && (
+                <SvgPath d={getElbowPath(motherPos.x + nodeWidth / 2, motherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
+              )}
+              {/* Spouse line */}
+              {spouses.length > 0 && spouses[0].pos && deceasedPos && (
+                <SvgPath d={`M ${spouses[0].pos.x + nodeWidth},${spouses[0].pos.y + nodeHeight / 2} H ${deceasedPos.x}`} />
+              )}
+              {/* Children lines */}
+              {children.length > 0 && deceasedPos && (
+                <>
+                  {/* Main drop from deceased */}
+                  <SvgPath d={`M ${deceasedPos.x + nodeWidth / 2},${deceasedPos.y + nodeHeight} V ${deceasedPos.y + nodeHeight + 30}`} />
+                  {/* Horizontal bus line */}
+                  {children.length > 1 && children[0].pos && children[children.length - 1].pos && (
+                    <SvgPath d={`M ${children[0].pos.x + nodeWidth / 2},${deceasedPos.y + nodeHeight + 30} H ${children[children.length - 1].pos.x + nodeWidth / 2}`} />
+                  )}
+                  {/* Vertical lines to each child */}
+                  {children.map((child, i) => child.pos && (
+                    <SvgPath key={i} d={`M ${child.pos.x + nodeWidth / 2},${deceasedPos.y + nodeHeight + 30} V ${child.pos.y}`} />
+                  ))}
+                </>
+              )}
             </svg>
 
             {heirGroups.parents.map(p => {
@@ -196,6 +197,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     </div>
   );
 };
+
 
 export function WirasatTab() {
   const [wirasatKanal, setWirasatKanal] = useState<string>("0");
