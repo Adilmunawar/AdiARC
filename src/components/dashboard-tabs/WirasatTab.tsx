@@ -1,6 +1,6 @@
 
 "use client";
-import React, from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -559,5 +559,3 @@ export function WirasatTab() {
     </Card>
   );
 }
-
-    
