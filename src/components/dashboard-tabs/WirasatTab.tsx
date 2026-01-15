@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
+import React, from "react";
 import Draggable from "react-draggable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { calculateWirasatShares, WirasatMode, WirasatRow } from "@/lib/wirasat-calculator";
 import { cn } from "@/lib/utils";
+import { useState, useMemo, useEffect } from "react";
 
 // --- Diagram Component ---
 const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[]; totalAreaFormatted: string }) => {
@@ -28,38 +29,42 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     };
   }, [rows]);
 
+  const NODE_WIDTH = 120;
+  const NODE_HEIGHT = 80;
+
   useEffect(() => {
     const initialPositions: Record<string, { x: number, y: number }> = {};
     const center = (containerRef.current?.offsetWidth || 800) / 2;
-    const nodeWidth = 112; 
-
+    
+    // Parents
     if (heirGroups.parents.length === 1) {
         const parentKey = heirGroups.parents[0].relation;
-        initialPositions[parentKey] = { x: center - nodeWidth / 2, y: 20 };
+        initialPositions[parentKey] = { x: center - NODE_WIDTH / 2, y: 0 };
     } else if (heirGroups.parents.length > 1) {
-        initialPositions['Father'] = { x: center - nodeWidth - 20, y: 20 };
-        initialPositions['Mother'] = { x: center + 20, y: 20 };
+        initialPositions['Father'] = { x: center - NODE_WIDTH - 20, y: 0 };
+        initialPositions['Mother'] = { x: center + 20, y: 0 };
     }
 
-    initialPositions['Deceased'] = { x: center - nodeWidth / 2, y: 160 };
-
-    if (heirGroups.spouses.length > 0) {
+    // Deceased & Spouse
+    initialPositions['Deceased'] = { x: center - NODE_WIDTH / 2, y: 150 };
+     if (heirGroups.spouses.length > 0) {
         heirGroups.spouses.forEach((s, i) => {
-             initialPositions[s.relation] = { x: center - nodeWidth - 140, y: 160 + i * 110 };
+             initialPositions[s.relation] = { x: center - NODE_WIDTH - 160, y: 150 + i * (NODE_HEIGHT + 20) };
         });
     }
 
+    // Children
     const childrenAndOthers = [...heirGroups.children, ...heirGroups.others];
     const childrenCount = childrenAndOthers.length;
-    const childrenTotalWidth = childrenCount * (nodeWidth + 16) - 16;
+    const childrenTotalWidth = childrenCount * (NODE_WIDTH + 20) - 20;
     let startX = center - childrenTotalWidth / 2;
     childrenAndOthers.forEach((c) => {
-        initialPositions[c.relation] = { x: startX, y: 320 };
-        startX += nodeWidth + 16;
+        initialPositions[c.relation] = { x: startX, y: 300 };
+        startX += NODE_WIDTH + 20;
     });
 
     setPositions(initialPositions);
-  }, [rows, heirGroups]);
+  }, [rows, heirGroups.parents.length]);
 
 
   const handleDrag = (e: any, data: any, key: string) => {
@@ -71,52 +76,51 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     if (["Mother", "Widow", "Sister"].some(prefix => relation.startsWith(prefix))) return "oval";
     return "square";
   };
-
+  
   const Node = ({ title, area, share, isDeceased = false }: { title: string; area: string; share?: string; isDeceased?: boolean }) => {
     const shape = getNodeShape(title);
     const content = (
-      <div className="flex flex-col items-center justify-center text-center p-1">
-        <p className="font-semibold text-xs whitespace-nowrap">{title}</p>
-        <p className="text-[10px] text-muted-foreground whitespace-nowrap">{area}</p>
-        {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
-      </div>
+         <div className={cn("flex flex-col items-center justify-center text-center p-1", shape === 'triangle' && 'pt-5')}>
+            <p className="font-semibold text-xs whitespace-nowrap">{title}</p>
+            <p className="text-[10px] text-muted-foreground whitespace-nowrap">{area}</p>
+            {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
+        </div>
     );
 
-    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10 w-28 h-24";
-    const shapeClasses = { oval: "rounded-full", square: "rounded-lg", triangle: "border-none bg-transparent shadow-none" };
-    
+    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10";
+    const sizeClasses = `w-[${NODE_WIDTH}px] h-[${NODE_HEIGHT}px]`;
+
     if (shape === "triangle") {
       return (
-        <div className={cn(baseClasses, shapeClasses[shape])}>
+        <div className={cn(baseClasses, sizeClasses, "border-none bg-transparent shadow-none")}>
             <div 
                 className="absolute top-0 left-0 w-full h-full bg-card border-2 border-border" 
                 style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
             />
-            <div className="relative z-10 mt-4">{content}</div>
+            <div className="relative z-10 w-full h-full flex items-center justify-center">{content}</div>
         </div>
       );
     }
+    
+    const shapeClasses = { oval: "rounded-full", square: "rounded-lg" };
 
-    return <div className={cn(baseClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>{content}</div>;
+    return <div className={cn(baseClasses, sizeClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>{content}</div>;
   };
   
-  const SvgPath = ({ d, className }: { d: string, className?: string }) => (
-    <path d={d} className={cn("stroke-border", className)} strokeWidth="1.5" fill="none" />
-  );
-  
-  const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
-    const midY = y1 + (y2 - y1) / 2;
-    return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
-  };
+    const SvgPath = ({ d, className }: { d: string, className?: string }) => (
+        <path d={d} className={cn("stroke-border", className)} strokeWidth="1.5" fill="none" />
+    );
 
-  const nodeWidth = 112;
-  const nodeHeight = 96;
+    const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
+        const midY = y1 + (y2 - y1) / 2;
+        return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
+    };
 
-  const fatherPos = positions['Father'];
-  const motherPos = positions['Mother'];
-  const spouses = heirGroups.spouses.map(s => ({ ...s, pos: positions[s.relation] }));
-  const children = [...heirGroups.children, ...heirGroups.others].map(c => ({ ...c, pos: positions[c.relation] }));
-  const deceasedPos = positions['Deceased'];
+    const fatherPos = positions['Father'];
+    const motherPos = positions['Mother'];
+    const spouses = heirGroups.spouses.map(s => ({ ...s, pos: positions[s.relation] }));
+    const children = [...heirGroups.children, ...heirGroups.others].map(c => ({ ...c, pos: positions[c.relation] }));
+    const deceasedPos = positions['Deceased'];
   
   return (
     <div ref={containerRef} className="relative w-full min-h-[450px] p-4 bg-muted/30 rounded-lg border overflow-hidden">
@@ -126,72 +130,71 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
               {/* Parent lines */}
               {fatherPos && motherPos && deceasedPos && (
                 <>
-                  {/* Line between parents */}
-                  <SvgPath d={`M ${fatherPos.x + nodeWidth},${fatherPos.y + nodeHeight / 2} H ${motherPos.x}`} />
-                  {/* Elbow from midpoint to deceased */}
+                  <SvgPath d={`M ${fatherPos.x + NODE_WIDTH},${fatherPos.y + NODE_HEIGHT / 2} H ${motherPos.x}`} />
                   <SvgPath d={getElbowPath(
-                    fatherPos.x + nodeWidth + (motherPos.x - (fatherPos.x + nodeWidth)) / 2,
-                    fatherPos.y + nodeHeight / 2,
-                    deceasedPos.x + nodeWidth / 2,
+                    fatherPos.x + NODE_WIDTH + (motherPos.x - (fatherPos.x + NODE_WIDTH)) / 2,
+                    fatherPos.y + NODE_HEIGHT / 2,
+                    deceasedPos.x + NODE_WIDTH / 2,
                     deceasedPos.y
                   )} />
                 </>
               )}
               {/* Single parent lines */}
-              {(fatherPos && !motherPos && deceasedPos) && (
-                <SvgPath d={getElbowPath(fatherPos.x + nodeWidth / 2, fatherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
+              {fatherPos && !motherPos && deceasedPos && (
+                <SvgPath d={getElbowPath(fatherPos.x + NODE_WIDTH / 2, fatherPos.y + NODE_HEIGHT, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y)} />
               )}
-              {(!fatherPos && motherPos && deceasedPos) && (
-                <SvgPath d={getElbowPath(motherPos.x + nodeWidth / 2, motherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
+              {!fatherPos && motherPos && deceasedPos && (
+                <SvgPath d={getElbowPath(motherPos.x + NODE_WIDTH / 2, motherPos.y + NODE_HEIGHT, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y)} />
               )}
+
               {/* Spouse line */}
               {spouses.length > 0 && spouses[0].pos && deceasedPos && (
-                <SvgPath d={`M ${spouses[0].pos.x + nodeWidth},${spouses[0].pos.y + nodeHeight / 2} H ${deceasedPos.x}`} />
+                <SvgPath d={`M ${spouses[0].pos.x + NODE_WIDTH},${spouses[0].pos.y + NODE_HEIGHT / 2} H ${deceasedPos.x}`} />
               )}
+              
               {/* Children lines */}
-              {children.length > 0 && deceasedPos && (
-                <>
-                  {/* Main drop from deceased */}
-                  <SvgPath d={`M ${deceasedPos.x + nodeWidth / 2},${deceasedPos.y + nodeHeight} V ${deceasedPos.y + nodeHeight + 30}`} />
-                  {/* Horizontal bus line */}
-                  {children.length > 1 && children[0].pos && children[children.length - 1].pos && (
-                    <SvgPath d={`M ${children[0].pos.x + nodeWidth / 2},${deceasedPos.y + nodeHeight + 30} H ${children[children.length - 1].pos.x + nodeWidth / 2}`} />
-                  )}
-                  {/* Vertical lines to each child */}
-                  {children.map((child, i) => child.pos && (
-                    <SvgPath key={i} d={`M ${child.pos.x + nodeWidth / 2},${deceasedPos.y + nodeHeight + 30} V ${child.pos.y}`} />
-                  ))}
-                </>
-              )}
+                {children.length > 0 && deceasedPos && (
+                    <>
+                        {/* Main drop from deceased */}
+                        <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT} V ${deceasedPos.y + NODE_HEIGHT + 20}`} />
+                        
+                        {/* Horizontal bus line */}
+                        {children.length > 0 && children[0].pos && children[children.length - 1].pos && (
+                           <SvgPath d={`M ${children[0].pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 20} H ${children[children.length - 1].pos.x + NODE_WIDTH / 2}`} />
+                        )}
+
+                        {/* Vertical lines to each child */}
+                        {children.map((child, i) => {
+                            if (!child.pos) return null;
+                            const isTriangle = getNodeShape(child.relation) === 'triangle';
+                            const targetY = child.pos.y + (isTriangle ? 0 : 0); // Connect to the top point of triangle
+                            return (
+                                <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 20} V ${targetY}`} />
+                            )
+                        })}
+                    </>
+                )}
             </svg>
 
-            {heirGroups.parents.map(p => {
+            {/* Render Nodes */}
+            {rows.map(p => {
                  const pos = positions[p.relation];
                  if (!pos) return null;
                  return (
                     <Draggable key={p.relation} position={pos} onDrag={(e, data) => handleDrag(e, data, p.relation)}>
-                        <div className="absolute cursor-move"><Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} /></div>
+                        <div className="absolute cursor-move" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                          <Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />
+                        </div>
                     </Draggable>
                  );
             })}
-            
-             {spouses.map((s) => s.pos && (
-                <Draggable key={s.relation} position={s.pos} onDrag={(e, data) => handleDrag(e, data, s.relation)}>
-                    <div className="absolute cursor-move"><Node title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} /></div>
-                </Draggable>
-            ))}
-
             {deceasedPos && (
                  <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
-                    <div className="absolute cursor-move"><Node title="Deceased" area={totalAreaFormatted} isDeceased={true} /></div>
+                    <div className="absolute cursor-move" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                      <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
+                    </div>
                 </Draggable>
             )}
-
-             {children.map((c) => c.pos && (
-                <Draggable key={c.relation} position={c.pos} onDrag={(e, data) => handleDrag(e, data, c.relation)}>
-                    <div className="absolute cursor-move"><Node title={c.relation} area={`${c.kanal}K-${c.marla}M-${c.feet}ft`} share={c.shareLabel} /></div>
-                </Draggable>
-            ))}
         </>
       )}
     </div>
@@ -350,12 +353,9 @@ export function WirasatTab() {
     const marla = Number(wirasatMarla) || 0;
     const feet = Number(wirasatFeet) || 0;
 
-    if (isNaN(kanal) || isNaN(marla) || isNaN(feet) || (kanal === 0 && marla === 0 && feet === 0)) {
-        return '0K-0M-0ft';
-    }
-
     const totalSqFt = toTotalSqFt(kanal, marla, feet, Number(wirasatMarlaSize));
-    if (totalSqFt <= 0) return '0K-0M-0ft';
+    if (isNaN(totalSqFt) || totalSqFt <= 0) return '0K-0M-0ft';
+
     const { kanal: fmtK, marla: fmtM, feet: fmtF } = fromSqFt(totalSqFt, Number(wirasatMarlaSize));
     return `${fmtK}K-${fmtM}M-${fmtF}ft`;
   }, [wirasatKanal, wirasatMarla, wirasatFeet, wirasatMarlaSize]);
@@ -621,7 +621,7 @@ export function WirasatTab() {
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-[12px] text-muted-foreground">
                       Enter area and heirs above, then click
-                      <span className="font-medium"> Calculate partition </span>
+                      <span className="font-medium"> Calculate partition </span> 
                       to see proposed mutation details.
                     </TableCell>
                   </TableRow>
