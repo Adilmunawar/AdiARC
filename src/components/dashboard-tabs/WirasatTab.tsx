@@ -9,6 +9,87 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { calculateWirasatShares, WirasatMode, WirasatRow } from "@/lib/wirasat-calculator";
+import { cn } from "@/lib/utils";
+
+// --- Diagram Component ---
+const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[], totalAreaFormatted: string }) => {
+  const parents = rows.filter(r => r.relation.startsWith("Father") || r.relation.startsWith("Mother"));
+  const spouses = rows.filter(r => r.relation.startsWith("Widow") || r.relation.startsWith("Husband"));
+  const children = rows.filter(r => r.relation.startsWith("Son") || r.relation.startsWith("Daughter"));
+  const others = rows.filter(r => !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some(prefix => r.relation.startsWith(prefix)));
+
+  const heirExists = (relation: string) => rows.some(r => r.relation.startsWith(relation));
+
+  const Node = ({ title, area, share, className }: { title: string, area: string, share?: string, className?: string }) => (
+    <div className={cn("flex flex-col items-center", className)}>
+        <div className="text-center p-3 border-2 bg-background rounded-lg shadow-sm min-w-[140px]">
+            <p className="font-semibold text-sm">{title}</p>
+            <p className="text-xs text-muted-foreground">{area}</p>
+            {share && <p className="text-[10px] text-primary font-medium pt-1">{share}</p>}
+        </div>
+    </div>
+  );
+  
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="flex flex-col items-center space-y-8 p-4 bg-muted/40 rounded-lg border">
+        {/* Deceased Node */}
+        <Node title="Deceased" area={totalAreaFormatted} className="bg-card"/>
+        
+        {/* Connecting Line to Main Branch */}
+        <div className="w-px h-8 bg-border"></div>
+
+        {/* Heirs Container */}
+        <div className="w-full flex flex-col items-center space-y-8">
+            
+            {/* Parents & Spouse Row */}
+            {(heirExists("Father") || heirExists("Mother") || heirExists("Widow") || heirExists("Husband")) && (
+                <div className="relative flex justify-center w-full">
+                    {/* Horizontal Line */}
+                    <div className="absolute top-0 h-px bg-border w-2/3"></div>
+                    <div className="flex justify-around w-full">
+                        {parents.map(p => (
+                             <div key={p.relation} className="relative flex flex-col items-center">
+                                <div className="absolute top-0 w-px h-4 bg-border"></div>
+                                <Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} className="mt-4"/>
+                            </div>
+                        ))}
+                         {spouses.map(s => (
+                             <div key={s.relation} className="relative flex flex-col items-center">
+                                <div className="absolute top-0 w-px h-4 bg-border"></div>
+                                <Node title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} className="mt-4"/>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+            
+            {/* Connecting line to children if parents/spouse also exist */}
+            {(heirExists("Father") || heirExists("Mother") || heirExists("Widow") || heirExists("Husband")) && (children.length > 0 || others.length > 0) && (
+                 <div className="w-px h-8 bg-border"></div>
+            )}
+
+            {/* Children & Others Row */}
+            {(children.length > 0 || others.length > 0) && (
+                <div className="relative flex justify-center w-full">
+                     {/* Horizontal Line */}
+                    <div className="absolute top-0 h-px bg-border w-full max-w-4xl"></div>
+                    <div className="flex flex-wrap justify-center gap-4 w-full">
+                       {[...children, ...others].map((c, index) => (
+                           <div key={`${c.relation}-${index}`} className="relative flex flex-col items-center">
+                                <div className="absolute top-0 w-px h-4 bg-border"></div>
+                                <Node title={c.relation} area={`${c.kanal}K-${c.marla}M-${c.feet}ft`} share={c.shareLabel} className="mt-4"/>
+                            </div>
+                       ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    </div>
+  );
+};
+
 
 export function WirasatTab() {
   const [wirasatKanal, setWirasatKanal] = useState<string>("0");
@@ -46,7 +127,7 @@ export function WirasatTab() {
     const marla = totalMarlas - kanal * 20;
     return { kanal, marla, feet, areaSqFtRounded: rounded };
   };
-
+  
   const handleCalculatePartitions = () => {
     setWirasatError(null);
     setWirasatRows([]);
@@ -147,6 +228,9 @@ export function WirasatTab() {
     setWirasatRows(formattedRows);
     setWirasatTotalSqFt(targetTotal);
   };
+  
+  const totalAreaFormatted = fromSqFt(toTotalSqFt(Number(wirasatKanal) || 0, Number(wirasatMarla) || 0, Number(wirasatFeet) || 0), Number(wirasatMarlaSize));
+  const totalAreaDisplay = `${totalAreaFormatted.kanal}K-${totalAreaFormatted.marla}M-${totalAreaFormatted.feet}ft`;
 
   return (
     <Card className="border-border/70 bg-card/80 shadow-md">
@@ -373,13 +457,12 @@ export function WirasatTab() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-3 pt-4 border-t border-dashed">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-semibold">Proposed Mutation Details</p>
               <p className="text-[11px] text-muted-foreground">
                 Shares are shown as approximate fractions and precise square-foot areas with Kanal / Marla / Sq Ft breakdown.
-                Always verify with a scholar for complex family trees.
               </p>
             </div>
             {wirasatTotalSqFt !== null && (
@@ -410,8 +493,7 @@ export function WirasatTab() {
                     <TableCell colSpan={4} className="text-center text-[12px] text-muted-foreground">
                       Enter area and heirs above, then click
                       <span className="font-medium"> Calculate partition </span>
-                      to see proposed mutation details. In advanced mode, double-check especially when there are no children
-                      or multiple sibling groups.
+                      to see proposed mutation details.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -429,6 +511,13 @@ export function WirasatTab() {
               </TableBody>
             </Table>
           </div>
+          
+           {wirasatRows.length > 0 && (
+                <div className="pt-4 space-y-3">
+                     <h3 className="text-sm font-semibold">Distribution Diagram</h3>
+                     <DistributionDiagram rows={wirasatRows} totalAreaFormatted={totalAreaDisplay} />
+                </div>
+            )}
         </section>
       </CardContent>
     </Card>
