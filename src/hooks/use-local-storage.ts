@@ -28,6 +28,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     }
     try {
         const item = window.localStorage.getItem(key);
+        // Ensure item is not null, undefined, or an empty string before parsing.
         if (item) {
             setStoredValue(JSON.parse(item));
         }

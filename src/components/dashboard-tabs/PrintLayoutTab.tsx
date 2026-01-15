@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -32,6 +33,7 @@ export function PrintLayoutTab() {
   const [fileName, setFileName] = useState("mutation_print_layout.xlsx");
   const [shouldSort, setShouldSort] = useState(true);
   const [shouldAddBorders, setShouldAddBorders] = useState(true);
+  const [shouldAddSpacerColumns, setShouldAddSpacerColumns] = useState(false);
 
   const parsedNumbers = useMemo(() => {
     const numbers = new Set<number>();
@@ -97,7 +99,7 @@ export function PrintLayoutTab() {
     await new Promise(r => setTimeout(r, 50));
 
     try {
-      setGenerateProgress(25);
+      setGenerateProgress(10);
       
       const numRows = parseInt(numberOfRows, 10);
       const numColsInput = numberOfColumns ? parseInt(numberOfColumns, 10) : 0;
@@ -106,7 +108,7 @@ export function PrintLayoutTab() {
           ? numColsInput 
           : Math.ceil(finalNumbers.length / numRows);
 
-      const grid: (string | number)[][] = Array.from({ length: numRows }, () => Array(numColumns).fill(""));
+      let grid: (string | number)[][] = Array.from({ length: numRows }, () => Array(numColumns).fill(""));
 
       for (let i = 0; i < finalNumbers.length; i++) {
         const row = i % numRows;
@@ -123,8 +125,23 @@ export function PrintLayoutTab() {
         }
       }
       
+      setGenerateProgress(25);
+      await new Promise(r => setTimeout(r, 10));
+
+      // Add spacer columns if requested
+      if (shouldAddSpacerColumns) {
+        const newGrid: (string|number)[][] = Array.from({ length: numRows }, () => []);
+        for (let r = 0; r < numRows; r++) {
+            for(let c = 0; c < grid[r].length; c++) {
+                newGrid[r].push(grid[r][c]); // Original column
+                newGrid[r].push(""); // Spacer column
+            }
+        }
+        grid = newGrid;
+      }
       setGenerateProgress(50);
       await new Promise(r => setTimeout(r, 10));
+
 
       const ws = XLSX.utils.aoa_to_sheet(grid);
       const cols = [];
@@ -314,6 +331,10 @@ export function PrintLayoutTab() {
                      <div className="flex items-center space-x-2 pt-1">
                         <Switch id="add-borders" checked={shouldAddBorders} onCheckedChange={setShouldAddBorders} />
                         <Label htmlFor="add-borders" className="cursor-pointer">Add Cell Borders</Label>
+                    </div>
+                    <div className="flex items-center space-x-2 pt-1">
+                        <Switch id="add-spacer-columns" checked={shouldAddSpacerColumns} onCheckedChange={setShouldAddSpacerColumns} />
+                        <Label htmlFor="add-spacer-columns" className="cursor-pointer">Add Spacer Columns for Dates</Label>
                     </div>
                 </section>
 
