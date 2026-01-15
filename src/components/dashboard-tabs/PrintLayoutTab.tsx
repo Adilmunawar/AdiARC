@@ -21,16 +21,11 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
-type LayoutMode = "rows" | "columns";
 
 export function PrintLayoutTab() {
   const { toast } = useToast();
   const [mutationNumbers, setMutationNumbers] = useState("");
   const [rowsPerColumn, setRowsPerColumn] = useState("50");
-  const [numberOfColumns, setNumberOfColumns] = useState("5");
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("rows");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateProgress, setGenerateProgress] = useState(0);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
@@ -49,26 +44,14 @@ export function PrintLayoutTab() {
       return;
     }
 
-    if (layoutMode === 'rows') {
-        const rows = parseInt(rowsPerColumn, 10);
-        if (isNaN(rows) || rows <= 0) {
-          toast({
-            title: "Invalid Rows Per Column",
-            description: "Please enter a positive number for rows per column.",
-            variant: "destructive",
-          });
-          return;
-        }
-    } else {
-        const cols = parseInt(numberOfColumns, 10);
-         if (isNaN(cols) || cols <= 0) {
-          toast({
-            title: "Invalid Number of Columns",
-            description: "Please enter a positive number for the column count.",
-            variant: "destructive",
-          });
-          return;
-        }
+    const rows = parseInt(rowsPerColumn, 10);
+    if (isNaN(rows) || rows <= 0) {
+        toast({
+        title: "Invalid Rows Per Column",
+        description: "Please enter a positive number for rows per column.",
+        variant: "destructive",
+        });
+        return;
     }
     
     setFileName(`mutation_print_layout_${rawNumbers.length}_items.xlsx`);
@@ -95,16 +78,8 @@ export function PrintLayoutTab() {
       // Step 1: Create the snaking column layout
       setGenerateProgress(25);
 
-      let rows: number;
-      let numColumns: number;
-
-      if (layoutMode === 'rows') {
-        rows = parseInt(rowsPerColumn, 10);
-        numColumns = Math.ceil(rawNumbers.length / rows);
-      } else {
-        numColumns = parseInt(numberOfColumns, 10);
-        rows = Math.ceil(rawNumbers.length / numColumns);
-      }
+      const rows = parseInt(rowsPerColumn, 10);
+      const numColumns = Math.ceil(rawNumbers.length / rows);
 
       const grid: (string | number)[][] = [];
       
@@ -272,42 +247,20 @@ export function PrintLayoutTab() {
             <div className="flex flex-col gap-4 mt-6 lg:mt-0">
                 <section className="space-y-4">
                     <Label>2. Layout Configuration</Label>
-                    <RadioGroup value={layoutMode} onValueChange={(value) => setLayoutMode(value as LayoutMode)} className="space-y-3">
-                        <div className="flex items-center space-x-3 p-3 rounded-md border bg-muted/30">
-                            <RadioGroupItem value="rows" id="mode-rows" />
-                            <div className="flex-1 space-y-1.5">
-                                <Label htmlFor="mode-rows" className="cursor-pointer">Define Rows per Column</Label>
-                                <Input
-                                    id="rows-per-column"
-                                    type="number"
-                                    value={rowsPerColumn}
-                                    onChange={(e) => setRowsPerColumn(e.target.value)}
-                                    className="w-40"
-                                    disabled={isGenerating || layoutMode !== 'rows'}
-                                />
-                                <p className="text-[11px] text-muted-foreground">
-                                    Optimized for A4 paper (e.g., 50 rows).
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center space-x-3 p-3 rounded-md border bg-muted/30">
-                           <RadioGroupItem value="columns" id="mode-columns" />
-                            <div className="flex-1 space-y-1.5">
-                                <Label htmlFor="mode-columns" className="cursor-pointer">Define Total Number of Columns</Label>
-                                 <Input
-                                    id="number-of-columns"
-                                    type="number"
-                                    value={numberOfColumns}
-                                    onChange={(e) => setNumberOfColumns(e.target.value)}
-                                    className="w-40"
-                                    disabled={isGenerating || layoutMode !== 'columns'}
-                                />
-                                <p className="text-[11px] text-muted-foreground">
-                                    Specify the exact number of columns to use.
-                                </p>
-                            </div>
-                        </div>
-                    </RadioGroup>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="rows-per-column">Max Rows Per Column</Label>
+                        <Input
+                            id="rows-per-column"
+                            type="number"
+                            value={rowsPerColumn}
+                            onChange={(e) => setRowsPerColumn(e.target.value)}
+                            className="w-40"
+                            disabled={isGenerating}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                            The number of columns will be calculated automatically based on this value. A good starting point for A4 paper is 50.
+                        </p>
+                    </div>
 
                     <div className="flex items-center space-x-2 pt-2">
                         <Switch id="sort-numbers" checked={shouldSort} onCheckedChange={setShouldSort} />
