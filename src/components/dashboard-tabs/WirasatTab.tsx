@@ -17,8 +17,8 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[],
   const spouses = rows.filter(r => r.relation.startsWith("Widow") || r.relation.startsWith("Husband"));
   const children = rows.filter(r => r.relation.startsWith("Son") || r.relation.startsWith("Daughter"));
   const others = rows.filter(r => !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some(prefix => r.relation.startsWith(prefix)));
-
-  const heirExists = (relation: string) => rows.some(r => r.relation.startsWith(relation));
+  
+  if (rows.length === 0) return null;
 
   const Node = ({ title, area, share, className, isDeceased = false }: { title: string, area: string, share?: string, className?: string, isDeceased?: boolean }) => (
     <div className={cn("flex flex-col items-center", className)}>
@@ -29,59 +29,51 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[],
         </div>
     </div>
   );
-  
-  if (rows.length === 0) return null;
-
-  const topHeirs = [...parents, ...spouses];
 
   return (
-    <div className="flex flex-col items-center space-y-6 p-4 bg-muted/40 rounded-lg border font-sans">
-      {/* Top Row: Parents & Spouses */}
-      {topHeirs.length > 0 && (
-        <div className="w-full flex justify-center">
-            <div className="relative flex justify-center gap-4">
-              {topHeirs.map((heir, index) => (
-                <div key={`${heir.relation}-${index}`} className="flex flex-col items-center">
-                  <Node title={heir.relation} area={`${heir.kanal}K-${heir.marla}M-${heir.feet}ft`} share={heir.shareLabel} />
-                  {/* Vertical line from each top heir down to the horizontal connector */}
-                  <div className="w-px h-6 bg-border mt-0.5"></div>
-                </div>
-              ))}
-              {/* Horizontal connecting line for top heirs */}
-              <div className="absolute w-full h-px bg-border" style={{top: `calc(100% + 0.625rem)`}}></div>
-            </div>
+    <div className="flex flex-col items-center space-y-8 p-4 bg-muted/40 rounded-lg border font-sans">
+      
+      {/* Parents Row */}
+      {parents.length > 0 && (
+        <div className="relative flex justify-center gap-6">
+          {parents.map((p, i) => <Node key={i} title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />)}
+          {/* Horizontal connecting line for parents */}
+          {parents.length > 1 && <div className="absolute top-1/2 -translate-y-1/2 left-1/4 w-1/2 h-px bg-border -z-10"></div>}
         </div>
       )}
 
-      {/* Vertical connector line from top horizontal to Deceased node */}
-      {topHeirs.length > 0 && <div className="w-px h-6 bg-border"></div>}
+      {/* Connector to Middle Generation */}
+      {parents.length > 0 && <div className="w-px h-8 bg-border"></div>}
 
-      {/* Middle Row: Deceased Node */}
-      <div className="relative flex justify-center w-full">
-         <Node title="Deceased" area={totalAreaFormatted} isDeceased={true}/>
-         {/* Vertical connector from Deceased for heirs below */}
-         {(children.length > 0 || others.length > 0) && (
-            <div className="absolute w-px h-6 bg-border" style={{top: '100%'}}></div>
-         )}
+      {/* Middle Row: Deceased and Spouse(s) */}
+      <div className="relative flex items-center justify-center gap-6">
+        {spouses.map((s, i) => <Node key={i} title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} />)}
+        <Node title="Deceased" area={totalAreaFormatted} isDeceased={true}/>
+         {/* Horizontal connecting line for spouse and deceased */}
+         {spouses.length > 0 && <div className="absolute top-1/2 -translate-y-1/2 left-1/4 w-1/2 h-px bg-border -z-10"></div>}
       </div>
 
-      {/* Bottom Row: Children & Others */}
-      {(children.length > 0 || others.length > 0) && (
-        <div className="w-full flex justify-center pt-6">
-            <div className="relative flex justify-center gap-4 flex-wrap">
-              {/* Horizontal connecting line for bottom heirs */}
-              <div className="absolute w-full h-px bg-border top-0"></div>
+       {/* Connector to Children */}
+      {(children.length > 0 || others.length > 0) && <div className="w-px h-8 bg-border"></div>}
 
-              {[...children, ...others].map((heir, index) => (
-                <div key={`${heir.relation}-${index}`} className="flex flex-col items-center">
-                  {/* Vertical line from horizontal connector up to each bottom heir */}
-                  <div className="w-px h-6 bg-border mb-0.5"></div>
-                  <Node title={heir.relation} area={`${heir.kanal}K-${heir.marla}M-${heir.feet}ft`} share={heir.shareLabel} />
-                </div>
-              ))}
-            </div>
+      {/* Children/Others Row */}
+      {(children.length > 0 || others.length > 0) && (
+        <div className="relative flex justify-center gap-4 flex-wrap">
+           {/* Horizontal connecting line from deceased center */}
+           <div className="absolute top-0 left-1/2 w-px h-8 bg-border -translate-y-full"></div>
+
+           {/* Branching lines for children */}
+            {children.length > 1 && <div className="absolute top-0 left-[25%] w-1/2 h-px bg-border"></div>}
+
+           {[...children, ...others].map((child, index) => (
+             <div key={index} className="flex flex-col items-center">
+                {children.length > 1 && <div className="w-px h-4 bg-border"></div>}
+                <Node title={child.relation} area={`${child.kanal}K-${child.marla}M-${child.feet}ft`} share={child.shareLabel} />
+             </div>
+          ))}
         </div>
       )}
+
     </div>
   );
 };
@@ -519,3 +511,5 @@ export function WirasatTab() {
     </Card>
   );
 }
+
+    
