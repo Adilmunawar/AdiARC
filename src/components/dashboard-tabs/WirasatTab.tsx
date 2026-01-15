@@ -17,92 +17,102 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   const spouses = rows.filter((r) => r.relation.startsWith("Widow") || r.relation.startsWith("Husband"));
   const children = rows.filter((r) => r.relation.startsWith("Son") || r.relation.startsWith("Daughter"));
   const others = rows.filter(
-    (r) =>
-      !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some((prefix) => r.relation.startsWith(prefix)),
+    (r) => !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some((prefix) => r.relation.startsWith(prefix)),
   );
-
+  
   if (rows.length === 0) return null;
+
+  const getNodeShape = (relation: string) => {
+    if (relation.startsWith("Daughter")) return "triangle";
+    if (relation.startsWith("Mother") || relation.startsWith("Widow") || relation.startsWith("Sister")) return "oval";
+    return "square"; // Default for males (Father, Son, Husband, etc.)
+  };
 
   const Node = ({
     title,
     area,
     share,
-    className,
     isDeceased = false,
   }: {
     title: string;
     area: string;
     share?: string;
-    className?: string;
     isDeceased?: boolean;
-  }) => (
-    <div
-      className={cn(
-        "text-center p-3 border-2 rounded-lg shadow-sm min-w-[140px] bg-background z-10",
-        isDeceased ? "bg-primary/10 border-primary" : "",
-        className,
-      )}
-    >
-      <p className="font-semibold text-sm">{title}</p>
-      <p className="text-xs text-muted-foreground">{area}</p>
-      {share && <p className="text-[10px] text-primary font-medium pt-1">{share}</p>}
-    </div>
-  );
-
+  }) => {
+    const shape = getNodeShape(title);
+    
+    if (shape === 'triangle') {
+      return (
+        <div className="relative w-28 h-24 flex flex-col items-center justify-center text-center">
+            <div className="w-0 h-0 border-x-[50px] border-x-transparent border-b-[90px] border-b-background absolute top-0" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.1))' }}></div>
+            <div className="w-0 h-0 border-x-[48px] border-x-transparent border-b-[86px] border-b-border absolute top-0"></div>
+            <div className="w-0 h-0 border-x-[47px] border-x-transparent border-b-[84px] border-b-background absolute top-[1px]"></div>
+            <div className="relative z-10 -mt-2">
+                <p className="font-semibold text-xs">{title}</p>
+                <p className="text-[10px] text-muted-foreground">{area}</p>
+                {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
+            </div>
+        </div>
+      );
+    }
+    
+    return (
+        <div className={cn(
+            "flex flex-col items-center justify-center text-center p-3 border-2 shadow-sm min-w-[120px] bg-background z-10",
+            shape === 'oval' ? 'rounded-full h-24 w-24' : 'rounded-lg h-24 w-28',
+            isDeceased ? "bg-primary/10 border-primary" : "border-border",
+        )}>
+            <p className="font-semibold text-sm">{title}</p>
+            <p className="text-xs text-muted-foreground">{area}</p>
+            {share && <p className="text-[10px] text-primary font-medium pt-1">{share}</p>}
+        </div>
+    );
+  };
+  
   const hasParents = parents.length > 0;
-  const hasSpouses = spouses.length > 0;
+  const hasSpouse = spouses.length > 0;
   const hasChildren = children.length > 0 || others.length > 0;
 
   return (
-    <div className="flex flex-col items-center space-y-16 p-4 bg-muted/40 rounded-lg border font-sans min-h-[400px] justify-center relative">
-        
+    <div className="flex flex-col items-center justify-center space-y-8 p-4 bg-muted/30 rounded-lg border min-h-[500px] w-full overflow-x-auto">
         {/* Parents Row */}
         {hasParents && (
-            <div className="relative flex justify-center gap-8">
-                {parents.map((p, i) => (
-                    <Node key={i} title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />
-                ))}
-                {/* Horizontal line connecting parents */}
-                {parents.length > 1 && (
-                    <div className="absolute top-1/2 -translate-y-1/2 left-1/4 w-1/2 h-px bg-border -z-0"></div>
-                )}
-                {/* Vertical line dropping from parents' midpoint */}
-                <div className="absolute top-full left-1/2 w-px h-8 bg-border -z-0"></div>
+            <div className="relative flex justify-center items-center gap-12">
+                {parents.map((p, i) => <Node key={i} title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />)}
+                {/* Connector between parents */}
+                {parents.length > 1 && <div className="absolute top-1/2 left-1/4 w-1/2 h-0.5 bg-border -z-0"></div>}
+                {/* Line dropping down from parents' midpoint */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-8 bg-border"></div>
             </div>
         )}
 
-        {/* Middle Row: Deceased and Spouse */}
-        <div className="relative flex items-center justify-center gap-8">
-            {spouses.map((s, i) => (
-                <Node key={i} title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} />
-            ))}
+        {/* Middle Row (Deceased & Spouse) */}
+        <div className={cn("relative flex items-center justify-center", hasSpouse ? "gap-12" : "")}>
+            {hasSpouse && (
+                <>
+                    {spouses.map((s, i) => <Node key={i} title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} />)}
+                    {/* Horizontal line connecting spouse and deceased */}
+                    <div className="absolute top-1/2 left-1/4 w-1/2 h-0.5 bg-border -z-0"></div>
+                </>
+            )}
             <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
-            {/* Horizontal line connecting deceased and spouse */}
-            {hasSpouses && (
-                <div className="absolute top-1/2 -translate-y-1/2 left-1/4 w-1/2 h-px bg-border -z-0"></div>
-            )}
-             {/* Line from Parents to Deceased */}
-            {hasParents && (
-                <div className="absolute bottom-full left-1/2 w-px h-8 bg-border -z-0"></div>
-            )}
-             {/* Vertical line dropping to children */}
-            {hasChildren && (
-                <div className="absolute top-full left-1/2 w-px h-8 bg-border -z-0"></div>
-            )}
+            {/* Line from Parents to Deceased */}
+            {hasParents && <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0.5 h-8 bg-border"></div>}
+            {/* Line down to children */}
+            {hasChildren && <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-8 bg-border"></div>}
         </div>
 
-        {/* Children Row */}
+        {/* Children/Heirs Row */}
         {hasChildren && (
             <div className="relative flex justify-center items-start gap-4 flex-wrap pt-8">
                 {/* Horizontal line across top of children */}
                 {[...children, ...others].length > 1 && (
-                    <div className="absolute top-0 left-[10%] w-[80%] h-px bg-border"></div>
+                    <div className="absolute top-0 left-[10%] w-[80%] h-0.5 bg-border"></div>
                 )}
-                
                 {[...children, ...others].map((child, index) => (
                     <div key={index} className="relative flex flex-col items-center">
                         {/* Vertical line connecting child to horizontal bar */}
-                        <div className="absolute bottom-full w-px h-8 bg-border"></div>
+                        <div className="absolute bottom-full w-0.5 h-8 bg-border"></div>
                         <Node title={child.relation} area={`${child.kanal}K-${child.marla}M-${child.feet}ft`} share={child.shareLabel} />
                     </div>
                 ))}
@@ -545,5 +555,3 @@ export function WirasatTab() {
     </Card>
   );
 }
-
-    
