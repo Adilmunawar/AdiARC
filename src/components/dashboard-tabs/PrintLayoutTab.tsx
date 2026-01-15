@@ -25,7 +25,8 @@ import { Switch } from "@/components/ui/switch";
 export function PrintLayoutTab() {
   const { toast } = useToast();
   const [mutationNumbers, setMutationNumbers] = useState("");
-  const [rowsPerColumn, setRowsPerColumn] = useState("50");
+  const [numberOfRows, setNumberOfRows] = useState("50");
+  const [numberOfColumns, setNumberOfColumns] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateProgress, setGenerateProgress] = useState(0);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
@@ -44,11 +45,11 @@ export function PrintLayoutTab() {
       return;
     }
 
-    const rows = parseInt(rowsPerColumn, 10);
+    const rows = parseInt(numberOfRows, 10);
     if (isNaN(rows) || rows <= 0) {
         toast({
-        title: "Invalid Rows Per Column",
-        description: "Please enter a positive number for rows per column.",
+        title: "Invalid Rows",
+        description: "Please enter a positive number for rows.",
         variant: "destructive",
         });
         return;
@@ -59,7 +60,7 @@ export function PrintLayoutTab() {
   }
 
   const handleGenerateExcel = async () => {
-    setIsPromptOpen(false); // Close the name prompt
+    setIsPromptOpen(false);
     let rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
     
     if (shouldSort) {
@@ -72,39 +73,42 @@ export function PrintLayoutTab() {
 
     setIsGenerating(true);
     setGenerateProgress(0);
-    await new Promise(r => setTimeout(r, 50)); // Allow UI to update
+    await new Promise(r => setTimeout(r, 50));
 
     try {
-      // Step 1: Create the snaking column layout
       setGenerateProgress(25);
-
-      const rows = parseInt(rowsPerColumn, 10);
-      const numColumns = Math.ceil(rawNumbers.length / rows);
-
-      const grid: (string | number)[][] = [];
       
-      for (let c = 0; c < numColumns; c++) {
-        const start = c * rows;
-        const end = start + rows;
-        const columnData = rawNumbers.slice(start, end);
-        columnData.forEach((num, r) => {
-          if (!grid[r]) {
-            grid[r] = [];
-          }
-          while (grid[r].length < c) {
-            grid[r].push("");
-          }
-          grid[r][c] = isNaN(Number(num)) ? num : Number(num);
-        });
+      const numRows = parseInt(numberOfRows, 10);
+      const numColsInput = numberOfColumns ? parseInt(numberOfColumns, 10) : 0;
+      
+      // If columns are specified, use that. Otherwise, calculate based on rows.
+      const numColumns = numColsInput > 0 
+          ? numColsInput 
+          : Math.ceil(rawNumbers.length / numRows);
+
+      const grid: (string | number)[][] = Array.from({ length: numRows }, () => Array(numColumns).fill(""));
+
+      for (let i = 0; i < rawNumbers.length; i++) {
+        const row = i % numRows;
+        const col = Math.floor(i / numRows);
+        
+        // Ensure grid is large enough if user-defined columns are too few
+        if (col >= grid[0].length) {
+            for(let r=0; r < grid.length; r++) {
+                grid[r].push("");
+            }
+        }
+        
+        const numValue = Number(rawNumbers[i]);
+        grid[row][col] = isNaN(numValue) ? rawNumbers[i] : numValue;
       }
+      
       setGenerateProgress(50);
       await new Promise(r => setTimeout(r, 10));
 
-      // Step 2: Create worksheet and workbook
       const ws = XLSX.utils.aoa_to_sheet(grid);
       const wb = XLSX.utils.book_new();
 
-      // Step 3: Apply Styling
       const allCellsRange = XLSX.utils.decode_range(ws["!ref"]!);
       const cols = [];
       for (let C = allCellsRange.s.c; C <= allCellsRange.e.c; ++C) {
@@ -133,7 +137,6 @@ export function PrintLayoutTab() {
       setGenerateProgress(75);
       await new Promise(r => setTimeout(r, 10));
 
-      // Step 4: Append sheet and download
       XLSX.utils.book_append_sheet(wb, ws, "Mutation Layout");
       
       const finalFileName = fileName.trim() ? (fileName.trim().endsWith('.xlsx') ? fileName.trim() : `${fileName.trim()}.xlsx`) : "mutation_print_layout.xlsx";
@@ -247,20 +250,32 @@ export function PrintLayoutTab() {
             <div className="flex flex-col gap-4 mt-6 lg:mt-0">
                 <section className="space-y-4">
                     <Label>2. Layout Configuration</Label>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="rows-per-column">Max Rows Per Column</Label>
-                        <Input
-                            id="rows-per-column"
-                            type="number"
-                            value={rowsPerColumn}
-                            onChange={(e) => setRowsPerColumn(e.target.value)}
-                            className="w-40"
-                            disabled={isGenerating}
-                        />
-                        <p className="text-[11px] text-muted-foreground">
-                            The number of columns will be calculated automatically based on this value. A good starting point for A4 paper is 50.
-                        </p>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="rows-per-column">Number of Rows</Label>
+                            <Input
+                                id="rows-per-column"
+                                type="number"
+                                value={numberOfRows}
+                                onChange={(e) => setNumberOfRows(e.target.value)}
+                                disabled={isGenerating}
+                            />
+                        </div>
+                         <div className="space-y-1.5">
+                            <Label htmlFor="columns-per-page">Number of Columns</Label>
+                            <Input
+                                id="columns-per-page"
+                                type="number"
+                                value={numberOfColumns}
+                                onChange={(e) => setNumberOfColumns(e.target.value)}
+                                placeholder="Auto"
+                                disabled={isGenerating}
+                            />
+                        </div>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                        Set the number of rows and columns for your grid. If columns are left empty, they will be calculated automatically based on the number of rows.
+                    </p>
 
                     <div className="flex items-center space-x-2 pt-2">
                         <Switch id="sort-numbers" checked={shouldSort} onCheckedChange={setShouldSort} />
@@ -293,12 +308,7 @@ export function PrintLayoutTab() {
                     </Button>
                 </div>
                  <div className="text-xs text-muted-foreground space-y-2 pt-2">
-                    <p><span className="font-semibold">How it works:</span> The tool uses a "snaking column" layout. If you have 150 numbers and set it to 50 rows, the output will be:</p>
-                    <ul className="list-disc pl-5">
-                        <li>Column A: Numbers 1-50</li>
-                        <li>Column B: Numbers 51-100</li>
-                        <li>Column C: Numbers 101-150</li>
-                    </ul>
+                    <p><span className="font-semibold">How it works:</span> The tool lays out numbers top-to-bottom, then column by column. If you provide more numbers than fit in your grid (rows x columns), new columns will be added automatically to include all numbers.</p>
                 </div>
             </div>
           </div>
