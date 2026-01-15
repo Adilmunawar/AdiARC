@@ -86,22 +86,26 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     );
 
     const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10 w-28";
-    const shapeClasses = { oval: "rounded-[50%] h-24", square: "rounded-lg h-24", triangle: "h-24 border-none shadow-none bg-transparent" };
-
+    const shapeClasses = { oval: "rounded-full h-24", square: "rounded-lg h-24", triangle: "h-24" };
+    
     if (shape === "triangle") {
       return (
-        <div className={cn(baseClasses, shapeClasses.triangle)}>
-          <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-0 w-0 h-0 border-x-[56px] border-x-transparent border-b-[96px]" style={{ borderBottomColor: "hsl(var(--card))", filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.05))' }}></div>
-          </div>
-          <div className="relative z-10 mt-3">{content}</div>
+        <div className={cn(baseClasses, "border-none bg-transparent shadow-none")}>
+            <div 
+                className="absolute top-0 left-0 w-full h-full" 
+                style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
+            >
+                <div className="w-full h-full bg-card border-2 border-border" />
+            </div>
+            <div className="relative z-10 mt-4">{content}</div>
         </div>
       );
     }
+
     return <div className={cn(baseClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>{content}</div>;
   };
   
-  const SvgPath = ({ d, className }: { d: string, className?: string }) => <path d={d} stroke="hsl(var(--border))" strokeWidth="1.5" fill="none" className={className} />;
+  const SvgPath = ({ d }: { d: string }) => <path d={d} stroke="hsl(var(--border))" strokeWidth="1.5" fill="none" />;
   
   const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
     const midY = y1 + (y2 - y1) / 2;
@@ -127,8 +131,8 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                     <>
                         <SvgPath d={`M ${fatherPos.x + nodeWidth},${fatherPos.y + nodeHeight / 2} H ${motherPos.x}`} />
                         <SvgPath d={getElbowPath(
-                            fatherPos.x + nodeWidth + (motherPos.x - (fatherPos.x + nodeWidth)) / 2,
-                            fatherPos.y + nodeHeight / 2,
+                            fatherPos.x + nodeWidth / 2, 
+                            fatherPos.y + nodeHeight,
                             deceasedPos.x + nodeWidth / 2,
                             deceasedPos.y
                         )} />
