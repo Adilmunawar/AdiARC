@@ -344,7 +344,7 @@ export function WirasatTab() {
     const marla = Number(wirasatMarla) || 0;
     const feet = Number(wirasatFeet) || 0;
 
-    if (isNaN(kanal) || isNaN(marla) || isNaN(feet)) {
+    if (isNaN(kanal) || isNaN(marla) || isNaN(feet) || (kanal === 0 && marla === 0 && feet === 0)) {
         return '0K-0M-0ft';
     }
 
