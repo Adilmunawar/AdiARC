@@ -430,7 +430,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
   }
 
   return {
-    rows: [],
+    rows,
     targetTotal: Math.round(totalSqFt),
     error: "This heir combination is not fully supported in this version. Please consult a scholar.",
   };

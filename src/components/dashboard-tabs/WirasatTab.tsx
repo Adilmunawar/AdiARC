@@ -1,6 +1,7 @@
 
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import Draggable from "react-draggable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,14 +14,57 @@ import { cn } from "@/lib/utils";
 
 // --- Diagram Component ---
 const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[]; totalAreaFormatted: string }) => {
-  const parents = rows.filter((r) => r.relation.startsWith("Father") || r.relation.startsWith("Mother"));
-  const spouses = rows.filter((r) => r.relation.startsWith("Widow") || r.relation.startsWith("Husband"));
-  const children = rows.filter((r) => r.relation.startsWith("Son") || r.relation.startsWith("Daughter"));
-  const others = rows.filter(
-    (r) => !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some((prefix) => r.relation.startsWith(prefix)),
-  );
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
-  if (rows.length === 0) return null;
+  const heirGroups = useMemo(() => {
+    return {
+      parents: rows.filter((r) => r.relation.startsWith("Father") || r.relation.startsWith("Mother")),
+      spouses: rows.filter((r) => r.relation.startsWith("Widow") || r.relation.startsWith("Husband")),
+      children: rows.filter((r) => r.relation.startsWith("Son") || r.relation.startsWith("Daughter")),
+      others: rows.filter(
+        (r) => !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some((prefix) => r.relation.startsWith(prefix)),
+      ),
+    };
+  }, [rows]);
+
+  useEffect(() => {
+    const initialPositions: Record<string, { x: number, y: number }> = {};
+    const center = (containerRef.current?.offsetWidth || 800) / 2;
+    const nodeWidth = 112; // approx w-28
+
+    // Parents
+    if (heirGroups.parents.length === 1) {
+        initialPositions[heirGroups.parents[0].relation] = { x: center - nodeWidth/2, y: 20 };
+    } else if (heirGroups.parents.length > 1) {
+        initialPositions[heirGroups.parents[0].relation] = { x: center - nodeWidth - 20, y: 20 };
+        initialPositions[heirGroups.parents[1].relation] = { x: center + 20, y: 20 };
+    }
+
+    // Deceased & Spouse
+    initialPositions['Deceased'] = { x: center - nodeWidth/2, y: 160 };
+    if (heirGroups.spouses.length > 0) {
+        initialPositions['Deceased'] = { x: center + 10, y: 160 };
+        heirGroups.spouses.forEach((s, i) => {
+            initialPositions[s.relation] = { x: center - nodeWidth - 10 , y: 160 };
+        });
+    }
+
+    // Children
+    const childrenCount = heirGroups.children.length + heirGroups.others.length;
+    const childrenTotalWidth = childrenCount * (nodeWidth + 16) - 16;
+    let startX = center - childrenTotalWidth / 2;
+    [...heirGroups.children, ...heirGroups.others].forEach((c) => {
+        initialPositions[c.relation] = { x: startX, y: 320 };
+        startX += nodeWidth + 16;
+    });
+
+    setPositions(initialPositions);
+  }, [rows, heirGroups]);
+
+  const handleDrag = (e: any, data: any, key: string) => {
+    setPositions(prev => ({ ...prev, [key]: { x: data.x, y: data.y } }));
+  };
 
   const getNodeShape = (relation: string) => {
     if (relation.startsWith("Daughter")) return "triangle";
@@ -28,98 +72,104 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     return "square";
   };
 
-  const Node = ({
-    title,
-    area,
-    share,
-    isDeceased = false,
-  }: {
-    title: string;
-    area: string;
-    share?: string;
-    isDeceased?: boolean;
-  }) => {
+  const Node = ({ title, area, share, isDeceased = false }: { title: string; area: string; share?: string; isDeceased?: boolean }) => {
     const shape = getNodeShape(title);
-
     const content = (
-      <div className="flex flex-col items-center justify-center text-center">
+      <div className="flex flex-col items-center justify-center text-center p-1">
         <p className="font-semibold text-xs whitespace-nowrap">{title}</p>
         <p className="text-[10px] text-muted-foreground whitespace-nowrap">{area}</p>
         {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
       </div>
     );
-    
-    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10 shrink-0";
-    const shapeClasses = {
-        oval: "rounded-[50%] h-24 w-28",
-        square: "rounded-lg h-24 w-28",
-        triangle: "w-28 h-24 border-none shadow-none bg-transparent",
-    };
 
-    if (shape === 'triangle') {
+    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10 w-28";
+    const shapeClasses = { oval: "rounded-[50%] h-24", square: "rounded-lg h-24", triangle: "h-24 border-none shadow-none bg-transparent" };
+
+    if (shape === "triangle") {
       return (
         <div className={cn(baseClasses, shapeClasses.triangle)}>
           <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-0 w-0 h-0 border-x-[56px] border-x-transparent border-b-[96px] border-b-background" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.05))' }}></div>
-            <div className="absolute top-0 w-0 h-0 border-x-[54px] border-x-transparent border-b-[92px] border-b-border"></div>
-            <div className="absolute top-[2px] w-0 h-0 border-x-[52px] border-x-transparent border-b-[88px] border-b-background"></div>
+            <div className="absolute top-0 w-0 h-0 border-x-[56px] border-x-transparent border-b-[96px]" style={{ borderBottomColor: "hsl(var(--card))", filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.05))' }}></div>
           </div>
-          <div className="relative z-10 mt-3">
-               {content}
-          </div>
+          <div className="relative z-10 mt-3">{content}</div>
         </div>
       );
     }
-    
-    return (
-        <div className={cn(baseClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>
-           {content}
-        </div>
-    );
+    return <div className={cn(baseClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>{content}</div>;
   };
   
-  const hasParents = parents.length > 0;
-  const hasSpouse = spouses.length > 0;
-  const hasChildren = children.length > 0 || others.length > 0;
+  const SvgPath = ({ d }: { d: string }) => <path d={d} stroke="hsl(var(--border))" strokeWidth="1.5" fill="none" />;
 
+  const getElbowPath = (x1: number, y1: number, x2: number, y2: number, midY: number) => {
+      return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
+  };
+
+  const nodeWidth = 112;
+  const nodeHeight = 96;
+
+  const parents = heirGroups.parents.map(p => ({ ...p, pos: positions[p.relation] }));
+  const spouses = heirGroups.spouses.map(s => ({ ...s, pos: positions[s.relation] }));
+  const children = [...heirGroups.children, ...heirGroups.others].map(c => ({...c, pos: positions[c.relation]}));
+  const deceasedPos = positions['Deceased'];
+  
   return (
-    <div className="flex flex-col items-center space-y-4 p-4 bg-muted/30 rounded-lg border w-full overflow-x-auto">
-        <div className="relative flex flex-col items-center py-6 space-y-12 min-w-max">
-            
-            {/* Parents Row */}
-            {hasParents && (
-                <div className="relative flex justify-center items-center gap-8">
-                    {parents.length > 1 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-8 h-px bg-border -z-0"></div>}
-                    {parents.map((p, i) => <Node key={i} title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />)}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-12 bg-border -z-0"></div>
-                </div>
-            )}
+    <div ref={containerRef} className="relative w-full min-h-[450px] p-4 bg-muted/30 rounded-lg border overflow-hidden">
+      {Object.keys(positions).length > 0 && (
+        <>
+            <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
+                {/* Parent lines */}
+                {parents.length === 2 && parents[0].pos && parents[1].pos && (
+                    <SvgPath d={`M ${parents[0].pos.x + nodeWidth},${parents[0].pos.y + nodeHeight / 2} H ${parents[1].pos.x}`} />
+                )}
+                {deceasedPos && parents.length > 0 && (
+                    <SvgPath d={getElbowPath(
+                        parents.length === 1 ? parents[0].pos.x + nodeWidth/2 : parents[0].pos.x + nodeWidth + (parents[1].pos.x - (parents[0].pos.x + nodeWidth))/2,
+                        parents[0].pos.y + nodeHeight/2,
+                        deceasedPos.x + nodeWidth/2,
+                        deceasedPos.y,
+                        parents[0].pos.y + nodeHeight/2 + 30
+                    )} />
+                )}
+                {/* Spouse line */}
+                {spouses.length > 0 && spouses[0].pos && deceasedPos && (
+                     <SvgPath d={`M ${spouses[0].pos.x + nodeWidth},${spouses[0].pos.y + nodeHeight / 2} H ${deceasedPos.x}`} />
+                )}
 
-            {/* Middle Row (Deceased & Spouse) */}
-            <div className={cn("relative flex items-center justify-center", hasSpouse ? "gap-8" : "")}>
-                {hasSpouse && spouses.map((s, i) => <Node key={i} title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} />)}
-                {hasSpouse && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-8 h-px bg-border -z-0"></div>}
+                {/* Children lines */}
+                {children.length > 0 && deceasedPos && (
+                     <SvgPath d={`M ${deceasedPos.x + nodeWidth/2},${deceasedPos.y + nodeHeight} V ${deceasedPos.y + nodeHeight + 30}`} />
+                )}
+                 {children.length > 1 && deceasedPos && (
+                     <SvgPath d={`M ${children[0].pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} H ${children[children.length-1].pos.x + nodeWidth/2}`} />
+                )}
+                {children.map((child, i) => child.pos && deceasedPos && (
+                    <SvgPath key={i} d={`M ${child.pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} V ${child.pos.y}`} />
+                ))}
 
-                <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
-                 
-                {hasChildren && <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-12 bg-border -z-0"></div>}
-            </div>
-            
-            {/* Children/Heirs Row */}
-            {hasChildren && (
-                 <div className="relative flex justify-center items-start gap-4 flex-wrap pt-8">
-                    {[...children, ...others].length > 1 && (
-                        <div className="absolute top-0 left-[5%] w-[90%] h-px bg-border"></div>
-                    )}
-                    {[...children, ...others].map((child, index) => (
-                        <div key={index} className="relative flex flex-col items-center">
-                            <div className="absolute bottom-full w-px h-8 bg-border"></div>
-                            <Node title={child.relation} area={`${child.kanal}K-${child.marla}M-${child.feet}ft`} share={child.shareLabel} />
-                        </div>
-                    ))}
-                </div>
+            </svg>
+
+            {parents.map((p) => p.pos && (
+                <Draggable key={p.relation} position={p.pos} onDrag={(e, data) => handleDrag(e, data, p.relation)}>
+                    <div className="absolute cursor-move"><Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} /></div>
+                </Draggable>
+            ))}
+             {spouses.map((s) => s.pos && (
+                <Draggable key={s.relation} position={s.pos} onDrag={(e, data) => handleDrag(e, data, s.relation)}>
+                    <div className="absolute cursor-move"><Node title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} /></div>
+                </Draggable>
+            ))}
+            {deceasedPos && (
+                 <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
+                    <div className="absolute cursor-move"><Node title="Deceased" area={totalAreaFormatted} isDeceased={true} /></div>
+                </Draggable>
             )}
-        </div>
+             {children.map((c) => c.pos && (
+                <Draggable key={c.relation} position={c.pos} onDrag={(e, data) => handleDrag(e, data, c.relation)}>
+                    <div className="absolute cursor-move"><Node title={c.relation} area={`${c.kanal}K-${c.marla}M-${c.feet}ft`} share={c.shareLabel} /></div>
+                </Draggable>
+            ))}
+        </>
+      )}
     </div>
   );
 };
