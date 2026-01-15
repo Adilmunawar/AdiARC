@@ -36,27 +36,26 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     className?: string;
     isDeceased?: boolean;
   }) => (
-    <div className={cn("flex flex-col items-center", className)}>
-      <div
-        className={cn(
-          "text-center p-3 border-2 rounded-lg shadow-sm min-w-[140px] bg-background z-10",
-          isDeceased ? "bg-primary/10 border-primary" : "",
-        )}
-      >
-        <p className="font-semibold text-sm">{title}</p>
-        <p className="text-xs text-muted-foreground">{area}</p>
-        {share && <p className="text-[10px] text-primary font-medium pt-1">{share}</p>}
-      </div>
+    <div
+      className={cn(
+        "text-center p-3 border-2 rounded-lg shadow-sm min-w-[140px] bg-background z-10",
+        isDeceased ? "bg-primary/10 border-primary" : "",
+        className
+      )}
+    >
+      <p className="font-semibold text-sm">{title}</p>
+      <p className="text-xs text-muted-foreground">{area}</p>
+      {share && <p className="text-[10px] text-primary font-medium pt-1">{share}</p>}
     </div>
   );
 
   const hasParents = parents.length > 0;
   const hasSpouses = spouses.length > 0;
   const hasChildren = children.length > 0 || others.length > 0;
-  
+
   return (
-    <div className="flex flex-col items-center space-y-12 p-4 bg-muted/40 rounded-lg border font-sans min-h-[300px] justify-center">
-      {/* PARENTS ROW */}
+    <div className="flex flex-col items-center space-y-12 p-4 bg-muted/40 rounded-lg border font-sans min-h-[300px] justify-center relative">
+      {/* Parents Row */}
       {hasParents && (
         <div className="relative flex justify-center gap-8">
           {parents.map((p, i) => (
@@ -64,36 +63,38 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
           ))}
           {/* Horizontal line connecting parents */}
           {parents.length > 1 && (
-            <div className="absolute top-1/2 -translate-y-1/2 left-[25%] w-1/2 h-px bg-border -z-0"></div>
+            <div className="absolute top-1/2 -translate-y-1/2 left-1/4 w-1/2 h-px bg-border -z-0"></div>
           )}
-          {/* Vertical line dropping from parents */}
-           <div className="absolute top-full left-1/2 w-px h-12 bg-border -z-0"></div>
+          {/* Vertical line dropping from parents' midpoint */}
+          <div className="absolute top-full left-1/2 w-px h-12 bg-border -z-0"></div>
         </div>
       )}
 
-      {/* MIDDLE ROW: DECEASED AND SPOUSE */}
+      {/* Middle Row: Deceased and Spouse */}
       <div className="relative flex items-center justify-center gap-8">
         {spouses.map((s, i) => (
           <Node key={i} title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} />
         ))}
         <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
+
         {/* Horizontal line connecting deceased and spouse */}
         {hasSpouses && (
-            <div className="absolute top-1/2 -translate-y-1/2 left-[25%] w-1/2 h-px bg-border -z-0"></div>
+            <div className="absolute top-1/2 -translate-y-1/2 left-1/4 w-1/2 h-px bg-border -z-0"></div>
         )}
+        
         {/* Vertical line dropping to children */}
         {hasChildren && (
             <div className="absolute top-full left-1/2 w-px h-12 bg-border -z-0"></div>
         )}
       </div>
 
-      {/* CHILDREN ROW */}
+      {/* Children Row */}
       {hasChildren && (
         <div className="relative flex justify-center items-start gap-4 flex-wrap pt-8">
-            {/* Horizontal line across top of children */}
-            {[...children, ...others].length > 1 && (
-                 <div className="absolute top-0 left-[10%] w-[80%] h-px bg-border"></div>
-            )}
+          {/* Horizontal line across top of children */}
+          {[...children, ...others].length > 1 && (
+            <div className="absolute top-0 left-[10%] w-[80%] h-px bg-border"></div>
+          )}
            
           {[...children, ...others].map((child, index) => (
             <div key={index} className="relative flex flex-col items-center">
