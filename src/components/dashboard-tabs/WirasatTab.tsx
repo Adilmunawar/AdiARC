@@ -35,17 +35,18 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
     // Parents
     if (heirGroups.parents.length === 1) {
-        initialPositions[heirGroups.parents[0].relation] = { x: center - nodeWidth / 2, y: 20 };
+        const parentKey = heirGroups.parents[0].relation;
+        initialPositions[parentKey] = { x: center - nodeWidth / 2, y: 20 };
     } else if (heirGroups.parents.length > 1) {
-        initialPositions['Father'] = { x: center - nodeWidth - 20, y: 20 };
-        initialPositions['Mother'] = { x: center + 20, y: 20 };
+        initialPositions['Father'] = { x: center - nodeWidth - 40, y: 20 };
+        initialPositions['Mother'] = { x: center + 40, y: 20 };
     }
 
     // Deceased & Spouse
     if (heirGroups.spouses.length > 0) {
-        initialPositions['Deceased'] = { x: center + 10, y: 160 };
-        heirGroups.spouses.forEach((s) => {
-            initialPositions[s.relation] = { x: center - nodeWidth - 10, y: 160 };
+        initialPositions['Deceased'] = { x: center - nodeWidth / 2 + 70, y: 160 };
+        heirGroups.spouses.forEach((s, i) => {
+            initialPositions[s.relation] = { x: center - nodeWidth / 2 - 70, y: 160 + i * 110 };
         });
     } else {
         initialPositions['Deceased'] = { x: center - nodeWidth / 2, y: 160 };
@@ -100,8 +101,8 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     return <div className={cn(baseClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>{content}</div>;
   };
   
-  const SvgPath = ({ d }: { d: string }) => <path d={d} stroke="hsl(var(--border))" strokeWidth="1.5" fill="none" />;
-
+  const SvgPath = ({ d, className }: { d: string, className?: string }) => <path d={d} stroke="hsl(var(--border))" strokeWidth="1.5" fill="none" className={className} />;
+  
   const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
     const midY = y1 + (y2 - y1) / 2;
     return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
@@ -122,17 +123,15 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
         <>
             <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
                 {/* Parent lines */}
-                {fatherPos && motherPos && (
+                {fatherPos && motherPos && deceasedPos && (
                     <>
-                        {/* Horizontal line between parents */}
                         <SvgPath d={`M ${fatherPos.x + nodeWidth},${fatherPos.y + nodeHeight / 2} H ${motherPos.x}`} />
-                        {/* Vertical line dropping down from midpoint */}
-                        {deceasedPos && <SvgPath d={getElbowPath(
+                        <SvgPath d={getElbowPath(
                             fatherPos.x + nodeWidth + (motherPos.x - (fatherPos.x + nodeWidth)) / 2,
                             fatherPos.y + nodeHeight / 2,
                             deceasedPos.x + nodeWidth / 2,
                             deceasedPos.y
-                        )} />}
+                        )} />
                     </>
                 )}
                 {(fatherPos && !motherPos && deceasedPos) && (
@@ -142,7 +141,6 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                      <SvgPath d={getElbowPath(motherPos.x + nodeWidth / 2, motherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
                 )}
 
-
                 {/* Spouse line */}
                 {spouses.length > 0 && spouses[0].pos && deceasedPos && (
                      <SvgPath d={`M ${spouses[0].pos.x + nodeWidth},${spouses[0].pos.y + nodeHeight / 2} H ${deceasedPos.x}`} />
@@ -151,41 +149,39 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                 {/* Children lines */}
                 {children.length > 0 && deceasedPos && (
                     <>
-                        {/* Main dropping line */}
                         <SvgPath d={`M ${deceasedPos.x + nodeWidth/2},${deceasedPos.y + nodeHeight} V ${deceasedPos.y + nodeHeight + 30}`} />
-                        {/* Horizontal connector bar */}
-                        {children.length > 1 && (
+                        {children.length > 1 && children[0].pos && children[children.length-1].pos && (
                             <SvgPath d={`M ${children[0].pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} H ${children[children.length-1].pos.x + nodeWidth/2}`} />
                         )}
-                        {/* Lines up to children */}
                         {children.map((child, i) => child.pos && (
                            <SvgPath key={i} d={`M ${child.pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} V ${child.pos.y}`} />
                         ))}
                     </>
                 )}
-
             </svg>
 
-            {fatherPos && (
-                <Draggable position={fatherPos} onDrag={(e, data) => handleDrag(e, data, 'Father')}>
-                    <div className="absolute cursor-move"><Node title="Father" area={`${rows.find(r=>r.relation === 'Father')?.kanal ?? 0}K-${rows.find(r=>r.relation === 'Father')?.marla ?? 0}M-${rows.find(r=>r.relation === 'Father')?.feet ?? 0}ft`} share={rows.find(r=>r.relation === 'Father')?.shareLabel} /></div>
-                </Draggable>
-            )}
-             {motherPos && (
-                <Draggable position={motherPos} onDrag={(e, data) => handleDrag(e, data, 'Mother')}>
-                    <div className="absolute cursor-move"><Node title="Mother" area={`${rows.find(r=>r.relation === 'Mother')?.kanal ?? 0}K-${rows.find(r=>r.relation === 'Mother')?.marla ?? 0}M-${rows.find(r=>r.relation === 'Mother')?.feet ?? 0}ft`} share={rows.find(r=>r.relation === 'Mother')?.shareLabel} /></div>
-                </Draggable>
-            )}
+            {heirGroups.parents.map(p => {
+                 const pos = positions[p.relation];
+                 if (!pos) return null;
+                 return (
+                    <Draggable key={p.relation} position={pos} onDrag={(e, data) => handleDrag(e, data, p.relation)}>
+                        <div className="absolute cursor-move"><Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} /></div>
+                    </Draggable>
+                 );
+            })}
+            
              {spouses.map((s) => s.pos && (
                 <Draggable key={s.relation} position={s.pos} onDrag={(e, data) => handleDrag(e, data, s.relation)}>
                     <div className="absolute cursor-move"><Node title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} /></div>
                 </Draggable>
             ))}
+
             {deceasedPos && (
                  <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
                     <div className="absolute cursor-move"><Node title="Deceased" area={totalAreaFormatted} isDeceased={true} /></div>
                 </Draggable>
             )}
+
              {children.map((c) => c.pos && (
                 <Draggable key={c.relation} position={c.pos} onDrag={(e, data) => handleDrag(e, data, c.relation)}>
                     <div className="absolute cursor-move"><Node title={c.relation} area={`${c.kanal}K-${c.marla}M-${c.feet}ft`} share={c.shareLabel} /></div>
@@ -196,7 +192,6 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     </div>
   );
 };
-
 
 export function WirasatTab() {
   const [wirasatKanal, setWirasatKanal] = useState<string>("0");
@@ -254,6 +249,11 @@ export function WirasatTab() {
     }
 
     const totalSqFt = toTotalSqFt(kanal, marla, feet, marlaSize);
+    if(totalSqFt <= 0) {
+       setWirasatError("Total area must be greater than zero.");
+       return;
+    }
+
 
     const widowsCount = Math.max(0, Number(wirasatWidows) || 0);
     const sonsCount = Math.max(0, Number(wirasatSons) || 0);
@@ -349,6 +349,7 @@ export function WirasatTab() {
     }
 
     const totalSqFt = toTotalSqFt(kanal, marla, feet, Number(wirasatMarlaSize));
+    if (totalSqFt <= 0) return '0K-0M-0ft';
     const { kanal: fmtK, marla: fmtM, feet: fmtF } = fromSqFt(totalSqFt, Number(wirasatMarlaSize));
     return `${fmtK}K-${fmtM}M-${fmtF}ft`;
   }, [wirasatKanal, wirasatMarla, wirasatFeet, wirasatMarlaSize]);
