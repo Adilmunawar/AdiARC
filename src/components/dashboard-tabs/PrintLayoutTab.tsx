@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -283,7 +282,7 @@ export function PrintLayoutTab() {
                     <Label>2. Layout Configuration</Label>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <Label htmlFor="rows-per-column">Rows Per Column</Label>
+                            <Label htmlFor="rows-per-column">Number of Rows</Label>
                             <Input
                                 id="rows-per-column"
                                 type="number"
