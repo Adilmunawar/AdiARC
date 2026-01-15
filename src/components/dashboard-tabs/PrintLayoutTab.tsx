@@ -93,6 +93,7 @@ export function PrintLayoutTab() {
         const col = Math.floor(i / numRows);
         
         if (col >= grid[0].length) {
+            // This loop ensures we add new columns if the content exceeds the manually defined grid
             for(let r=0; r < grid.length; r++) {
                 grid[r].push("");
             }
@@ -111,12 +112,13 @@ export function PrintLayoutTab() {
       const allCellsRange = XLSX.utils.decode_range(ws["!ref"]!);
       const cols = [];
       for (let C = allCellsRange.s.c; C <= allCellsRange.e.c; ++C) {
-        let max_w = 10;
+        let max_w = 10; // default column width
         for (let R = allCellsRange.s.r; R <= allCellsRange.e.r; ++R) {
             const cell_address = { c: C, r: R };
             const cell_ref = XLSX.utils.encode_cell(cell_address);
             if (!ws[cell_ref]) continue;
 
+            // Apply borders if toggled on
             if (shouldAddBorders) {
                 ws[cell_ref].s = {
                     border: {
@@ -127,6 +129,8 @@ export function PrintLayoutTab() {
                     }
                 };
             }
+            
+            // Calculate column width
             const cell_w = String(ws[cell_ref].v).length + 2;
             if (max_w < cell_w) max_w = cell_w;
         }
@@ -269,13 +273,13 @@ export function PrintLayoutTab() {
                                 type="number"
                                 value={numberOfColumns}
                                 onChange={(e) => setNumberOfColumns(e.target.value)}
-                                placeholder="Auto"
+                                placeholder="Auto (based on rows)"
                                 disabled={isGenerating}
                             />
                         </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                        Set the number of rows and columns for your grid. If columns are left empty, they will be calculated automatically.
+                        Set the number of rows and/or columns. If columns are left empty, they will be calculated automatically based on the row count to fit all numbers.
                     </p>
 
                     <div className="flex items-center space-x-2 pt-2">
@@ -322,5 +326,3 @@ export function PrintLayoutTab() {
     </>
   );
 }
-
-    
