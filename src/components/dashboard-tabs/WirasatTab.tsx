@@ -31,23 +31,24 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   useEffect(() => {
     const initialPositions: Record<string, { x: number, y: number }> = {};
     const center = (containerRef.current?.offsetWidth || 800) / 2;
-    const nodeWidth = 112; // approx w-28
+    const nodeWidth = 112;
 
     // Parents
     if (heirGroups.parents.length === 1) {
-        initialPositions[heirGroups.parents[0].relation] = { x: center - nodeWidth/2, y: 20 };
+        initialPositions[heirGroups.parents[0].relation] = { x: center - nodeWidth / 2, y: 20 };
     } else if (heirGroups.parents.length > 1) {
-        initialPositions[heirGroups.parents[0].relation] = { x: center - nodeWidth - 20, y: 20 };
-        initialPositions[heirGroups.parents[1].relation] = { x: center + 20, y: 20 };
+        initialPositions['Father'] = { x: center - nodeWidth - 20, y: 20 };
+        initialPositions['Mother'] = { x: center + 20, y: 20 };
     }
 
     // Deceased & Spouse
-    initialPositions['Deceased'] = { x: center - nodeWidth/2, y: 160 };
     if (heirGroups.spouses.length > 0) {
         initialPositions['Deceased'] = { x: center + 10, y: 160 };
-        heirGroups.spouses.forEach((s, i) => {
-            initialPositions[s.relation] = { x: center - nodeWidth - 10 , y: 160 };
+        heirGroups.spouses.forEach((s) => {
+            initialPositions[s.relation] = { x: center - nodeWidth - 10, y: 160 };
         });
+    } else {
+        initialPositions['Deceased'] = { x: center - nodeWidth / 2, y: 160 };
     }
 
     // Children
@@ -61,6 +62,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
     setPositions(initialPositions);
   }, [rows, heirGroups]);
+
 
   const handleDrag = (e: any, data: any, key: string) => {
     setPositions(prev => ({ ...prev, [key]: { x: data.x, y: data.y } }));
@@ -100,16 +102,18 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   
   const SvgPath = ({ d }: { d: string }) => <path d={d} stroke="hsl(var(--border))" strokeWidth="1.5" fill="none" />;
 
-  const getElbowPath = (x1: number, y1: number, x2: number, y2: number, midY: number) => {
-      return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
+  const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
+    const midY = y1 + (y2 - y1) / 2;
+    return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
   };
 
   const nodeWidth = 112;
   const nodeHeight = 96;
 
-  const parents = heirGroups.parents.map(p => ({ ...p, pos: positions[p.relation] }));
+  const fatherPos = positions['Father'];
+  const motherPos = positions['Mother'];
   const spouses = heirGroups.spouses.map(s => ({ ...s, pos: positions[s.relation] }));
-  const children = [...heirGroups.children, ...heirGroups.others].map(c => ({...c, pos: positions[c.relation]}));
+  const children = [...heirGroups.children, ...heirGroups.others].map(c => ({ ...c, pos: positions[c.relation] }));
   const deceasedPos = positions['Deceased'];
   
   return (
@@ -118,18 +122,27 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
         <>
             <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
                 {/* Parent lines */}
-                {parents.length === 2 && parents[0].pos && parents[1].pos && (
-                    <SvgPath d={`M ${parents[0].pos.x + nodeWidth},${parents[0].pos.y + nodeHeight / 2} H ${parents[1].pos.x}`} />
+                {fatherPos && motherPos && (
+                    <>
+                        {/* Horizontal line between parents */}
+                        <SvgPath d={`M ${fatherPos.x + nodeWidth},${fatherPos.y + nodeHeight / 2} H ${motherPos.x}`} />
+                        {/* Vertical line dropping down from midpoint */}
+                        {deceasedPos && <SvgPath d={getElbowPath(
+                            fatherPos.x + nodeWidth + (motherPos.x - (fatherPos.x + nodeWidth)) / 2,
+                            fatherPos.y + nodeHeight / 2,
+                            deceasedPos.x + nodeWidth / 2,
+                            deceasedPos.y
+                        )} />}
+                    </>
                 )}
-                {deceasedPos && parents.length > 0 && (
-                    <SvgPath d={getElbowPath(
-                        parents.length === 1 ? parents[0].pos.x + nodeWidth/2 : parents[0].pos.x + nodeWidth + (parents[1].pos.x - (parents[0].pos.x + nodeWidth))/2,
-                        parents[0].pos.y + nodeHeight/2,
-                        deceasedPos.x + nodeWidth/2,
-                        deceasedPos.y,
-                        parents[0].pos.y + nodeHeight/2 + 30
-                    )} />
+                {(fatherPos && !motherPos && deceasedPos) && (
+                    <SvgPath d={getElbowPath(fatherPos.x + nodeWidth / 2, fatherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
                 )}
+                {(!fatherPos && motherPos && deceasedPos) && (
+                     <SvgPath d={getElbowPath(motherPos.x + nodeWidth / 2, motherPos.y + nodeHeight, deceasedPos.x + nodeWidth / 2, deceasedPos.y)} />
+                )}
+
+
                 {/* Spouse line */}
                 {spouses.length > 0 && spouses[0].pos && deceasedPos && (
                      <SvgPath d={`M ${spouses[0].pos.x + nodeWidth},${spouses[0].pos.y + nodeHeight / 2} H ${deceasedPos.x}`} />
@@ -137,22 +150,32 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
                 {/* Children lines */}
                 {children.length > 0 && deceasedPos && (
-                     <SvgPath d={`M ${deceasedPos.x + nodeWidth/2},${deceasedPos.y + nodeHeight} V ${deceasedPos.y + nodeHeight + 30}`} />
+                    <>
+                        {/* Main dropping line */}
+                        <SvgPath d={`M ${deceasedPos.x + nodeWidth/2},${deceasedPos.y + nodeHeight} V ${deceasedPos.y + nodeHeight + 30}`} />
+                        {/* Horizontal connector bar */}
+                        {children.length > 1 && (
+                            <SvgPath d={`M ${children[0].pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} H ${children[children.length-1].pos.x + nodeWidth/2}`} />
+                        )}
+                        {/* Lines up to children */}
+                        {children.map((child, i) => child.pos && (
+                           <SvgPath key={i} d={`M ${child.pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} V ${child.pos.y}`} />
+                        ))}
+                    </>
                 )}
-                 {children.length > 1 && deceasedPos && (
-                     <SvgPath d={`M ${children[0].pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} H ${children[children.length-1].pos.x + nodeWidth/2}`} />
-                )}
-                {children.map((child, i) => child.pos && deceasedPos && (
-                    <SvgPath key={i} d={`M ${child.pos.x + nodeWidth/2},${deceasedPos.y + nodeHeight + 30} V ${child.pos.y}`} />
-                ))}
 
             </svg>
 
-            {parents.map((p) => p.pos && (
-                <Draggable key={p.relation} position={p.pos} onDrag={(e, data) => handleDrag(e, data, p.relation)}>
-                    <div className="absolute cursor-move"><Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} /></div>
+            {fatherPos && (
+                <Draggable position={fatherPos} onDrag={(e, data) => handleDrag(e, data, 'Father')}>
+                    <div className="absolute cursor-move"><Node title="Father" area={`${rows.find(r=>r.relation === 'Father')?.kanal ?? 0}K-${rows.find(r=>r.relation === 'Father')?.marla ?? 0}M-${rows.find(r=>r.relation === 'Father')?.feet ?? 0}ft`} share={rows.find(r=>r.relation === 'Father')?.shareLabel} /></div>
                 </Draggable>
-            ))}
+            )}
+             {motherPos && (
+                <Draggable position={motherPos} onDrag={(e, data) => handleDrag(e, data, 'Mother')}>
+                    <div className="absolute cursor-move"><Node title="Mother" area={`${rows.find(r=>r.relation === 'Mother')?.kanal ?? 0}K-${rows.find(r=>r.relation === 'Mother')?.marla ?? 0}M-${rows.find(r=>r.relation === 'Mother')?.feet ?? 0}ft`} share={rows.find(r=>r.relation === 'Mother')?.shareLabel} /></div>
+                </Draggable>
+            )}
              {spouses.map((s) => s.pos && (
                 <Draggable key={s.relation} position={s.pos} onDrag={(e, data) => handleDrag(e, data, s.relation)}>
                     <div className="absolute cursor-move"><Node title={s.relation} area={`${s.kanal}K-${s.marla}M-${s.feet}ft`} share={s.shareLabel} /></div>
