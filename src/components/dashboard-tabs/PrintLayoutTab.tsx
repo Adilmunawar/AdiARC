@@ -93,14 +93,15 @@ export function PrintLayoutTab() {
         const col = Math.floor(i / numRows);
         
         if (col >= grid[0].length) {
-            // This loop ensures we add new columns if the content exceeds the manually defined grid
             for(let r=0; r < grid.length; r++) {
                 grid[r].push("");
             }
         }
         
         const numValue = Number(rawNumbers[i]);
-        grid[row][col] = isNaN(numValue) ? rawNumbers[i] : numValue;
+        if(col < grid[row].length) {
+          grid[row][col] = isNaN(numValue) ? rawNumbers[i] : numValue;
+        }
       }
       
       setGenerateProgress(50);
@@ -112,25 +113,24 @@ export function PrintLayoutTab() {
       const allCellsRange = XLSX.utils.decode_range(ws["!ref"]!);
       const cols = [];
       for (let C = allCellsRange.s.c; C <= allCellsRange.e.c; ++C) {
-        let max_w = 10; // default column width
+        let max_w = 10;
         for (let R = allCellsRange.s.r; R <= allCellsRange.e.r; ++R) {
             const cell_address = { c: C, r: R };
             const cell_ref = XLSX.utils.encode_cell(cell_address);
             if (!ws[cell_ref]) continue;
 
-            // Apply borders if toggled on
             if (shouldAddBorders) {
                 ws[cell_ref].s = {
-                    border: {
-                        top: { style: "thin", color: { rgb: "000000" } },
-                        bottom: { style: "thin", color: { rgb: "000000" } },
-                        left: { style: "thin", color: { rgb: "000000" } },
-                        right: { style: "thin", color: { rgb: "000000" } },
-                    }
+                  ...(ws[cell_ref].s || {}),
+                  border: {
+                    top: { style: "thin", color: { rgb: "000000" } },
+                    bottom: { style: "thin", color: { rgb: "000000" } },
+                    left: { style: "thin", color: { rgb: "000000" } },
+                    right: { style: "thin", color: { rgb: "000000" } },
+                  }
                 };
             }
             
-            // Calculate column width
             const cell_w = String(ws[cell_ref].v).length + 2;
             if (max_w < cell_w) max_w = cell_w;
         }
