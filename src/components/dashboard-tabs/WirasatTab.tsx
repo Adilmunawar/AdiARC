@@ -63,7 +63,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     });
 
     setPositions(initialPositions);
-  }, [rows, heirGroups.parents.length]);
+  }, [rows, heirGroups.parents, heirGroups.spouses, heirGroups.children, heirGroups.others]);
 
 
   const handleDrag = (e: any, data: any, key: string) => {
@@ -92,9 +92,9 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
     if (shape === "triangle") {
       return (
-         <div className={cn("relative", sizeClasses)}>
+         <div className={cn("relative", sizeClasses, isDeceased ? "bg-primary/10 border-primary" : "border-border")}>
             <div 
-                className="absolute top-0 left-0 w-full h-full bg-card border-2 border-border" 
+                className="absolute top-0 left-0 w-full h-full bg-background border-2 border-border" 
                 style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
             />
             <div className="relative z-10 w-full h-full flex items-center justify-center pt-4">{content}</div>
@@ -132,7 +132,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                 <>
                   <SvgPath d={`M ${fatherPos.x + NODE_WIDTH / 2},${fatherPos.y + NODE_HEIGHT / 2} H ${motherPos.x + NODE_WIDTH / 2}`} />
                   <SvgPath d={getElbowPath(
-                    fatherPos.x + NODE_WIDTH, // Midpoint between parents
+                    fatherPos.x + NODE_WIDTH / 2 + (motherPos.x - fatherPos.x)/2, 
                     fatherPos.y + NODE_HEIGHT / 2,
                     deceasedPos.x + NODE_WIDTH / 2,
                     deceasedPos.y + NODE_HEIGHT / 2
@@ -147,7 +147,6 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                 <SvgPath d={getElbowPath(motherPos.x + NODE_WIDTH / 2, motherPos.y + NODE_HEIGHT / 2, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y + NODE_HEIGHT / 2)} />
               )}
 
-
               {/* Spouse line */}
               {spouses.length > 0 && spouses[0].pos && deceasedPos && (
                 <SvgPath d={`M ${spouses[0].pos.x + NODE_WIDTH / 2},${spouses[0].pos.y + NODE_HEIGHT / 2} H ${deceasedPos.x + NODE_WIDTH / 2}`} />
@@ -156,19 +155,16 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
               {/* Children lines */}
                 {children.length > 0 && deceasedPos && (
                     <>
-                        {/* Main bus line */}
-                        {children.length > 0 && children[0].pos && children[children.length - 1].pos && (
-                           <SvgPath d={`M ${children[0].pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2 + 60} H ${children[children.length - 1].pos.x + NODE_WIDTH / 2}`} />
+                         {children.length > 0 && children[0].pos && children[children.length - 1].pos && (
+                           <SvgPath d={`M ${children[0].pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 40} H ${children[children.length - 1].pos.x + NODE_WIDTH / 2}`} />
                         )}
 
-                        {/* Drop from deceased to bus */}
-                        <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2} V ${deceasedPos.y + NODE_HEIGHT / 2 + 60}`} />
+                        <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2} V ${deceasedPos.y + NODE_HEIGHT + 40}`} />
 
-                        {/* Vertical lines to each child */}
                         {children.map((child, i) => {
                             if (!child.pos) return null;
                             return (
-                                <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2 + 60} V ${child.pos.y + NODE_HEIGHT / 2}`} />
+                                <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 40} V ${child.pos.y + NODE_HEIGHT / 2}`} />
                             )
                         })}
                     </>
@@ -181,7 +177,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                  if (!pos) return null;
                  return (
                     <Draggable key={p.relation} position={pos} onDrag={(e, data) => handleDrag(e, data, p.relation)}>
-                        <div className="absolute cursor-move" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                        <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
                           <Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />
                         </div>
                     </Draggable>
@@ -189,7 +185,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
             })}
             {deceasedPos && (
                  <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
-                    <div className="absolute cursor-move" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                    <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
                       <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
                     </div>
                 </Draggable>
@@ -651,5 +647,3 @@ export function WirasatTab() {
     </Card>
   );
 }
-
-    
