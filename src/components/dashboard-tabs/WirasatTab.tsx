@@ -24,7 +24,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
   const getNodeShape = (relation: string) => {
     if (relation.startsWith("Daughter")) return "triangle";
-    if (relation.startsWith("Mother") || relation.startsWith("Widow") || relation.startsWith("Sister")) return "oval";
+    if (["Mother", "Widow", "Sister"].some(prefix => relation.startsWith(prefix))) return "oval";
     return "square";
   };
 
@@ -42,29 +42,31 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     const shape = getNodeShape(title);
 
     const content = (
-      <>
+      <div className="flex flex-col items-center justify-center text-center">
         <p className="font-semibold text-xs whitespace-nowrap">{title}</p>
         <p className="text-[10px] text-muted-foreground whitespace-nowrap">{area}</p>
         {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
-      </>
+      </div>
     );
     
-    const baseClasses = "flex flex-col items-center justify-center text-center p-2 border-2 shadow-sm bg-background z-10 shrink-0";
+    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10 shrink-0";
     const shapeClasses = {
-        oval: "rounded-full h-24 w-24",
+        oval: "rounded-[50%] h-24 w-28",
         square: "rounded-lg h-24 w-28",
-        triangle: "relative w-28 h-24",
+        triangle: "w-28 h-24 border-none shadow-none bg-transparent",
     };
 
     if (shape === 'triangle') {
       return (
         <div className={cn(baseClasses, shapeClasses.triangle)}>
-            <div className="absolute top-0 w-0 h-0 border-x-[50px] border-x-transparent border-b-[90px] border-b-background" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.1))' }}></div>
-            <div className="absolute top-0 w-0 h-0 border-x-[48px] border-x-transparent border-b-[86px] border-b-border"></div>
-            <div className="absolute top-[1px] w-0 h-0 border-x-[47px] border-x-transparent border-b-[84px] border-b-background"></div>
-            <div className="relative z-10 -mt-2">
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-0 w-0 h-0 border-x-[56px] border-x-transparent border-b-[96px] border-b-background" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.05))' }}></div>
+            <div className="absolute top-0 w-0 h-0 border-x-[54px] border-x-transparent border-b-[92px] border-b-border"></div>
+            <div className="absolute top-[2px] w-0 h-0 border-x-[52px] border-x-transparent border-b-[88px] border-b-background"></div>
+          </div>
+          <div className="relative z-10 mt-3">
                {content}
-            </div>
+          </div>
         </div>
       );
     }
@@ -81,17 +83,15 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   const hasChildren = children.length > 0 || others.length > 0;
 
   return (
-    <div className="flex flex-col items-center space-y-4 p-4 bg-muted/30 rounded-lg border min-h-[500px] w-full overflow-x-auto">
-        <div className="relative flex flex-col items-center pt-6 space-y-12">
+    <div className="flex flex-col items-center space-y-4 p-4 bg-muted/30 rounded-lg border w-full overflow-x-auto">
+        <div className="relative flex flex-col items-center py-6 space-y-12 min-w-max">
             
             {/* Parents Row */}
             {hasParents && (
                 <div className="relative flex justify-center items-center gap-8">
-                    {/* Connecting line between parents */}
                     {parents.length > 1 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-8 h-px bg-border -z-0"></div>}
                     {parents.map((p, i) => <Node key={i} title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />)}
-                    {/* Line dropping down from parents' midpoint to meet deceased */}
-                    <div className="absolute top-[calc(50%_+_3rem)] left-1/2 -translate-x-1/2 w-px h-[4.5rem] bg-border -z-0"></div>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-12 bg-border -z-0"></div>
                 </div>
             )}
 
@@ -102,7 +102,6 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
 
                 <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
                  
-                {/* Line down to children */}
                 {hasChildren && <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-12 bg-border -z-0"></div>}
             </div>
             
@@ -110,11 +109,10 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
             {hasChildren && (
                  <div className="relative flex justify-center items-start gap-4 flex-wrap pt-8">
                     {[...children, ...others].length > 1 && (
-                        <div className="absolute top-0 left-[10%] w-[80%] h-px bg-border"></div>
+                        <div className="absolute top-0 left-[5%] w-[90%] h-px bg-border"></div>
                     )}
                     {[...children, ...others].map((child, index) => (
                         <div key={index} className="relative flex flex-col items-center">
-                            {/* Vertical line connecting child to horizontal bar */}
                             <div className="absolute bottom-full w-px h-8 bg-border"></div>
                             <Node title={child.relation} area={`${child.kanal}K-${child.marla}M-${child.feet}ft`} share={child.shareLabel} />
                         </div>
@@ -269,9 +267,17 @@ export function WirasatTab() {
   };
   
   const totalAreaFormatted = useMemo(() => {
-    const totalFt = toTotalSqFt(Number(wirasatKanal) || 0, Number(wirasatMarla) || 0, Number(wirasatFeet) || 0, Number(wirasatMarlaSize));
-    const { kanal, marla, feet } = fromSqFt(totalFt, Number(wirasatMarlaSize));
-    return `${kanal}K-${marla}M-${feet}ft`;
+    const kanal = Number(wirasatKanal) || 0;
+    const marla = Number(wirasatMarla) || 0;
+    const feet = Number(wirasatFeet) || 0;
+
+    if (isNaN(kanal) || isNaN(marla) || isNaN(feet)) {
+        return '0K-0M-0ft';
+    }
+
+    const totalSqFt = toTotalSqFt(kanal, marla, feet, Number(wirasatMarlaSize));
+    const { kanal: fmtK, marla: fmtM, feet: fmtF } = fromSqFt(totalSqFt, Number(wirasatMarlaSize));
+    return `${fmtK}K-${fmtM}M-${fmtF}ft`;
   }, [wirasatKanal, wirasatMarla, wirasatFeet, wirasatMarlaSize]);
 
 
@@ -566,5 +572,3 @@ export function WirasatTab() {
     </Card>
   );
 }
-
-    
