@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -22,6 +23,12 @@ export function SqlGeneratorTab() {
   const [encryptionKey, setEncryptionKey] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
   const [generatedFindUserQuery, setGeneratedFindUserQuery] = useState("");
+  
+  // State for Approve Intiqals
+  const [approveIntiqalNos, setApproveIntiqalNos] = useState("");
+  const [approveMauzaId, setApproveMauzaId] = useState("");
+  const [generatedApproveQuery, setGeneratedApproveQuery] = useState("");
+
 
   const handleGenerateDeleteQuery = () => {
     const ids = intiqalIds
@@ -102,6 +109,66 @@ CLOSE MASTER KEY;`;
     });
   };
 
+  const handleGenerateApproveQuery = () => {
+    const tokens = approveIntiqalNos.split(/[\s,;\n]+/).map(id => id.trim()).filter(id => id);
+    if (tokens.length === 0) {
+      toast({ title: "No Intiqal Numbers", description: "Please enter at least one Intiqal number or range.", variant: "destructive" });
+      return;
+    }
+    if (!approveMauzaId.trim()) {
+      toast({ title: "Missing Mauza ID", description: "Please provide the Mauza ID.", variant: "destructive" });
+      return;
+    }
+
+    const numbers = new Set<number>();
+    for (const token of tokens) {
+      const rangeMatch = token.match(/^(\d+)-(\d+)$/);
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1], 10);
+        const end = parseInt(rangeMatch[2], 10);
+        if (!isNaN(start) && !isNaN(end) && end >= start) {
+          for (let i = start; i <= end; i++) {
+            numbers.add(i);
+          }
+        }
+      } else {
+        const num = parseInt(token, 10);
+        if (!isNaN(num)) {
+          numbers.add(num);
+        }
+      }
+    }
+
+    if (numbers.size === 0) {
+        toast({ title: "No valid numbers found", description: "Please check your input for valid numbers or ranges.", variant: "destructive" });
+        return;
+    }
+
+    const sortedNumbers = Array.from(numbers).sort((a,b) => a - b);
+    const formattedNos = sortedNumbers.map(n => `'${n}'`).join(",\n    ");
+
+    const query = `BEGIN TRAN;
+
+UPDATE transactions.Intiqal
+SET 
+    is_approved = 1,
+    intiqal_status = 6,
+    intiqal_aprove_date = GETDATE()
+WHERE 
+    mauza_id = '${approveMauzaId.trim()}' AND
+    LTRIM(RTRIM(CAST(intiqal_no AS NVARCHAR(50)))) IN (
+        ${formattedNos}
+    );
+
+COMMIT TRAN;`;
+
+    setGeneratedApproveQuery(query);
+    toast({
+      title: "Query Generated",
+      description: `Approval script for ${sortedNumbers.length} intiqals has been created.`
+    });
+  };
+
   const handleCopy = async (queryToCopy: string) => {
     if (!queryToCopy) {
       toast({
@@ -139,9 +206,10 @@ CLOSE MASTER KEY;`;
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="delete" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="delete">Delete Intiqals</TabsTrigger>
             <TabsTrigger value="findUser">Find User Login</TabsTrigger>
+            <TabsTrigger value="approve">Approve Intiqals</TabsTrigger>
           </TabsList>
           
           <TabsContent value="delete" className="mt-6">
@@ -237,8 +305,58 @@ CLOSE MASTER KEY;`;
               </div>
             </div>
           </TabsContent>
+          
+          <TabsContent value="approve" className="mt-6">
+             <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
+              <div className="flex flex-col gap-4">
+                <section className="space-y-2">
+                  <Label htmlFor="approve-mauza-id">1. Mauza ID</Label>
+                  <Input
+                    id="approve-mauza-id"
+                    value={approveMauzaId}
+                    onChange={(e) => setApproveMauzaId(e.target.value)}
+                    placeholder="e.g., 41402c3e-57ff-4435-9d79-183f6d6a90cb"
+                  />
+                </section>
+                <section className="space-y-2">
+                  <Label htmlFor="approve-intiqal-nos">2. Intiqal Numbers to Approve</Label>
+                  <Textarea
+                    id="approve-intiqal-nos"
+                    value={approveIntiqalNos}
+                    onChange={(e) => setApproveIntiqalNos(e.target.value)}
+                    placeholder="Paste your list of Intiqal numbers here. Ranges like 5001-5100 are supported."
+                    className="h-72 font-mono text-xs"
+                  />
+                </section>
+                <Button type="button" onClick={handleGenerateApproveQuery}>
+                    Generate Approve Script
+                </Button>
+              </div>
+              <div className="flex flex-col gap-4 mt-6 lg:mt-0">
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="generated-approve-query">3. Generated SQL Script</Label>
+                    <Button variant="ghost" size="sm" onClick={() => handleCopy(generatedApproveQuery)} disabled={!generatedApproveQuery}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                  <Textarea
+                    id="generated-approve-query"
+                    readOnly
+                    value={generatedApproveQuery}
+                    placeholder="Your generated SQL UPDATE script will appear here."
+                    className="h-96 font-mono text-xs bg-muted/30"
+                  />
+                </section>
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
   );
 }
+
+
+    
