@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileX, FileMinus } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 
@@ -75,7 +75,7 @@ const tools = [
     {
         name: "SQL Generator",
         description: "Generate a SQL script to delete multiple Intiqal records.",
-        icon: FileX,
+        icon: FileKey,
         path: "/sql-generator"
     },
     {
