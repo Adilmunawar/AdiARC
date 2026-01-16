@@ -29,6 +29,10 @@ export function SqlGeneratorTab() {
   const [approveMauzaId, setApproveMauzaId] = useState("");
   const [generatedApproveQuery, setGeneratedApproveQuery] = useState("");
 
+  // State for Reverse Intiqal
+  const [reverseIntiqalId, setReverseIntiqalId] = useState("");
+  const [generatedReverseQuery, setGeneratedReverseQuery] = useState("");
+
 
   const handleGenerateDeleteQuery = () => {
     const ids = intiqalIds
@@ -169,6 +173,50 @@ COMMIT TRAN;`;
     });
   };
 
+  const handleGenerateReverseQuery = () => {
+    if (!reverseIntiqalId.trim()) {
+      toast({
+        title: "Missing Intiqal ID",
+        description: "Please provide the Intiqal ID to reverse.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const query = `DECLARE @TargetIntiqalID UNIQUEIDENTIFIER = '${reverseIntiqalId.trim()}';
+BEGIN TRAN;
+UPDATE rhz.Ownership 
+SET is_active = 1 
+WHERE ownership_id IN (
+    SELECT O.ownership_id
+    FROM rhz.Ownership O
+    INNER JOIN transactions.IntiqalLogicalPartition LP 
+        ON O.khewat_id = LP.khewat_id
+    INNER JOIN transactions.IntiqalPersonShare IPS 
+        ON LP.intiqal_logicalpartition_id = IPS.intiqal_logicalpartition_id
+    WHERE LP.intiqal_id = @TargetIntiqalID
+      AND O.person_id = IPS.person_id 
+      AND O.is_active = 0
+);
+DELETE FROM rhz.Ownership 
+WHERE intiqal_id = @TargetIntiqalID;
+DELETE FROM transactions.TransactionOperations 
+WHERE transaction_id = @TargetIntiqalID;
+UPDATE transactions.Intiqal
+SET 
+    is_approved = 0,
+    intiqal_status = 1,
+    intiqal_aprove_date = NULL,
+    operation_id = NULL
+WHERE intiqal_id = @TargetIntiqalID;
+
+COMMIT TRAN;`;
+    setGeneratedReverseQuery(query);
+    toast({
+      title: "Query Generated",
+      description: "The reverse intiqal script has been created successfully.",
+    });
+  };
+
   const handleCopy = async (queryToCopy: string) => {
     if (!queryToCopy) {
       toast({
@@ -206,10 +254,11 @@ COMMIT TRAN;`;
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="delete" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="delete">Delete Intiqals</TabsTrigger>
             <TabsTrigger value="findUser">Find User Login</TabsTrigger>
             <TabsTrigger value="approve">Approve Intiqals</TabsTrigger>
+            <TabsTrigger value="reverse">Reverse Intiqal</TabsTrigger>
           </TabsList>
           
           <TabsContent value="delete" className="mt-6">
@@ -352,11 +401,47 @@ COMMIT TRAN;`;
               </div>
             </div>
           </TabsContent>
+
+           <TabsContent value="reverse" className="mt-6">
+            <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
+              <div className="flex flex-col gap-4">
+                <section className="space-y-2">
+                  <Label htmlFor="reverse-intiqal-id">1. Intiqal ID to Reverse</Label>
+                  <Input
+                    id="reverse-intiqal-id"
+                    value={reverseIntiqalId}
+                    onChange={(e) => setReverseIntiqalId(e.target.value)}
+                    placeholder="e.g., e7236559-659f-4cc4-a366-8f43026b802c"
+                  />
+                </section>
+                <Button type="button" onClick={handleGenerateReverseQuery}>
+                    Generate Reverse Script
+                </Button>
+              </div>
+              <div className="flex flex-col gap-4 mt-6 lg:mt-0">
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="generated-reverse-query">2. Generated SQL Script</Label>
+                    <Button variant="ghost" size="sm" onClick={() => handleCopy(generatedReverseQuery)} disabled={!generatedReverseQuery}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                  <Textarea
+                    id="generated-reverse-query"
+                    readOnly
+                    value={generatedReverseQuery}
+                    placeholder="Your generated SQL script to reverse an intiqal will appear here."
+                    className="h-96 font-mono text-xs bg-muted/30"
+                  />
+                </section>
+              </div>
+            </div>
+          </TabsContent>
+
         </Tabs>
       </CardContent>
     </Card>
   );
 }
 
-
-    
