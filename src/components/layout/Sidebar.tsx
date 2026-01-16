@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -18,7 +17,8 @@ import {
   Printer,
   Globe,
   UserCircle,
-  ImageIcon
+  ImageIcon,
+  FileX
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ const navItems = [
   { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
   { name: "Mutation Print Layout", icon: Printer, path: "/print-layout" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
+  { name: "SQL Generator", icon: FileX, path: "/sql-generator" },
 ];
 
 export function Sidebar() {
