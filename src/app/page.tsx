@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileX } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileX, FileMinus } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 
@@ -77,6 +77,12 @@ const tools = [
         description: "Generate a SQL script to delete multiple Intiqal records.",
         icon: FileX,
         path: "/sql-generator"
+    },
+    {
+        name: "Meta Tag Remover",
+        description: "Strip all metadata from a folder of images for privacy.",
+        icon: FileMinus,
+        path: "/meta-remover"
     }
 ];
 

@@ -18,7 +18,8 @@ import {
   Globe,
   UserCircle,
   ImageIcon,
-  FileX
+  FileX,
+  FileMinus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ const navItems = [
   { name: "Mutation Print Layout", icon: Printer, path: "/print-layout" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "SQL Generator", icon: FileX, path: "/sql-generator" },
+  { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
 ];
 
 export function Sidebar() {
