@@ -24,7 +24,7 @@ export function MetaRemoverTab() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [progress, setProgress] = useState({ current: 0, total: 0, currentFileName: "" });
   const [strippedImages, setStrippedImages] = useState<StrippedImage[]>([]);
   const [filterQaOnly, setFilterQaOnly] = useState(false);
 
@@ -62,7 +62,7 @@ export function MetaRemoverTab() {
           const strippedSize = atob(dataUrl.split(',')[1]).length;
 
           resolve({
-            name: file.name,
+            name: file.name.replace(/\.QA/gi, ''),
             originalSize: file.size,
             strippedSize: strippedSize,
             dataUrl: dataUrl,
@@ -87,7 +87,7 @@ export function MetaRemoverTab() {
 
     if (filterQaOnly) {
       const originalCount = imageFiles.length;
-      imageFiles = imageFiles.filter(f => f.name.includes('.QA'));
+      imageFiles = imageFiles.filter(f => f.name.toUpperCase().includes('.QA'));
       toast({
         title: "Filter Applied",
         description: `Selected ${imageFiles.length} files containing ".QA" out of ${originalCount} total images.`
@@ -104,17 +104,20 @@ export function MetaRemoverTab() {
         return;
     }
 
-    setProgress({ current: 0, total: imageFiles.length });
+    setProgress({ current: 0, total: imageFiles.length, currentFileName: "Initializing..." });
 
     const newStrippedImages: StrippedImage[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
+      setProgress({ current: i + 1, total: imageFiles.length, currentFileName: `Stripping: ${file.name}` });
       const result = await processFile(file);
       if (result) {
         newStrippedImages.push(result);
       }
-      setProgress({ current: i + 1, total: imageFiles.length });
+       if (i % 20 === 0) {
+          await new Promise(res => setTimeout(res, 0));
+       }
     }
 
     setStrippedImages(newStrippedImages);
@@ -133,16 +136,23 @@ export function MetaRemoverTab() {
 
     toast({ title: "Preparing ZIP file...", description: "This may take a moment for many images." });
     setIsProcessing(true);
-    setProgress({ current: 0, total: strippedImages.length });
+    setProgress({ current: 0, total: strippedImages.length, currentFileName: 'Preparing ZIP...' });
 
     try {
       const zip = new JSZip();
       for (let i = 0; i < strippedImages.length; i++) {
         const image = strippedImages[i];
+        setProgress(prev => ({...prev, current: i + 1, currentFileName: `Archiving: ${image.name}`}));
         const base64Data = image.dataUrl.split(',')[1];
         zip.file(image.name, base64Data, { base64: true });
-        setProgress({ current: i + 1, total: strippedImages.length });
+        // Yield to event loop to allow UI updates
+        if (i % 20 === 0) {
+            await new Promise(res => setTimeout(res, 0));
+        }
       }
+      
+      setProgress(prev => ({...prev, currentFileName: 'Compressing ZIP file...'}));
+      await new Promise(res => setTimeout(res, 20));
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
@@ -217,10 +227,17 @@ export function MetaRemoverTab() {
 
         {isProcessing && (
           <section className="space-y-2">
-            <Progress value={(progress.current / progress.total) * 100} className="h-2" />
-            <p className="text-center text-xs text-muted-foreground">
-              Processing {progress.current} of {progress.total} files...
-            </p>
+            <Progress value={progress.total > 0 ? (progress.current / progress.total) * 100 : 0} className="h-2" />
+             <div className="text-center text-xs text-muted-foreground pt-1">
+                <p>
+                    Processing {progress.current} of {progress.total} files...
+                </p>
+                {progress.currentFileName && (
+                    <p className="truncate text-muted-foreground/80">
+                        {progress.currentFileName}
+                    </p>
+                )}
+            </div>
           </section>
         )}
         
