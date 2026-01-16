@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,113 +25,161 @@ import { Switch } from "@/components/ui/switch";
 export function PrintLayoutTab() {
   const { toast } = useToast();
   const [mutationNumbers, setMutationNumbers] = useState("");
-  const [rowsPerColumn, setRowsPerColumn] = useState("50");
+  const [numberOfRows, setNumberOfRows] = useState("50");
+  const [numberOfColumns, setNumberOfColumns] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateProgress, setGenerateProgress] = useState(0);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [fileName, setFileName] = useState("mutation_print_layout.xlsx");
   const [shouldSort, setShouldSort] = useState(true);
+  const [shouldAddBorders, setShouldAddBorders] = useState(true);
+  const [shouldAddSpacerColumns, setShouldAddSpacerColumns] = useState(false);
+
+  const parsedNumbers = useMemo(() => {
+    const numbers = new Set<number>();
+    if (!mutationNumbers) return [];
+
+    const tokens = mutationNumbers.split(/[\s,;\n]+/).map(t => t.trim()).filter(Boolean);
+
+    for (const token of tokens) {
+      const rangeMatch = token.match(/^(\d+)-(\d+)$/);
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1], 10);
+        const end = parseInt(rangeMatch[2], 10);
+        if (!isNaN(start) && !isNaN(end) && end >= start) {
+          for (let i = start; i <= end; i++) {
+            numbers.add(i);
+          }
+        }
+      } else {
+        const num = parseInt(token, 10);
+        if (!isNaN(num)) {
+          numbers.add(num);
+        }
+      }
+    }
+    return Array.from(numbers);
+  }, [mutationNumbers]);
+
 
   const handleGenerateClick = () => {
-    const rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
-
-    if (rawNumbers.length === 0) {
+    if (parsedNumbers.length === 0) {
       toast({
         title: "No Mutation Numbers",
-        description: "Please paste the mutation numbers you want to format.",
+        description: "Please paste the mutation numbers (including ranges) you want to format.",
         variant: "destructive",
       });
       return;
     }
 
-    const rows = parseInt(rowsPerColumn, 10);
+    const rows = parseInt(numberOfRows, 10);
     if (isNaN(rows) || rows <= 0) {
-      toast({
-        title: "Invalid Rows Per Column",
-        description: "Please enter a positive number for rows per column.",
+        toast({
+        title: "Invalid Rows",
+        description: "Please enter a positive number for rows.",
         variant: "destructive",
-      });
-      return;
+        });
+        return;
     }
     
-    setFileName(`mutation_print_layout_${rawNumbers.length}_items.xlsx`);
+    setFileName(`mutation_print_layout_${parsedNumbers.length}_items.xlsx`);
     setIsPromptOpen(true);
   }
 
   const handleGenerateExcel = async () => {
-    setIsPromptOpen(false); // Close the name prompt
-    let rawNumbers = mutationNumbers.split(/[\s,;\n]+/).map((n) => n.trim()).filter(Boolean);
-    const rows = parseInt(rowsPerColumn, 10);
-
+    setIsPromptOpen(false);
+    let finalNumbers: (string | number)[] = [...parsedNumbers];
+    
     if (shouldSort) {
-        const numericSorted = rawNumbers
-            .map(n => parseInt(n, 10))
-            .filter(n => !isNaN(n))
-            .sort((a, b) => a - b);
-        rawNumbers = numericSorted.map(String);
+        finalNumbers.sort((a, b) => Number(a) - Number(b));
     }
 
     setIsGenerating(true);
     setGenerateProgress(0);
-    await new Promise(r => setTimeout(r, 50)); // Allow UI to update
+    await new Promise(r => setTimeout(r, 50));
 
     try {
-      // Step 1: Create the snaking column layout
-      setGenerateProgress(25);
-      const grid: (string | number)[][] = [];
-      const numColumns = Math.ceil(rawNumbers.length / rows);
+      setGenerateProgress(10);
+      
+      const numRows = parseInt(numberOfRows, 10);
+      const numColsInput = numberOfColumns ? parseInt(numberOfColumns, 10) : 0;
+      
+      let numColumns = numColsInput > 0 
+          ? numColsInput 
+          : Math.ceil(finalNumbers.length / numRows);
 
-      for (let c = 0; c < numColumns; c++) {
-        const start = c * rows;
-        const end = start + rows;
-        const columnData = rawNumbers.slice(start, end);
-        columnData.forEach((num, r) => {
-          if (!grid[r]) {
-            grid[r] = [];
-          }
-          while (grid[r].length < c) {
-            grid[r].push("");
-          }
-          grid[r][c] = isNaN(Number(num)) ? num : Number(num);
-        });
+      let grid: (string | number)[][] = Array.from({ length: numRows }, () => Array(numColumns).fill(""));
+
+      for (let i = 0; i < finalNumbers.length; i++) {
+        const row = i % numRows;
+        const col = Math.floor(i / numRows);
+        
+        if (col >= grid[0].length) {
+           for(let r=0; r < grid.length; r++) {
+               grid[r].push("");
+           }
+        }
+
+        if (row < grid.length && col < grid[row].length) {
+            grid[row][col] = finalNumbers[i];
+        }
+      }
+      
+      setGenerateProgress(25);
+      await new Promise(r => setTimeout(r, 10));
+
+      // Add spacer columns if requested
+      if (shouldAddSpacerColumns) {
+        const newGrid: (string|number)[][] = Array.from({ length: numRows }, () => []);
+        for (let r = 0; r < numRows; r++) {
+            for(let c = 0; c < grid[r].length; c++) {
+                newGrid[r].push(grid[r][c]); // Original column
+                newGrid[r].push(""); // Spacer column
+            }
+        }
+        grid = newGrid;
       }
       setGenerateProgress(50);
       await new Promise(r => setTimeout(r, 10));
 
-      // Step 2: Create worksheet and workbook
-      const ws = XLSX.utils.aoa_to_sheet(grid);
-      const wb = XLSX.utils.book_new();
 
-      // Step 3: Apply Styling
-      const allCellsRange = XLSX.utils.decode_range(ws["!ref"]!);
+      const ws = XLSX.utils.aoa_to_sheet(grid);
       const cols = [];
-      for (let C = allCellsRange.s.c; C <= allCellsRange.e.c; ++C) {
+
+      for (let C = 0; C < grid[0].length; ++C) {
         let max_w = 10;
-        for (let R = allCellsRange.s.r; R <= allCellsRange.e.r; ++R) {
+        for (let R = 0; R < numRows; ++R) {
             const cell_address = { c: C, r: R };
             const cell_ref = XLSX.utils.encode_cell(cell_address);
-            if (!ws[cell_ref]) continue;
+            
+            if (!ws[cell_ref]) {
+              ws[cell_ref] = { t: 's', v: '' };
+            }
 
-            ws[cell_ref].s = {
-                border: {
-                    top: { style: "thin", color: { rgb: "000000" } },
-                    bottom: { style: "thin", color: { rgb: "000000" } },
-                    left: { style: "thin", color: { rgb: "000000" } },
-                    right: { style: "thin", color: { rgb: "000000" } },
-                }
-            };
-            const cell_w = String(ws[cell_ref].v).length + 2;
-            if (max_w < cell_w) max_w = cell_w;
+            if (shouldAddBorders) {
+                if (!ws[cell_ref].s) ws[cell_ref].s = {};
+                ws[cell_ref].s.border = {
+                  top: { style: "thin", color: { rgb: "000000" } },
+                  bottom: { style: "thin", color: { rgb: "000000" } },
+                  left: { style: "thin", color: { rgb: "000000" } },
+                  right: { style: "thin", color: { rgb: "000000" } },
+                };
+            }
+            
+            if(ws[cell_ref].v) {
+              const cell_w = String(ws[cell_ref].v).length + 2;
+              if (max_w < cell_w) max_w = cell_w;
+            }
         }
         cols.push({ wch: max_w });
       }
       ws['!cols'] = cols;
       ws['!pageMargins'] = { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
       
+      const wb = XLSX.utils.book_new();
       setGenerateProgress(75);
       await new Promise(r => setTimeout(r, 10));
 
-      // Step 4: Append sheet and download
       XLSX.utils.book_append_sheet(wb, ws, "Mutation Layout");
       
       const finalFileName = fileName.trim() ? (fileName.trim().endsWith('.xlsx') ? fileName.trim() : `${fileName.trim()}.xlsx`) : "mutation_print_layout.xlsx";
@@ -223,8 +271,7 @@ export function PrintLayoutTab() {
             Mutation Print Layout Formatter
           </CardTitle>
           <CardDescription>
-            Paste a long list of mutation numbers and this tool will reorganize them into a print-friendly, multi-column
-            Excel file.
+            Paste a long list of mutation numbers—including ranges like `101-150`—and this tool will reorganize them into a print-friendly, multi-column Excel file.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -236,32 +283,58 @@ export function PrintLayoutTab() {
                   id="mutation-numbers"
                   value={mutationNumbers}
                   onChange={(e) => setMutationNumbers(e.target.value)}
-                  placeholder="Paste your newline, comma, or space-separated mutation numbers here."
+                  placeholder="Paste your newline, comma, or space-separated mutation numbers here. Ranges like 5001-5010 are supported."
                   className="h-96 font-mono text-xs"
                   disabled={isGenerating}
                 />
+                 {mutationNumbers && (
+                    <p className="text-xs text-muted-foreground text-right pt-1">
+                        Found {parsedNumbers.length.toLocaleString()} unique numbers.
+                    </p>
+                )}
               </section>
             </div>
             <div className="flex flex-col gap-4 mt-6 lg:mt-0">
                 <section className="space-y-4">
-                    <div>
-                        <Label htmlFor="rows-per-column">2. Rows Per Column</Label>
-                        <Input
-                            id="rows-per-column"
-                            type="number"
-                            value={rowsPerColumn}
-                            onChange={(e) => setRowsPerColumn(e.target.value)}
-                            className="w-40 mt-2"
-                            disabled={isGenerating}
-                        />
-                        <p className="text-[11px] text-muted-foreground mt-1">
-                            Defaults to 50, which is optimized for printing on standard A4 paper in portrait mode.
-                        </p>
+                    <Label>2. Layout Configuration</Label>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="rows-per-column">Number of Rows</Label>
+                            <Input
+                                id="rows-per-column"
+                                type="number"
+                                value={numberOfRows}
+                                onChange={(e) => setNumberOfRows(e.target.value)}
+                                disabled={isGenerating}
+                            />
+                        </div>
+                         <div className="space-y-1.5">
+                            <Label htmlFor="columns-per-page">Number of Columns</Label>
+                            <Input
+                                id="columns-per-page"
+                                type="number"
+                                value={numberOfColumns}
+                                onChange={(e) => setNumberOfColumns(e.target.value)}
+                                placeholder="Auto (based on rows)"
+                                disabled={isGenerating}
+                            />
+                        </div>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                        Set the number of rows and/or columns. If columns are left empty, they will be calculated automatically based on the row count to fit all numbers.
+                    </p>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 pt-2">
                         <Switch id="sort-numbers" checked={shouldSort} onCheckedChange={setShouldSort} />
                         <Label htmlFor="sort-numbers" className="cursor-pointer">Sort Numbers Numerically</Label>
+                    </div>
+                     <div className="flex items-center space-x-2 pt-1">
+                        <Switch id="add-borders" checked={shouldAddBorders} onCheckedChange={setShouldAddBorders} />
+                        <Label htmlFor="add-borders" className="cursor-pointer">Add Cell Borders</Label>
+                    </div>
+                    <div className="flex items-center space-x-2 pt-1">
+                        <Switch id="add-spacer-columns" checked={shouldAddSpacerColumns} onCheckedChange={setShouldAddSpacerColumns} />
+                        <Label htmlFor="add-spacer-columns" className="cursor-pointer">Add Spacer Columns for Dates</Label>
                     </div>
                 </section>
 
@@ -290,13 +363,7 @@ export function PrintLayoutTab() {
                     </Button>
                 </div>
                  <div className="text-xs text-muted-foreground space-y-2 pt-2">
-                    <p><span className="font-semibold">How it works:</span> This tool uses a "snaking column" layout. For example, if you have 150 numbers and set 50 rows per column, the output will be:</p>
-                    <ul className="list-disc pl-5">
-                        <li>Column A: Numbers 1-50</li>
-                        <li>Column B: Numbers 51-100</li>
-                        <li>Column C: Numbers 101-150</li>
-                    </ul>
-                    <p>This process is done entirely in your browser; your data is never sent to a server.</p>
+                    <p><span className="font-semibold">How it works:</span> If you provide more numbers than fit your grid (rows × columns), new columns will be added to ensure no data is lost.</p>
                 </div>
             </div>
           </div>
@@ -305,4 +372,3 @@ export function PrintLayoutTab() {
     </>
   );
 }
-

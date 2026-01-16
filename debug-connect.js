@@ -7,7 +7,7 @@ const SERVER = '192.125.6.11';
 const DATABASE = 'master'; 
 // 3. Auth
 const USER = 'sa';
-const PASSWORD = 'justice@123';
+const PASSWORD = '************';
 
 async function testConnection() {
     console.log(`\n--- 🔍 DIAGNOSTIC MODE: Connecting to ${SERVER} ---`);

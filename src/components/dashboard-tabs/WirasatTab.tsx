@@ -1,6 +1,7 @@
 
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import Draggable from "react-draggable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,192 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { calculateWirasatShares, WirasatMode, WirasatRow } from "@/lib/wirasat-calculator";
+import { cn } from "@/lib/utils";
+
+// --- Diagram Component ---
+const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[]; totalAreaFormatted: string }) => {
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const heirGroups = useMemo(() => {
+    return {
+      parents: rows.filter((r) => r.relation.startsWith("Father") || r.relation.startsWith("Mother")),
+      spouses: rows.filter((r) => r.relation.startsWith("Widow") || r.relation.startsWith("Husband")),
+      children: rows.filter((r) => r.relation.startsWith("Son") || r.relation.startsWith("Daughter")),
+      others: rows.filter(
+        (r) => !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some((prefix) => r.relation.startsWith(prefix)),
+      ),
+    };
+  }, [rows]);
+
+  const NODE_WIDTH = 120;
+  const NODE_HEIGHT = 80;
+
+  useEffect(() => {
+    const initialPositions: Record<string, { x: number, y: number }> = {};
+    const center = (containerRef.current?.offsetWidth || 800) / 2;
+    
+    // Parents
+    if (heirGroups.parents.length === 1) {
+        const parentKey = heirGroups.parents[0].relation;
+        initialPositions[parentKey] = { x: center - NODE_WIDTH / 2, y: 0 };
+    } else if (heirGroups.parents.length > 1) {
+        initialPositions['Father'] = { x: center - NODE_WIDTH - 20, y: 0 };
+        initialPositions['Mother'] = { x: center + 20, y: 0 };
+    }
+
+    // Deceased & Spouse
+    initialPositions['Deceased'] = { x: center - NODE_WIDTH / 2, y: 150 };
+     if (heirGroups.spouses.length > 0) {
+        heirGroups.spouses.forEach((s, i) => {
+             initialPositions[s.relation] = { x: center - NODE_WIDTH - 160, y: 150 + i * (NODE_HEIGHT + 20) };
+        });
+    }
+
+    // Children
+    const childrenAndOthers = [...heirGroups.children, ...heirGroups.others];
+    const childrenCount = childrenAndOthers.length;
+    const childrenTotalWidth = childrenCount * (NODE_WIDTH + 20) - 20;
+    let startX = center - childrenTotalWidth / 2;
+    childrenAndOthers.forEach((c) => {
+        initialPositions[c.relation] = { x: startX, y: 300 };
+        startX += NODE_WIDTH + 20;
+    });
+
+    setPositions(initialPositions);
+  }, [rows, heirGroups.parents, heirGroups.spouses, heirGroups.children, heirGroups.others]);
+
+
+  const handleDrag = (e: any, data: any, key: string) => {
+    setPositions(prev => ({ ...prev, [key]: { x: data.x, y: data.y } }));
+  };
+
+  const getNodeShape = (relation: string) => {
+    if (relation.startsWith("Daughter")) return "triangle";
+    if (["Mother", "Widow", "Sister"].some(prefix => relation.startsWith(prefix))) return "oval";
+    return "square";
+  };
+  
+  const Node = ({ title, area, share, isDeceased = false }: { title: string; area: string; share?: string; isDeceased?: boolean }) => {
+    const shape = getNodeShape(title);
+    
+    const content = (
+         <div className="flex flex-col items-center justify-center text-center p-1 w-full h-full">
+            <p className="font-semibold text-xs whitespace-nowrap">{title}</p>
+            <p className="text-[10px] text-muted-foreground whitespace-nowrap">{area}</p>
+            {share && <p className="text-[9px] text-primary font-medium pt-0.5">{share}</p>}
+        </div>
+    );
+
+    const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10";
+    const sizeClasses = `w-[${NODE_WIDTH}px] h-[${NODE_HEIGHT}px]`;
+
+    if (shape === "triangle") {
+      return (
+         <div className={cn("relative", sizeClasses, isDeceased ? "bg-primary/10 border-primary" : "border-border")}>
+            <div 
+                className="absolute top-0 left-0 w-full h-full bg-background border-2 border-border" 
+                style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
+            />
+            <div className="relative z-10 w-full h-full flex items-center justify-center pt-4">{content}</div>
+        </div>
+      );
+    }
+    
+    const shapeClasses = { oval: "rounded-full", square: "rounded-lg" };
+
+    return <div className={cn(baseClasses, sizeClasses, shapeClasses[shape], isDeceased ? "bg-primary/10 border-primary" : "border-border")}>{content}</div>;
+  };
+  
+    const SvgPath = ({ d, className }: { d: string, className?: string }) => (
+        <path d={d} className={cn("stroke-border", className)} strokeWidth="1.5" fill="none" />
+    );
+
+    const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
+        const midY = y1 + (y2 - y1) / 2;
+        return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
+    };
+
+    const fatherPos = positions['Father'];
+    const motherPos = positions['Mother'];
+    const spouses = heirGroups.spouses.map(s => ({ ...s, pos: positions[s.relation] }));
+    const children = [...heirGroups.children, ...heirGroups.others].map(c => ({ ...c, pos: positions[c.relation] }));
+    const deceasedPos = positions['Deceased'];
+  
+  return (
+    <div ref={containerRef} className="relative w-full min-h-[450px] p-4 bg-muted/30 rounded-lg border overflow-hidden">
+      {Object.keys(positions).length > 0 && (
+        <>
+            <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
+              {/* Parent lines */}
+              {fatherPos && motherPos && deceasedPos && (
+                <>
+                  <SvgPath d={`M ${fatherPos.x + NODE_WIDTH / 2},${fatherPos.y + NODE_HEIGHT / 2} H ${motherPos.x + NODE_WIDTH / 2}`} />
+                  <SvgPath d={getElbowPath(
+                    fatherPos.x + NODE_WIDTH / 2 + (motherPos.x - fatherPos.x)/2, 
+                    fatherPos.y + NODE_HEIGHT / 2,
+                    deceasedPos.x + NODE_WIDTH / 2,
+                    deceasedPos.y + NODE_HEIGHT / 2
+                  )} />
+                </>
+              )}
+               {/* Single parent lines */}
+              {fatherPos && !motherPos && deceasedPos && (
+                <SvgPath d={getElbowPath(fatherPos.x + NODE_WIDTH / 2, fatherPos.y + NODE_HEIGHT / 2, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y + NODE_HEIGHT / 2)} />
+              )}
+              {!fatherPos && motherPos && deceasedPos && (
+                <SvgPath d={getElbowPath(motherPos.x + NODE_WIDTH / 2, motherPos.y + NODE_HEIGHT / 2, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y + NODE_HEIGHT / 2)} />
+              )}
+
+              {/* Spouse line */}
+              {spouses.length > 0 && spouses[0].pos && deceasedPos && (
+                <SvgPath d={`M ${spouses[0].pos.x + NODE_WIDTH / 2},${spouses[0].pos.y + NODE_HEIGHT / 2} H ${deceasedPos.x + NODE_WIDTH / 2}`} />
+              )}
+              
+              {/* Children lines */}
+                {children.length > 0 && deceasedPos && (
+                    <>
+                         {children.length > 0 && children[0].pos && children[children.length - 1].pos && (
+                           <SvgPath d={`M ${children[0].pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 40} H ${children[children.length - 1].pos.x + NODE_WIDTH / 2}`} />
+                        )}
+
+                        <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2} V ${deceasedPos.y + NODE_HEIGHT + 40}`} />
+
+                        {children.map((child, i) => {
+                            if (!child.pos) return null;
+                            return (
+                                <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 40} V ${child.pos.y + NODE_HEIGHT / 2}`} />
+                            )
+                        })}
+                    </>
+                )}
+            </svg>
+
+            {/* Render Nodes */}
+            {rows.map(p => {
+                 const pos = positions[p.relation];
+                 if (!pos) return null;
+                 return (
+                    <Draggable key={p.relation} position={pos} onDrag={(e, data) => handleDrag(e, data, p.relation)}>
+                        <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                          <Node title={p.relation} area={`${p.kanal}K-${p.marla}M-${p.feet}ft`} share={p.shareLabel} />
+                        </div>
+                    </Draggable>
+                 );
+            })}
+            {deceasedPos && (
+                 <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
+                    <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                      <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
+                    </div>
+                </Draggable>
+            )}
+        </>
+      )}
+    </div>
+  );
+};
+
 
 export function WirasatTab() {
   const [wirasatKanal, setWirasatKanal] = useState<string>("0");
@@ -39,6 +226,9 @@ export function WirasatTab() {
     areaSqFt: number,
     marlaSize: number,
   ): { kanal: number; marla: number; feet: number; areaSqFtRounded: number } => {
+    if (isNaN(areaSqFt) || areaSqFt <= 0) {
+        return { kanal: 0, marla: 0, feet: 0, areaSqFtRounded: 0 };
+    }
     const rounded = Math.round(areaSqFt);
     const totalMarlas = Math.floor(rounded / marlaSize);
     const feet = rounded - totalMarlas * marlaSize;
@@ -46,7 +236,7 @@ export function WirasatTab() {
     const marla = totalMarlas - kanal * 20;
     return { kanal, marla, feet, areaSqFtRounded: rounded };
   };
-
+  
   const handleCalculatePartitions = () => {
     setWirasatError(null);
     setWirasatRows([]);
@@ -63,6 +253,11 @@ export function WirasatTab() {
     }
 
     const totalSqFt = toTotalSqFt(kanal, marla, feet, marlaSize);
+    if(totalSqFt <= 0) {
+       setWirasatError("Total area must be greater than zero.");
+       return;
+    }
+
 
     const widowsCount = Math.max(0, Number(wirasatWidows) || 0);
     const sonsCount = Math.max(0, Number(wirasatSons) || 0);
@@ -147,6 +342,19 @@ export function WirasatTab() {
     setWirasatRows(formattedRows);
     setWirasatTotalSqFt(targetTotal);
   };
+  
+  const totalAreaFormatted = useMemo(() => {
+    const kanal = Number(wirasatKanal) || 0;
+    const marla = Number(wirasatMarla) || 0;
+    const feet = Number(wirasatFeet) || 0;
+
+    const totalSqFt = toTotalSqFt(kanal, marla, feet, Number(wirasatMarlaSize));
+    if (isNaN(totalSqFt) || totalSqFt <= 0) return '0K-0M-0ft';
+
+    const { kanal: fmtK, marla: fmtM, feet: fmtF } = fromSqFt(totalSqFt, Number(wirasatMarlaSize));
+    return `${fmtK}K-${fmtM}M-${fmtF}ft`;
+  }, [wirasatKanal, wirasatMarla, wirasatFeet, wirasatMarlaSize]);
+
 
   return (
     <Card className="border-border/70 bg-card/80 shadow-md">
@@ -373,13 +581,12 @@ export function WirasatTab() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-3 pt-4 border-t border-dashed">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-semibold">Proposed Mutation Details</p>
               <p className="text-[11px] text-muted-foreground">
                 Shares are shown as approximate fractions and precise square-foot areas with Kanal / Marla / Sq Ft breakdown.
-                Always verify with a scholar for complex family trees.
               </p>
             </div>
             {wirasatTotalSqFt !== null && (
@@ -409,9 +616,8 @@ export function WirasatTab() {
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-[12px] text-muted-foreground">
                       Enter area and heirs above, then click
-                      <span className="font-medium"> Calculate partition </span>
-                      to see proposed mutation details. In advanced mode, double-check especially when there are no children
-                      or multiple sibling groups.
+                      <span className="font-medium"> Calculate partition </span> 
+                      to see proposed mutation details.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -429,6 +635,13 @@ export function WirasatTab() {
               </TableBody>
             </Table>
           </div>
+          
+           {wirasatRows.length > 0 && (
+                <div className="pt-4 space-y-3">
+                     <h3 className="text-sm font-semibold">Distribution Diagram</h3>
+                     <DistributionDiagram rows={wirasatRows} totalAreaFormatted={totalAreaFormatted} />
+                </div>
+            )}
         </section>
       </CardContent>
     </Card>
