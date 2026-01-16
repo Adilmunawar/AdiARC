@@ -10,6 +10,8 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '../ui/table';
 import JSZip from 'jszip';
 import Image from 'next/image';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '../ui/label';
 
 type StrippedImage = {
   name: string;
@@ -24,6 +26,7 @@ export function MetaRemoverTab() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [strippedImages, setStrippedImages] = useState<StrippedImage[]>([]);
+  const [filterQaOnly, setFilterQaOnly] = useState(false);
 
   const handleFolderSelect = () => {
     if (fileInputRef.current) {
@@ -79,7 +82,28 @@ export function MetaRemoverTab() {
 
     setIsProcessing(true);
     setStrippedImages([]);
-    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    
+    let imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+
+    if (filterQaOnly) {
+      const originalCount = imageFiles.length;
+      imageFiles = imageFiles.filter(f => f.name.includes('.QA'));
+      toast({
+        title: "Filter Applied",
+        description: `Selected ${imageFiles.length} files containing ".QA" out of ${originalCount} total images.`
+      })
+    }
+
+    if (imageFiles.length === 0) {
+        toast({
+            title: "No Matching Files",
+            description: "No images found that match your filter criteria.",
+            variant: "destructive"
+        });
+        setIsProcessing(false);
+        return;
+    }
+
     setProgress({ current: 0, total: imageFiles.length });
 
     const newStrippedImages: StrippedImage[] = [];
@@ -178,6 +202,17 @@ export function MetaRemoverTab() {
             className="hidden"
             onChange={handleStartProcessing}
           />
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch
+                id="qa-filter-toggle"
+                checked={filterQaOnly}
+                onCheckedChange={setFilterQaOnly}
+                disabled={isProcessing}
+            />
+            <Label htmlFor="qa-filter-toggle" className="cursor-pointer">
+                Only process images with ".QA" in their filename
+            </Label>
+          </div>
         </section>
 
         {isProcessing && (
