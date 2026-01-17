@@ -313,15 +313,15 @@ export function DailyProgressTab() {
             
             if (type === 'mutation') {
                 const mutItem = item as RawMutationProgressData;
-                const total = Number(mutItem["Total Activity Today"]) || 0;
+                const implemented = Number(mutItem["Implemented Today"]) || 0;
                 const pending = Number(mutItem["Pending (Active Today)"]) || 0;
-                const implemented = total - pending;
+                const total = Number(mutItem["Total Activity Today"]) || 0;
                 if (existing) {
+                    existing.implemented += implemented;
                     existing.pending += pending;
                     existing.total += total;
-                    existing.implemented += implemented;
                 } else {
-                    aggregatedData.set(fullName, { fullName, pending, total, implemented: implemented < 0 ? 0 : implemented });
+                    aggregatedData.set(fullName, { fullName, implemented, pending, total });
                 }
             } else {
                 const deItem = item as RawDataEntryItem;
