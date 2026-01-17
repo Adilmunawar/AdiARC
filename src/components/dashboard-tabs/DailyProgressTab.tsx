@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -73,7 +74,6 @@ export function DailyProgressTab() {
   const [reportData, setReportData] = useState<ProcessedReportItem[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [dailyTarget, setDailyTarget] = useState(100);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -102,6 +102,8 @@ export function DailyProgressTab() {
         { totalImplemented: 0, totalPending: 0, totalActivity: 0 }
     );
   }, [reportData]);
+  
+  const dailyTarget = useMemo(() => (reportData.length > 0 ? reportData.length * 100 : 100), [reportData]);
 
   const targetProgress = dailyTarget > 0 ? Math.min((summary.totalActivity / dailyTarget) * 100, 100) : 0;
   const overallProgressData = [
@@ -160,7 +162,7 @@ export function DailyProgressTab() {
         return;
     }
     const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    const excelData = [
+    const excelData: (string|number)[][] = [
       [`AOS daily Mutation Progress Report (${mauzaName})`],
       [`Date: ${today}`],
       [],
@@ -270,10 +272,9 @@ export function DailyProgressTab() {
                       </CardHeader>
                       <CardContent>
                           <div className="text-2xl font-bold">{Math.round(targetProgress)}%</div>
-                          <div className="flex items-center gap-2">
-                            <Label htmlFor="daily-target-input" className="text-xs text-muted-foreground">Target:</Label>
-                            <Input id="daily-target-input" type="number" value={dailyTarget} onChange={e => setDailyTarget(Number(e.target.value))} className="h-6 text-xs w-20"/>
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {summary.totalActivity.toLocaleString()} of {dailyTarget.toLocaleString()}
+                          </p>
                       </CardContent>
                   </Card>
               </div>
@@ -378,5 +379,3 @@ export function DailyProgressTab() {
     </Card>
   );
 }
-
-    
