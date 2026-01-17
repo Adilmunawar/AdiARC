@@ -19,7 +19,8 @@ import {
   UserCircle,
   ImageIcon,
   FileKey,
-  FileMinus
+  FileMinus,
+  FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ const navItems = [
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "SQL Generator", icon: FileKey, path: "/sql-generator" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
+  { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress" },
 ];
 
 export function Sidebar() {
