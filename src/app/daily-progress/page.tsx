@@ -1,3 +1,4 @@
+
 "use client";
 
 import { DailyProgressTab } from "@/components/dashboard-tabs/DailyProgressTab";
