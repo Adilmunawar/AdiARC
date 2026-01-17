@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast";
-import { FileSpreadsheet, Trash2, Upload } from 'lucide-react';
+import { FileSpreadsheet, Play, Trash2, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { Textarea } from '../ui/textarea';
 
 // --- TYPE DEFINITIONS ---
 type RawProgressData = {
@@ -42,10 +43,13 @@ const defaultRawData: RawProgressData[] = [
   { "User Name": "...", "Full Name": "ایاز حیدر سجاد حیدر", "Implemented Today": 0, "Pending (Active Today)": 18, "Total Activity Today": 71 },
   { "User Name": "...", "Full Name": "لبنی لیاقت علی", "Implemented Today": 0, "Pending (Active Today)": 19, "Total Activity Today": 58 }
 ];
+const defaultJsonString = JSON.stringify(defaultRawData, null, 2);
 
 // --- HELPER FUNCTION to process data ---
-const processRawData = (rawData: RawProgressData[]): ProcessedReportItem[] => {
-    if (!Array.isArray(rawData)) return [];
+const processJsonData = (jsonData: string): ProcessedReportItem[] => {
+    if (!jsonData.trim()) return [];
+    const rawData: RawProgressData[] = JSON.parse(jsonData);
+    if (!Array.isArray(rawData)) throw new Error("Input must be a JSON array.");
     const processed: ProcessedReportItem[] = rawData.map(item => {
         const total = Number(item["Total Activity Today"]) || 0;
         const pending = Number(item["Pending (Active Today)"]) || 0;
@@ -63,30 +67,32 @@ const processRawData = (rawData: RawProgressData[]): ProcessedReportItem[] => {
 
 export function DailyProgressTab() {
   const { toast } = useToast();
+  const [jsonInput, setJsonInput] = useState('');
   const [mauzaName, setMauzaName] = useState('Sample Mauza');
   const [reportData, setReportData] = useState<ProcessedReportItem[]>([]);
   const [isReady, setIsReady] = useState(false);
-  const [fileName, setFileName] = useState<string | null>("Default Sample Data");
+  const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load default data on initial mount
   useEffect(() => {
-    setReportData(processRawData(defaultRawData));
-    setIsReady(true);
+    setJsonInput(defaultJsonString);
+    setFileName("Default Sample Data");
+    try {
+        const initialData = processJsonData(defaultJsonString);
+        setReportData(initialData);
+        setIsReady(true);
+    } catch (error) {
+        console.error("Failed to load default data", error);
+    }
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (file.type !== 'application/json') {
-      toast({
-        title: "Invalid File Type",
-        description: "Please upload a valid JSON file (.json).",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid File Type", description: "Please upload a valid JSON file (.json).", variant: "destructive" });
       if(fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -94,26 +100,37 @@ export function DailyProgressTab() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      try {
-        const newRawData = JSON.parse(content);
-        const newReportData = processRawData(newRawData);
-        setReportData(newReportData);
-        setFileName(file.name);
-        setMauzaName(''); // Clear mauza name for new file
-        toast({
-            title: "File Processed",
-            description: `Loaded ${newReportData.length} user records from "${file.name}". Please enter the Mauza name.`,
-        });
-      } catch (error) {
-        toast({ title: "Invalid JSON", description: "Could not parse the input. Check format.", variant: "destructive" });
-      }
+      setJsonInput(content);
+      setFileName(file.name);
+      setIsReady(false); // New data is loaded, but not yet processed
+      setReportData([]); // Clear old report data
+      toast({
+            title: "File Loaded",
+            description: `Data from "${file.name}" is ready. Click "Process Data" to update the table.`,
+      });
     };
     reader.onerror = () => {
       toast({ title: "Error Reading File", description: "Could not read the selected file.", variant: "destructive" });
-      setFileName(null);
-      if(fileInputRef.current) fileInputRef.current.value = "";
     };
     reader.readAsText(file);
+  };
+  
+  const handleProcessJson = () => {
+    if (!jsonInput.trim()) {
+      toast({ title: "Empty Input", description: "Please paste or upload JSON data first.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const processedData = processJsonData(jsonInput);
+      setReportData(processedData);
+      setIsReady(true);
+      toast({ title: "Data Processed", description: `Loaded ${processedData.length} user records.` });
+
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Invalid JSON", description: "Could not parse the input. Check format.", variant: "destructive" });
+    }
   };
 
   const handleExportExcel = () => {
@@ -122,7 +139,7 @@ export function DailyProgressTab() {
       return;
     }
     if (reportData.length === 0) {
-        toast({ title: "No Data", description: "There is no data to export.", variant: "destructive"});
+        toast({ title: "No Data", description: "There is no data to export. Process some data first.", variant: "destructive"});
         return;
     }
 
@@ -160,15 +177,16 @@ export function DailyProgressTab() {
     toast({ title: "Export Complete", description: `Downloaded ${excelFileName}` });
   };
 
-  const handleReset = () => {
-    setReportData(processRawData(defaultRawData));
-    setIsReady(true);
-    setMauzaName('Sample Mauza');
-    setFileName("Default Sample Data");
-    if(fileInputRef.current) {
+  const handleClear = () => {
+    setJsonInput('');
+    setReportData([]);
+    setIsReady(false);
+    setMauzaName('');
+    setFileName(null);
+     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
-    toast({ title: 'Reset Complete', description: 'Report has been reset to the default sample data.' });
+    toast({ title: 'Cleared', description: 'All inputs and results have been cleared.' });
   };
 
   return (
@@ -185,15 +203,23 @@ export function DailyProgressTab() {
       <CardContent className="space-y-6">
         
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>1. Upload New JSON File (Optional)</Label>
-            <Input id="json-file-input" type="file" ref={fileInputRef} accept=".json" onChange={handleFileChange} className="hidden" />
-            <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2 h-4 w-4" />
-                {fileName || "Select JSON File..."}
-            </Button>
-            <p className="text-xs text-muted-foreground pt-1">
-                Click to upload a new file. The report will update instantly.
+           <div className="space-y-2">
+            <Label>1. JSON Data</Label>
+             <div className="relative">
+                <Textarea 
+                placeholder='[ { "User Name": "...", "Full Name": "Ali...", ... } ]'
+                className="h-32 font-mono text-[10px] pr-28"
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                />
+                <Button variant="outline" className="absolute top-2 right-2 h-8 px-3 text-xs" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload File
+                </Button>
+                <input id="json-file-input" type="file" ref={fileInputRef} accept=".json" onChange={handleFileChange} className="hidden" />
+            </div>
+             <p className="text-xs text-muted-foreground pt-1">
+                {fileName ? `Current file: ${fileName}` : "Upload a file or paste content above."}
             </p>
           </div>
           
@@ -204,10 +230,13 @@ export function DailyProgressTab() {
              </div>
              
              <div className="flex gap-2">
-                <Button onClick={handleExportExcel} className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={!isReady || reportData.length === 0}>
-                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel Report
+                 <Button onClick={handleProcessJson} className="flex-1" disabled={!jsonInput}>
+                    <Play className="mr-2 h-4 w-4" /> Process Data
                 </Button>
-                <Button variant="outline" onClick={handleReset} title="Reset to Sample Data">
+                 <Button onClick={handleExportExcel} className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={!isReady || reportData.length === 0}>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel
+                </Button>
+                <Button variant="outline" onClick={handleClear} title="Clear All">
                     <Trash2 className="h-4 w-4" />
                 </Button>
              </div>
@@ -242,7 +271,7 @@ export function DailyProgressTab() {
         )}
         {(!isReady || reportData.length === 0) && (
             <div className="flex items-center justify-center text-center p-8 border border-dashed rounded-lg bg-muted/40 text-sm text-muted-foreground">
-                <p>No data to display. Please upload a JSON file to get started.</p>
+                <p>Data preview will appear here after processing. Upload a file or paste JSON to get started.</p>
             </div>
         )}
       </CardContent>
