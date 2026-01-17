@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -10,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from "@/hooks/use-toast";
 import { FileSpreadsheet, Play, Trash2, Upload, Target, CheckCircle, Clock, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { BarChart, Bar, RadialBarChart, RadialBar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PolarAngleAxis, CartesianGrid } from 'recharts';
+import { BarChart, Bar, RadialBarChart, RadialBar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PolarAngleAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
 // --- TYPE DEFINITIONS ---
@@ -106,11 +105,13 @@ export function DailyProgressTab() {
   const dailyTarget = useMemo(() => (reportData.length > 0 ? reportData.length * 100 : 100), [reportData]);
 
   const targetProgress = dailyTarget > 0 ? Math.min((summary.totalActivity / dailyTarget) * 100, 100) : 0;
-  const overallProgressData = [
-      { name: 'Pending', value: summary.totalPending, fill: 'hsl(48, 96%, 58%)' }, // yellow-500
-      { name: 'Implemented', value: summary.totalImplemented, fill: 'hsl(142, 71%, 45%)' }, // green-600
+  
+  const pieData = [
+      { name: 'Implemented', value: summary.totalImplemented },
+      { name: 'Pending', value: summary.totalPending },
   ];
-  const targetProgressData = [{ name: 'Target', value: summary.totalActivity, fill: 'hsl(var(--primary))' }];
+  const PIE_CHART_COLORS = ['hsl(var(--primary))', 'hsl(48, 96%, 58%)'];
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -298,35 +299,79 @@ export function DailyProgressTab() {
                   </Card>
                   <div className="grid grid-cols-2 gap-6 lg:grid-cols-1">
                       <Card>
-                          <CardHeader className="pb-2"><CardTitle className="text-base">Overall Ratio</CardTitle></CardHeader>
-                          <CardContent className="flex items-center justify-center h-[180px]">
+                          <CardHeader><CardTitle className="text-base">Overall Ratio</CardTitle></CardHeader>
+                          <CardContent className="h-[180px] flex items-center justify-center">
                               <ResponsiveContainer width="100%" height="100%">
-                                  <RadialBarChart innerRadius="60%" outerRadius="85%" data={overallProgressData} startAngle={90} endAngle={-270}>
-                                      <PolarAngleAxis type="number" domain={[0, summary.totalActivity]} angleAxisId={0} tick={false} />
-                                      <RadialBar background dataKey="value" cornerRadius={10} angleAxisId={0} />
-                                      <Legend iconSize={10} wrapperStyle={{fontSize: '12px'}}/>
-                                       <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-2xl font-bold">
-                                          {summary.totalActivity}
-                                      </text>
-                                       <text x="50%" y="65%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-xs">
-                                          Total
-                                      </text>
-                                  </RadialBarChart>
+                                  <PieChart>
+                                      <Tooltip
+                                          cursor={{ fill: 'hsla(var(--accent) / 0.2)' }}
+                                          contentStyle={{
+                                              background: 'hsl(var(--background))',
+                                              border: '1px solid hsl(var(--border))',
+                                              fontSize: '12px',
+                                              borderRadius: 'var(--radius)',
+                                          }}
+                                      />
+                                      <Pie
+                                          data={pieData}
+                                          dataKey="value"
+                                          nameKey="name"
+                                          cx="50%"
+                                          cy="50%"
+                                          innerRadius={40}
+                                          outerRadius={60}
+                                          paddingAngle={2}
+                                          stroke="hsl(var(--background))"
+                                          strokeWidth={2}
+                                      >
+                                          {pieData.map((entry, index) => (
+                                              <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                                          ))}
+                                      </Pie>
+                                      <Legend iconSize={10} wrapperStyle={{ fontSize: '12px' }}/>
+                                  </PieChart>
                               </ResponsiveContainer>
                           </CardContent>
                       </Card>
                       <Card>
-                          <CardHeader className="pb-2"><CardTitle className="text-base">Target Reached</CardTitle></CardHeader>
-                           <CardContent className="flex items-center justify-center h-[180px]">
+                          <CardHeader><CardTitle className="text-base">Daily Target Progress</CardTitle></CardHeader>
+                           <CardContent className="h-[180px] flex items-center justify-center">
                               <ResponsiveContainer width="100%" height="100%">
-                                  <RadialBarChart innerRadius="60%" outerRadius="85%" data={targetProgressData} startAngle={90} endAngle={-270} barSize={10}>
-                                      <PolarAngleAxis type="number" domain={[0, dailyTarget]} angleAxisId={0} tick={false} />
-                                      <RadialBar background dataKey="value" cornerRadius={10} angleAxisId={0}/>
-                                      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className={cn("fill-foreground text-2xl font-bold", targetProgress >= 100 && 'fill-primary')}>
-                                          {summary.totalActivity}
+                                  <RadialBarChart
+                                      innerRadius="75%"
+                                      outerRadius="100%"
+                                      data={[{ value: targetProgress }]}
+                                      startAngle={90}
+                                      endAngle={-270}
+                                  >
+                                      <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                                      <RadialBar
+                                          background={{ fill: 'hsla(var(--muted-foreground), 0.1)' }}
+                                          dataKey="value"
+                                          cornerRadius={10}
+                                          angleAxisId={0}
+                                          fill="hsl(var(--primary))"
+                                      />
+                                      <text
+                                          x="50%"
+                                          y="50%"
+                                          textAnchor="middle"
+                                          dominantBaseline="middle"
+                                          className={cn(
+                                              "fill-foreground text-3xl font-bold",
+                                              targetProgress >= 100 && "fill-primary"
+                                          )}
+                                      >
+                                          {`${Math.round(targetProgress)}%`}
                                       </text>
-                                       <text x="50%" y="65%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-xs">
-                                          / {dailyTarget} Target
+                                      <text
+                                          x="50%"
+                                          y="65%"
+                                          textAnchor="middle"
+                                          dominantBaseline="middle"
+                                          className="fill-muted-foreground text-xs"
+                                      >
+                                          {`${summary.totalActivity.toLocaleString()} / ${dailyTarget.toLocaleString()}`}
                                       </text>
                                   </RadialBarChart>
                               </ResponsiveContainer>
