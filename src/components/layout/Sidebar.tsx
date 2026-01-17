@@ -20,14 +20,35 @@ import {
   ImageIcon,
   FileKey,
   FileMinus,
-  FileSpreadsheet,
-  FileCode2
+  FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from 'next/image';
+
+const PowerShellIcon = ({ className }: { className?: string }) => (
+    <div className={cn(
+      "h-5 w-5 bg-[#012456] rounded-sm flex items-center justify-center p-0.5",
+      className
+    )}>
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-full w-full"
+        >
+            <polyline points="8 9 13 12 8 15" />
+            <line x1="14" y1="15" x2="18" y2="15" />
+        </svg>
+    </div>
+);
+
 
 const navItems = [
   { name: "Dashboard", icon: Home, path: "/" },
@@ -45,7 +66,7 @@ const navItems = [
   { name: "SQL Generator", icon: FileKey, path: "/sql-generator" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
   { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress" },
-  { name: "PowerShell Queries", icon: FileCode2, path: "/powershell-queries" },
+  { name: "PowerShell Queries", icon: PowerShellIcon, path: "/powershell-queries" },
 ];
 
 export function Sidebar() {

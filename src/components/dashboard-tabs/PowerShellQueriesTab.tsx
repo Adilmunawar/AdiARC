@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, FileCode2, Play } from "lucide-react";
+import { Copy, Play } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
 export function PowerShellQueriesTab() {
@@ -162,7 +162,21 @@ try {
     <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <FileCode2 className="h-5 w-5 text-primary" />
+          <div className="h-5 w-5 bg-[#012456] rounded-sm flex items-center justify-center p-0.5">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-full w-full"
+            >
+                <polyline points="8 9 13 12 8 15" />
+                <line x1="14" y1="15" x2="18" y2="15" />
+            </svg>
+          </div>
           PowerShell Query Generator
         </CardTitle>
         <CardDescription>
