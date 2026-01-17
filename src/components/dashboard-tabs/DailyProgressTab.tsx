@@ -76,7 +76,7 @@ export function DailyProgressTab() {
   // Load default data on initial mount
   useEffect(() => {
     setJsonInput(defaultJsonString);
-    setFileName("Default Sample Data");
+    setFileName("Upload Json source");
     try {
         const initialData = processJsonData(defaultJsonString);
         setReportData(initialData);
@@ -178,7 +178,7 @@ export function DailyProgressTab() {
 
   const handleClear = () => {
     setJsonInput(defaultJsonString);
-    setFileName("Default Sample Data");
+    setFileName("Upload Json source");
     try {
         const initialData = processJsonData(defaultJsonString);
         setReportData(initialData);
