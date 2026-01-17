@@ -12,22 +12,20 @@ import { Copy, Play } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const PowerShellIcon = ({ className }: { className?: string }) => (
-    <div className={"h-5 w-5 bg-[#012456] rounded-sm flex items-center justify-center p-0.5"}>
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-full w-full"
-        >
-            <polyline points="8 9 13 12 8 15" />
-            <line x1="14" y1="15" x2="18" y2="15" />
-        </svg>
-    </div>
+const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        {...props}
+    >
+        <polyline points="8 9 13 12 8 15" />
+        <line x1="14" y1="15" x2="18" y2="15" />
+    </svg>
 );
 
 
@@ -313,7 +311,7 @@ try {
     <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <PowerShellIcon />
+          <PowerShellIcon className="h-5 w-5 text-primary" />
           PowerShell Query Generator
         </CardTitle>
         <CardDescription>

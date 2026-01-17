@@ -6,25 +6,20 @@ import Link from "next/link";
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
 
-const PowerShellIcon = ({ className }: { className?: string }) => (
-    <div className={cn(
-      "bg-[#012456] rounded-sm flex items-center justify-center p-1",
-      className
-    )}>
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-full w-full"
-        >
-            <polyline points="8 9 13 12 8 15" />
-            <line x1="14" y1="15" x2="18" y2="15" />
-        </svg>
-    </div>
+const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        {...props}
+    >
+        <polyline points="8 9 13 12 8 15" />
+        <line x1="14" y1="15" x2="18" y2="15" />
+    </svg>
 );
 
 const tools = [
