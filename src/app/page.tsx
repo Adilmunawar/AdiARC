@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, FileCode2 } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 
@@ -89,6 +89,12 @@ const tools = [
         description: "Generate an Excel report from daily activity JSON data.",
         icon: FileSpreadsheet,
         path: "/daily-progress"
+    },
+    {
+        name: "PowerShell Queries",
+        description: "Generate PowerShell scripts to query the database directly.",
+        icon: FileCode2,
+        path: "/powershell-queries"
     }
 ];
 

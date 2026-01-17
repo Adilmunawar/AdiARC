@@ -20,7 +20,8 @@ import {
   ImageIcon,
   FileKey,
   FileMinus,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileCode2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ const navItems = [
   { name: "SQL Generator", icon: FileKey, path: "/sql-generator" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
   { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress" },
+  { name: "PowerShell Queries", icon: FileCode2, path: "/powershell-queries" },
 ];
 
 export function Sidebar() {
