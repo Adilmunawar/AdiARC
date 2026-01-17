@@ -379,3 +379,5 @@ export function DailyProgressTab() {
     </Card>
   );
 }
+
+    
