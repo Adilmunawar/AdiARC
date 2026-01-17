@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -10,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from "@/hooks/use-toast";
 import { FileSpreadsheet, Play, Trash2, Upload, Target, CheckCircle, Clock, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { BarChart, Bar, RadialBarChart, RadialBar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PolarAngleAxis } from 'recharts';
+import { BarChart, Bar, RadialBarChart, RadialBar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PolarAngleAxis, CartesianGrid } from 'recharts';
 import { cn } from '@/lib/utils';
 
 // --- TYPE DEFINITIONS ---
