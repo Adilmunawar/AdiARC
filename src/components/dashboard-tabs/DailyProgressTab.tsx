@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast";
-import { FileSpreadsheet, Play, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, Play, Trash2, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // Define the shape of your input JSON
@@ -34,10 +33,52 @@ export function DailyProgressTab() {
   const [mauzaName, setMauzaName] = useState('');
   const [reportData, setReportData] = useState<ProcessedReportItem[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (file.type !== 'application/json') {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a valid JSON file (.json).",
+        variant: "destructive",
+      });
+      if(fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setJsonInput(content);
+      toast({
+        title: "File Loaded",
+        description: `"${file.name}" is ready to be processed.`,
+      });
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Error Reading File",
+        description: "Could not read the selected file.",
+        variant: "destructive",
+      });
+      setFileName(null);
+      if(fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsText(file);
+  };
+
 
   const handleProcessJson = () => {
     if (!jsonInput.trim()) {
-      toast({ title: "Empty Input", description: "Please paste the JSON data first.", variant: "destructive" });
+      toast({ title: "No JSON Data", description: "Please upload a JSON file first.", variant: "destructive" });
       return;
     }
 
@@ -127,10 +168,10 @@ export function DailyProgressTab() {
     XLSX.utils.book_append_sheet(wb, ws, "Progress Report");
 
     // 5. Download File
-    const fileName = `Progress_Report_${mauzaName}_${today.replace(/\s/g, '_')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    const excelFileName = `Progress_Report_${mauzaName}_${today.replace(/\s/g, '_')}.xlsx`;
+    XLSX.writeFile(wb, excelFileName);
 
-    toast({ title: "Export Complete", description: `Downloaded ${fileName}` });
+    toast({ title: "Export Complete", description: `Downloaded ${excelFileName}` });
   };
 
   const handleClear = () => {
@@ -138,6 +179,10 @@ export function DailyProgressTab() {
     setReportData([]);
     setIsReady(false);
     setMauzaName('');
+    setFileName(null);
+    if(fileInputRef.current) {
+        fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -156,18 +201,31 @@ export function DailyProgressTab() {
         {/* INPUT SECTION */}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label>Paste JSON Data</Label>
-            <Textarea 
-              placeholder='[ { "User Name": "...", "Full Name": "Ali...", ... } ]'
-              className="h-48 font-mono text-[10px]"
-              value={jsonInput}
-              onChange={(e) => setJsonInput(e.target.value)}
+            <Label>1. Upload JSON Progress File</Label>
+            <Input
+                id="json-file-input"
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                onChange={handleFileChange}
+                className="hidden"
             />
+            <Button
+                variant="outline"
+                className="w-full justify-start text-muted-foreground"
+                onClick={() => fileInputRef.current?.click()}
+            >
+                <Upload className="mr-2 h-4 w-4" />
+                {fileName || "Select JSON File..."}
+            </Button>
+            <p className="text-xs text-muted-foreground pt-1">
+                Click above to select the JSON file exported from the database report.
+            </p>
           </div>
           
           <div className="space-y-4 flex flex-col justify-end">
              <div className="space-y-2">
-                <Label>Mauza Name (For Report Header)</Label>
+                <Label>2. Mauza Name (For Report Header)</Label>
                 <Input 
                     placeholder="e.g. Amar Sidhu" 
                     value={mauzaName} 
