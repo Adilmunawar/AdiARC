@@ -1,0 +1,95 @@
+# --- Configuration ---
+$Server   = "192.125.5.148"
+$Database = "Lahore4_Mauza"
+$User     = "sa"
+$Pass     = "justice@123"
+$OutFile  = "$HOME\Desktop\Daily_Progress_Report.json"
+
+# --- The Query ---
+$Query = @"
+SELECT 
+    sys.fn_varbintohexstr(U.user_name) AS [User Name],
+    U.first_name + ' ' + ISNULL(U.last_name, '') AS [Full Name],
+    
+    SUM(CASE 
+        WHEN I.is_approved = 1 
+             AND CAST(I.intiqal_aprove_date AS DATE) = CAST(GETDATE() AS DATE) 
+        THEN 1 
+        ELSE 0 
+    END) AS [Implemented Today],
+
+    SUM(CASE 
+        WHEN (I.is_approved = 0 OR I.is_approved IS NULL) 
+             AND CAST(I.access_datetime AS DATE) = CAST(GETDATE() AS DATE) 
+        THEN 1 
+        ELSE 0 
+    END) AS [Pending (Active Today)],
+
+    COUNT(I.intiqal_id) AS [Total Activity Today]
+
+FROM 
+    [transactions].[Intiqal] I WITH (NOLOCK)
+INNER JOIN 
+    [users].[User] U WITH (NOLOCK) ON I.user_id = U.user_id
+WHERE 
+    CAST(I.access_datetime AS DATE) = CAST(GETDATE() AS DATE)
+    OR CAST(I.intiqal_aprove_date AS DATE) = CAST(GETDATE() AS DATE)
+GROUP BY 
+    U.user_name, 
+    U.first_name, 
+    U.last_name
+ORDER BY 
+    [Implemented Today] DESC;
+"@
+
+# --- Execution (Using standard .NET - No Modules Required) ---
+try {
+    Write-Host "Connecting to $Database on $Server..." -ForegroundColor Cyan
+
+    # Setup Connection
+    $ConnString = "Server=$Server;Database=$Database;User Id=$User;Password=$Pass;TrustServerCertificate=True;"
+    $Connection = New-Object System.Data.SqlClient.SqlConnection
+    $Connection.ConnectionString = $ConnString
+    $Connection.Open()
+
+    # Create Command
+    $Command = $Connection.CreateCommand()
+    $Command.CommandText = $Query
+    $Command.CommandTimeout = 120
+
+    # Execute and Fill Data
+    $Adapter = New-Object System.Data.SqlClient.SqlDataAdapter $Command
+    $DataSet = New-Object System.Data.DataSet
+    $Adapter.Fill($DataSet) | Out-Null
+    
+    $Connection.Close()
+
+    # Process Results
+    $Table = $DataSet.Tables[0]
+    
+    if ($Table.Rows.Count -eq 0) {
+        Write-Host "No activity found for today." -ForegroundColor Yellow
+        "[]" | Out-File -FilePath $OutFile -Encoding utf8
+    }
+    else {
+        # Convert DataTable to Custom Object List for clean JSON
+        $DataList = @()
+        foreach ($Row in $Table.Rows) {
+            $Obj = [Ordered]@{}
+            foreach ($Col in $Table.Columns) {
+                $Obj[$Col.ColumnName] = $Row[$Col]
+            }
+            $DataList += $Obj
+        }
+
+        # Save to JSON
+        $JsonData = $DataList | ConvertTo-Json -Depth 3 -Compress
+        [System.IO.File]::WriteAllText($OutFile, $JsonData)
+        
+        Write-Host "Success! Saved to:" -ForegroundColor Green
+        Write-Host $OutFile -ForegroundColor Yellow
+    }
+
+} catch {
+    Write-Host "Connection Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
