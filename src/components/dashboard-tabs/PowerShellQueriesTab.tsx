@@ -340,14 +340,14 @@ try {
             </div>
         </section>
 
-        <Tabs defaultValue="mutation">
+        <Tabs defaultValue="mutation" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="mutation">Mutation Report</TabsTrigger>
             <TabsTrigger value="data-entry">Data Entry Report</TabsTrigger>
           </TabsList>
-
+          
           <TabsContent value="mutation" className="mt-6">
-            <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
+             <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
               <div className="flex flex-col gap-4">
                  <section className="space-y-1.5">
                    <Label htmlFor="ps-mutation-outfile">Output File Path</Label>
