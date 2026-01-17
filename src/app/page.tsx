@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 
@@ -83,6 +83,12 @@ const tools = [
         description: "Strip all metadata from a folder of images for privacy.",
         icon: FileMinus,
         path: "/meta-remover"
+    },
+    {
+        name: "Daily Progress Report",
+        description: "Generate an Excel report from daily activity JSON data.",
+        icon: FileSpreadsheet,
+        path: "/daily-progress"
     }
 ];
 
