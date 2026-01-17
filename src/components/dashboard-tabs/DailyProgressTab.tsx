@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast";
 import { FileSpreadsheet, Play, Trash2, Upload, Target, CheckCircle, Clock, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { BarChart, Bar, RadialBarChart, RadialBar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PolarAngleAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, RadialBarChart, PolarAngleAxis, RadialBar } from 'recharts';
 import { cn } from '@/lib/utils';
 
 // --- TYPE DEFINITIONS ---
@@ -77,7 +77,7 @@ export function DailyProgressTab() {
 
   useEffect(() => {
     setJsonInput(defaultJsonString);
-    setFileName("Upload Json source");
+    setFileName("Using default sample data");
     try {
         const initialData = processJsonData(defaultJsonString);
         setReportData(initialData);
@@ -110,7 +110,7 @@ export function DailyProgressTab() {
       { name: 'Implemented', value: summary.totalImplemented },
       { name: 'Pending', value: summary.totalPending },
   ];
-  const PIE_CHART_COLORS = ['hsl(var(--primary))', 'hsl(48, 96%, 58%)'];
+  const PIE_CHART_COLORS = ['hsl(142.1 76.2% 36.3%)', 'hsl(47.9 95.8% 53.1%)'];
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,7 +190,7 @@ export function DailyProgressTab() {
 
   const handleClear = () => {
     setJsonInput(defaultJsonString);
-    setFileName("Upload Json source");
+    setFileName("Using default sample data");
     try {
         const initialData = processJsonData(defaultJsonString);
         setReportData(initialData);
@@ -250,21 +250,21 @@ export function DailyProgressTab() {
                           <CardTitle className="text-sm font-medium">Total Activity</CardTitle>
                           <Users className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
-                      <CardContent><div className="text-2xl font-bold">{summary.totalActivity}</div></CardContent>
+                      <CardContent><div className="text-2xl font-bold">{summary.totalActivity.toLocaleString()}</div></CardContent>
                   </Card>
                    <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                           <CardTitle className="text-sm font-medium">Implemented</CardTitle>
                           <CheckCircle className="h-4 w-4 text-green-600" />
                       </CardHeader>
-                      <CardContent><div className="text-2xl font-bold">{summary.totalImplemented}</div></CardContent>
+                      <CardContent><div className="text-2xl font-bold">{summary.totalImplemented.toLocaleString()}</div></CardContent>
                   </Card>
                    <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                           <CardTitle className="text-sm font-medium">Pending</CardTitle>
                           <Clock className="h-4 w-4 text-yellow-500" />
                       </CardHeader>
-                      <CardContent><div className="text-2xl font-bold">{summary.totalPending}</div></CardContent>
+                      <CardContent><div className="text-2xl font-bold">{summary.totalPending.toLocaleString()}</div></CardContent>
                   </Card>
                    <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -286,13 +286,12 @@ export function DailyProgressTab() {
                       <CardContent className="pl-2 h-[250px]">
                           <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={reportData} layout="vertical" margin={{ top: 5, right: 20, left: 60, bottom: 5 }}>
-                                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                                   <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                                   <YAxis dataKey="fullName" type="category" width={100} stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
                                   <Tooltip cursor={{ fill: 'hsla(var(--accent) / 0.2)' }} contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: '12px' }}/>
                                   <Legend wrapperStyle={{fontSize: "12px"}}/>
-                                  <Bar dataKey="implemented" name="Implemented" stackId="a" fill="hsl(142, 71%, 45%)" radius={[0, 4, 4, 0]}/>
-                                  <Bar dataKey="pending" name="Pending" stackId="a" fill="hsl(48, 96%, 58%)" radius={[4, 0, 0, 4]} />
+                                  <Bar dataKey="implemented" name="Implemented" stackId="a" fill="hsl(142.1 76.2% 36.3%)" radius={[0, 4, 4, 0]}/>
+                                  <Bar dataKey="pending" name="Pending" stackId="a" fill="hsl(47.9 95.8% 53.1%)" radius={[4, 0, 0, 4]} />
                               </BarChart>
                           </ResponsiveContainer>
                       </CardContent>
@@ -403,13 +402,15 @@ export function DailyProgressTab() {
                                     <TableCell className="text-right">{row.total}</TableCell>
                                 </TableRow>
                             ))}
-                              <TableRow className="bg-muted/50 font-bold">
-                                    <TableCell colSpan={2} className="text-right">Total</TableCell>
-                                    <TableCell className="text-right">{summary.totalPending}</TableCell>
-                                    <TableCell className="text-right">{summary.totalImplemented}</TableCell>
-                                    <TableCell className="text-right">{summary.totalActivity}</TableCell>
-                                </TableRow>
                         </TableBody>
+                         <TableFooter>
+                            <TableRow className="bg-muted/50 font-bold">
+                                <TableCell colSpan={2} className="text-right">Total</TableCell>
+                                <TableCell className="text-right">{summary.totalPending}</TableCell>
+                                <TableCell className="text-right">{summary.totalImplemented}</TableCell>
+                                <TableCell className="text-right">{summary.totalActivity}</TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </div>
               </div>
@@ -424,5 +425,3 @@ export function DailyProgressTab() {
     </Card>
   );
 }
-
-    
