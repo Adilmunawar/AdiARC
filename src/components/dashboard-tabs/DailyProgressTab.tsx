@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast";
-import { FileSpreadsheet, Play, Trash2, Upload, Target, CheckCircle, Clock, Users, BarChart, LineChart, PieChartIcon } from 'lucide-react';
+import { FileSpreadsheet, Play, Trash2, Upload, Target, CheckCircle, Clock, Users, BarChart, PieChartIcon, UploadCloud } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { BarChart as RechartsBarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart as RechartsPieChart, Pie, Cell, CartesianGrid } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -164,38 +164,6 @@ const defaultDataEntryJsonString = JSON.stringify(defaultDataEntryRawData, null,
 
 
 // --- HELPER FUNCTIONS to process data ---
-const processMutationJsonData = (jsonData: string): ProcessedMutationProgressItem[] => {
-    if (!jsonData.trim()) return [];
-    const rawData: RawMutationProgressData[] = JSON.parse(jsonData);
-    if (!Array.isArray(rawData)) throw new Error("Input must be a JSON array.");
-    const processed: ProcessedMutationProgressItem[] = rawData.map(item => {
-        const total = Number(item["Total Activity Today"]) || 0;
-        const pending = Number(item["Pending (Active Today)"]) || 0;
-        const implemented = total - pending;
-        return {
-            fullName: item["Full Name"] || "Unknown",
-            pending: pending,
-            total: total,
-            implemented: implemented < 0 ? 0 : implemented
-        };
-    });
-    return processed.sort((a, b) => b.total - a.total);
-};
-
-const processDataEntryJsonData = (jsonData: string): ProcessedDataEntryItem[] => {
-    if (!jsonData.trim()) return [];
-    const rawData: RawDataEntryItem[] = JSON.parse(jsonData);
-    if (!Array.isArray(rawData)) throw new Error("Input must be a JSON array of data entry items.");
-    return rawData.map(item => ({
-        fullName: item["Full Name"] || "Unknown",
-        shajra: Number(item["Shajra (Family Tree)"]) || 0,
-        ownership: Number(item["Ownership"]) || 0,
-        khasra: Number(item["Khasra"]) || 0,
-        possession: Number(item["Possession (Kashtkar)"]) || 0,
-        total: Number(item["Total Entries Today"]) || 0,
-    })).sort((a, b) => b.total - a.total);
-};
-
 const DATA_ENTRY_CHART_COLORS = {
     shajra: 'hsl(210 90% 55%)',
     ownership: 'hsl(142 76% 36%)',
@@ -208,31 +176,31 @@ export function DailyProgressTab() {
   const { toast } = useToast();
   
   // State for Mutation Progress Report
-  const [mutationJsonInput, setMutationJsonInput] = useState('');
+  const [mutationJsonInputs, setMutationJsonInputs] = useState<string[]>([]);
   const [mutationMauzaName, setMutationMauzaName] = useState('Sample Mauza');
   const [mutationReportData, setMutationReportData] = useState<ProcessedMutationProgressItem[]>([]);
   const [isMutationReportReady, setIsMutationReportReady] = useState(false);
-  const [mutationFileName, setMutationFileName] = useState<string | null>(null);
+  const [mutationFileNames, setMutationFileNames] = useState<string[]>([]);
   const mutationFileInputRef = useRef<HTMLInputElement>(null);
 
   // State for Data Entry Report
-  const [dataEntryJsonInput, setDataEntryJsonInput] = useState('');
+  const [dataEntryJsonInputs, setDataEntryJsonInputs] = useState<string[]>([]);
   const [dataEntryMauzaName, setDataEntryMauzaName] = useState('Sample Mauza');
   const [dataEntryReportData, setDataEntryReportData] = useState<ProcessedDataEntryItem[]>([]);
   const [isDataEntryReportReady, setIsDataEntryReportReady] = useState(false);
-  const [dataEntryFileName, setDataEntryFileName] = useState<string | null>(null);
+  const [dataEntryFileNames, setDataEntryFileNames] = useState<string[]>([]);
   const dataEntryFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setMutationJsonInput(defaultMutationJsonString);
-    setMutationFileName("Using default sample data");
-    setDataEntryJsonInput(defaultDataEntryJsonString);
-    setDataEntryFileName("Using default sample data");
+    setMutationJsonInputs([defaultMutationJsonString]);
+    setMutationFileNames(["Using default sample data"]);
+    setDataEntryJsonInputs([defaultDataEntryJsonString]);
+    setDataEntryFileNames(["Using default sample data"]);
     try {
-        const initialMutationData = processMutationJsonData(defaultMutationJsonString);
+        const initialMutationData = processJsonData<RawMutationProgressData, ProcessedMutationProgressItem>([defaultMutationJsonString], 'mutation');
         setMutationReportData(initialMutationData);
         setIsMutationReportReady(true);
-        const initialDataEntryData = processDataEntryJsonData(defaultDataEntryJsonString);
+        const initialDataEntryData = processJsonData<RawDataEntryItem, ProcessedDataEntryItem>([defaultDataEntryJsonString], 'data-entry');
         setDataEntryReportData(initialDataEntryData);
         setIsDataEntryReportReady(true);
     } catch (error) {
@@ -287,133 +255,154 @@ export function DailyProgressTab() {
   ];
   const DATA_ENTRY_PIE_COLORS = Object.values(DATA_ENTRY_CHART_COLORS);
 
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, type: 'mutation' | 'data-entry') => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'mutation' | 'data-entry') => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.type !== 'application/json') {
-      toast({ title: "Invalid File Type", description: "Please upload a valid JSON file (.json).", variant: "destructive" });
+    const invalidFiles = Array.from(files).filter(file => file.type !== 'application/json');
+    if (invalidFiles.length > 0) {
+      toast({ title: "Invalid File Type", description: "Please upload only valid JSON files (.json).", variant: "destructive" });
       if (type === 'mutation' && mutationFileInputRef.current) mutationFileInputRef.current.value = "";
       if (type === 'data-entry' && dataEntryFileInputRef.current) dataEntryFileInputRef.current.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
+
+    const fileReadPromises = Array.from(files).map(file => 
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target?.result as string);
+        reader.onerror = e => reject(e);
+        reader.readAsText(file);
+      })
+    );
+
+    try {
+      const contents = await Promise.all(fileReadPromises);
+      const names = Array.from(files).map(f => f.name);
+
       if (type === 'mutation') {
-          setMutationJsonInput(content);
-          setMutationFileName(file.name);
-          setIsMutationReportReady(false);
-          setMutationReportData([]);
+        setMutationJsonInputs(contents);
+        setMutationFileNames(names);
+        setIsMutationReportReady(false);
       } else {
-          setDataEntryJsonInput(content);
-          setDataEntryFileName(file.name);
-          setIsDataEntryReportReady(false);
-          setDataEntryReportData([]);
+        setDataEntryJsonInputs(contents);
+        setDataEntryFileNames(names);
+        setIsDataEntryReportReady(false);
       }
       toast({
-            title: "File Loaded",
-            description: `Data from "${file.name}" is ready. Click "Process Data" to update the dashboard.`,
+        title: `${files.length} File(s) Loaded`,
+        description: `Click "Process Data" to aggregate and update the dashboard.`,
       });
-    };
-    reader.onerror = () => toast({ title: "Error Reading File", variant: "destructive" });
-    reader.readAsText(file);
+    } catch (error) {
+      toast({ title: "Error Reading Files", variant: "destructive" });
+    }
+  };
+
+  const processJsonData = <T, U>(jsonInputs: string[], type: 'mutation' | 'data-entry'): U[] => {
+    const aggregatedData = new Map<string, any>();
+
+    for (const jsonInput of jsonInputs) {
+        const rawData: T[] = JSON.parse(jsonInput);
+        if (!Array.isArray(rawData)) throw new Error("Input must be a JSON array.");
+        
+        for (const item of rawData) {
+            const fullName = (item as any)["Full Name"];
+            if (!fullName) continue;
+
+            const existing = aggregatedData.get(fullName);
+            
+            if (type === 'mutation') {
+                const mutItem = item as RawMutationProgressData;
+                const total = Number(mutItem["Total Activity Today"]) || 0;
+                const pending = Number(mutItem["Pending (Active Today)"]) || 0;
+                const implemented = total - pending;
+                if (existing) {
+                    existing.pending += pending;
+                    existing.total += total;
+                    existing.implemented += implemented;
+                } else {
+                    aggregatedData.set(fullName, { fullName, pending, total, implemented: implemented < 0 ? 0 : implemented });
+                }
+            } else {
+                const deItem = item as RawDataEntryItem;
+                const shajra = Number(deItem["Shajra (Family Tree)"]) || 0;
+                const ownership = Number(deItem["Ownership"]) || 0;
+                const khasra = Number(deItem["Khasra"]) || 0;
+                const possession = Number(deItem["Possession (Kashtkar)"]) || 0;
+                const total = Number(deItem["Total Entries Today"]) || 0;
+                 if (existing) {
+                    existing.shajra += shajra;
+                    existing.ownership += ownership;
+                    existing.khasra += khasra;
+                    existing.possession += possession;
+                    existing.total += total;
+                } else {
+                    aggregatedData.set(fullName, { fullName, shajra, ownership, khasra, possession, total });
+                }
+            }
+        }
+    }
+    return Array.from(aggregatedData.values()).sort((a, b) => b.total - a.total);
   };
   
   const handleProcessJson = (type: 'mutation' | 'data-entry') => {
-    if (type === 'mutation') {
-        if (!mutationJsonInput.trim()) {
-            toast({ title: "Empty Input", description: "Please paste or upload JSON data for mutation report first.", variant: "destructive" });
-            return;
-        }
-        try {
-            const processedData = processMutationJsonData(mutationJsonInput);
+    try {
+        if (type === 'mutation') {
+            if (mutationJsonInputs.length === 0) throw new Error("Please paste or upload JSON data first.");
+            const processedData = processJsonData<RawMutationProgressData, ProcessedMutationProgressItem>(mutationJsonInputs, 'mutation');
             setMutationReportData(processedData);
             setIsMutationReportReady(true);
-            toast({ title: "Mutation Dashboard Updated", description: `Loaded ${processedData.length} user records.` });
-        } catch (error) {
-            console.error(error);
-            toast({ title: "Invalid JSON for Mutation Report", description: "Could not parse the input. Check format.", variant: "destructive" });
-        }
-    } else {
-        if (!dataEntryJsonInput.trim()) {
-            toast({ title: "Empty Input", description: "Please paste or upload JSON data for data entry report first.", variant: "destructive" });
-            return;
-        }
-        try {
-            const processedData = processDataEntryJsonData(dataEntryJsonInput);
+            toast({ title: "Mutation Dashboard Updated", description: `Aggregated data from ${mutationJsonInputs.length} file(s).` });
+        } else {
+            if (dataEntryJsonInputs.length === 0) throw new Error("Please paste or upload JSON data first.");
+            const processedData = processJsonData<RawDataEntryItem, ProcessedDataEntryItem>(dataEntryJsonInputs, 'data-entry');
             setDataEntryReportData(processedData);
             setIsDataEntryReportReady(true);
-            toast({ title: "Data Entry Dashboard Updated", description: `Loaded ${processedData.length} user records.` });
-        } catch (error) {
-            console.error(error);
-            toast({ title: "Invalid JSON for Data Entry Report", description: "Could not parse the input. Check format.", variant: "destructive" });
+            toast({ title: "Data Entry Dashboard Updated", description: `Aggregated data from ${dataEntryJsonInputs.length} file(s).` });
         }
+    } catch (error: any) {
+        console.error(error);
+        toast({ title: "Processing Failed", description: error.message || "Could not parse the input. Check format.", variant: "destructive" });
     }
   };
 
   const handleExportExcel = (type: 'mutation' | 'data-entry') => {
     if (type === 'mutation') {
-        if (!mutationMauzaName.trim()) {
-            toast({ title: "Mauza Required", description: "Please enter the Mauza Name for the report header.", variant: "destructive" });
-            return;
-        }
-        if (mutationReportData.length === 0) {
-            toast({ title: "No Data", description: "There is no data to export. Process some data first.", variant: "destructive"});
-            return;
-        }
+        if (!mutationMauzaName.trim()) { toast({ title: "Mauza Required", description: "Please enter the Mauza Name for the report header.", variant: "destructive" }); return; }
+        if (mutationReportData.length === 0) { toast({ title: "No Data", description: "There is no data to export.", variant: "destructive"}); return; }
         const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         const excelData: (string|number)[][] = [
-            [`AOS daily Mutation Progress Report (${mutationMauzaName})`],
-            [`Date: ${today}`],
-            [],
+            [`AOS daily Mutation Progress Report (${mutationMauzaName})`], [`Date: ${today}`], [],
             ["Sr #", "Officer Name", "Pending (Active)", "Implemented (Approved)", "Total Activity"]
         ];
-        mutationReportData.forEach((row, index) => {
-            excelData.push([(index + 1), row.fullName, row.pending, row.implemented, row.total]);
-        });
+        mutationReportData.forEach((row, index) => excelData.push([(index + 1), row.fullName, row.pending, row.implemented, row.total]));
         excelData.push([]);
         excelData.push(["", "Total", mutationSummary.totalPending, mutationSummary.totalImplemented, mutationSummary.totalActivity]);
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(excelData);
-
         if(!ws['!merges']) ws['!merges'] = [];
-        ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
-        ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
+        ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
         ws['!cols'] = [ { wch: 6 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 } ];
         XLSX.utils.book_append_sheet(wb, ws, "Progress Report");
         const excelFileName = `Progress_Report_${mutationMauzaName.replace(/\s+/g, '_')}_${today.replace(/\s/g, '_')}.xlsx`;
         XLSX.writeFile(wb, excelFileName);
         toast({ title: "Export Complete", description: `Downloaded ${excelFileName}` });
     } else { // data-entry
-         if (!dataEntryMauzaName.trim()) {
-            toast({ title: "Mauza Required", description: "Please enter the Mauza Name for the report header.", variant: "destructive" });
-            return;
-        }
-        if (dataEntryReportData.length === 0) {
-            toast({ title: "No Data", description: "There is no data to export. Process some data first.", variant: "destructive"});
-            return;
-        }
+         if (!dataEntryMauzaName.trim()) { toast({ title: "Mauza Required", variant: "destructive" }); return; }
+        if (dataEntryReportData.length === 0) { toast({ title: "No Data", variant: "destructive"}); return; }
         const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         const excelData: (string|number)[][] = [
-            [`AOS daily Data Entry Report (${dataEntryMauzaName})`],
-            [`Date: ${today}`],
-            [],
+            [`AOS daily Data Entry Report (${dataEntryMauzaName})`], [`Date: ${today}`], [],
             ["Sr #", "Officer Name", "Shajra", "Ownership", "Khasra", "Possession", "Total Entries"]
         ];
-        dataEntryReportData.forEach((row, index) => {
-            excelData.push([(index + 1), row.fullName, row.shajra, row.ownership, row.khasra, row.possession, row.total]);
-        });
+        dataEntryReportData.forEach((row, index) => excelData.push([(index + 1), row.fullName, row.shajra, row.ownership, row.khasra, row.possession, row.total]));
         excelData.push([]);
         excelData.push(["", "Total", dataEntrySummary.totalShajra, dataEntrySummary.totalOwnership, dataEntrySummary.totalKhasra, dataEntrySummary.totalPossession, dataEntrySummary.totalActivity]);
-
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(excelData);
-
         if(!ws['!merges']) ws['!merges'] = [];
-        ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } });
-        ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 6 } });
+        ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } });
         ws['!cols'] = [ { wch: 6 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 15 } ];
         XLSX.utils.book_append_sheet(wb, ws, "Data Entry Report");
         const excelFileName = `Data_Entry_Report_${dataEntryMauzaName.replace(/\s+/g, '_')}_${today.replace(/\s/g, '_')}.xlsx`;
@@ -424,30 +413,24 @@ export function DailyProgressTab() {
 
   const handleClear = (type: 'mutation' | 'data-entry') => {
       if (type === 'mutation') {
-        setMutationJsonInput(defaultMutationJsonString);
-        setMutationFileName("Using default sample data");
+        setMutationJsonInputs([defaultMutationJsonString]);
+        setMutationFileNames(["Using default sample data"]);
         try {
-            const initialData = processMutationJsonData(defaultMutationJsonString);
+            const initialData = processJsonData<RawMutationProgressData, ProcessedMutationProgressItem>([defaultMutationJsonString], 'mutation');
             setMutationReportData(initialData);
             setIsMutationReportReady(true);
-        } catch (error) {
-            setMutationReportData([]);
-            setIsMutationReportReady(false);
-        }
+        } catch (error) { setIsMutationReportReady(false); }
         setMutationMauzaName('Sample Mauza');
         if(mutationFileInputRef.current) mutationFileInputRef.current.value = "";
         toast({ title: 'Reset', description: 'Mutation report inputs and results have been reset to the default sample.' });
       } else {
-        setDataEntryJsonInput(defaultDataEntryJsonString);
-        setDataEntryFileName("Using default sample data");
+        setDataEntryJsonInputs([defaultDataEntryJsonString]);
+        setDataEntryFileNames(["Using default sample data"]);
         try {
-            const initialData = processDataEntryJsonData(defaultDataEntryJsonString);
+            const initialData = processJsonData<RawDataEntryItem, ProcessedDataEntryItem>([defaultDataEntryJsonString], 'data-entry');
             setDataEntryReportData(initialData);
             setIsDataEntryReportReady(true);
-        } catch (error) {
-            setDataEntryReportData([]);
-            setIsDataEntryReportReady(false);
-        }
+        } catch (error) { setIsDataEntryReportReady(false); }
         setDataEntryMauzaName('Sample Mauza');
         if(dataEntryFileInputRef.current) dataEntryFileInputRef.current.value = "";
         toast({ title: 'Reset', description: 'Data entry report inputs and results have been reset to the default sample.' });
@@ -473,42 +456,41 @@ export function DailyProgressTab() {
           </TabsList>
           
           <TabsContent value="mutation" className="mt-6">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>1. JSON Data Source</Label>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal" onClick={() => mutationFileInputRef.current?.click()}>
-                      <Upload className="mr-2 h-4 w-4 shrink-0" />
-                      <span className="truncate">{mutationFileName || "Click to upload a .json file"}</span>
-                  </Button>
-                  <input id="json-file-input" type="file" ref={mutationFileInputRef} accept=".json" onChange={(e) => handleFileChange(e, 'mutation')} className="hidden" />
-              </div>
-              <div className="space-y-2">
-                  <Label>2. Mauza Name</Label>
-                  <Input placeholder="e.g. Amar Sidhu" value={mutationMauzaName} onChange={(e) => setMutationMauzaName(e.target.value)} />
-              </div>
-              <div className="flex items-end gap-2">
-                  <Button onClick={() => handleProcessJson('mutation')} className="flex-1" disabled={!mutationJsonInput}>
-                      <Play className="mr-2 h-4 w-4" /> Process
-                  </Button>
-                  <Button onClick={() => handleExportExcel('mutation')} className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={!isMutationReportReady || mutationReportData.length === 0}>
-                      <FileSpreadsheet className="mr-2 h-4 w-4" /> Download
-                  </Button>
-                  <Button variant="outline" onClick={() => handleClear('mutation')} title="Reset to Sample">
-                      <Trash2 className="h-4 w-4" />
-                  </Button>
-              </div>
+            <div className="grid gap-4 md:grid-cols-12">
+                <div className="space-y-2 md:col-span-4">
+                  <Label>1. JSON Data Source</Label>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal" onClick={() => mutationFileInputRef.current?.click()}>
+                        <UploadCloud className="mr-2 h-4 w-4 shrink-0" />
+                        <span className="truncate">{mutationFileNames.length > 1 ? `${mutationFileNames.length} files selected` : mutationFileNames[0] || 'Click to upload .json file(s)'}</span>
+                    </Button>
+                    <input id="mutation-file-input" type="file" multiple ref={mutationFileInputRef} accept=".json" onChange={(e) => handleFileChange(e, 'mutation')} className="hidden" />
+                </div>
+                <div className="space-y-2 md:col-span-4">
+                    <Label>2. Mauza Name</Label>
+                    <Input placeholder="e.g. Amar Sidhu" value={mutationMauzaName} onChange={(e) => setMutationMauzaName(e.target.value)} />
+                </div>
+                <div className="flex items-end gap-2 md:col-span-4">
+                    <Button onClick={() => handleProcessJson('mutation')} className="flex-1" disabled={mutationJsonInputs.length === 0}>
+                        <Play className="mr-2 h-4 w-4" /> Process
+                    </Button>
+                    <Button onClick={() => handleExportExcel('mutation')} className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={!isMutationReportReady || mutationReportData.length === 0}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Download
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => handleClear('mutation')} title="Reset to Sample">
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
             {isMutationReportReady && mutationReportData.length > 0 && (
               <div className="space-y-6 pt-4 border-t border-dashed mt-6">
-                  {/* Cards and Charts for Mutation Report */}
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                       <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Activity</CardTitle><BarChart className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{mutationSummary.totalActivity.toLocaleString()}</div></CardContent></Card>
                       <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Implemented</CardTitle><CheckCircle className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{mutationSummary.totalImplemented.toLocaleString()}</div></CardContent></Card>
                       <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Pending</CardTitle><Clock className="h-4 w-4 text-yellow-500" /></CardHeader><CardContent><div className="text-2xl font-bold">{mutationSummary.totalPending.toLocaleString()}</div></CardContent></Card>
-                      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Daily Target</CardTitle><Target className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{Math.round(mutationTargetProgress)}%</div><p className="text-xs text-muted-foreground">{mutationSummary.totalActivity.toLocaleString()} of {mutationDailyTarget.toLocaleString()}</p></CardContent></Card>
+                      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Daily Target Reached</CardTitle><Target className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{Math.round(mutationTargetProgress)}%</div><p className="text-xs text-muted-foreground">{mutationSummary.totalActivity.toLocaleString()} of {mutationDailyTarget.toLocaleString()}</p></CardContent></Card>
                   </div>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <Card className="lg:col-span-2"><CardHeader><CardTitle className="text-base">User Performance</CardTitle></CardHeader><CardContent className="pl-2 h-[250px]"><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={mutationReportData} layout="vertical" margin={{ top: 5, right: 20, left: 60, bottom: 5 }}><XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} /><YAxis dataKey="fullName" type="category" width={100} stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} /><Tooltip cursor={{ fill: 'hsla(var(--accent) / 0.2)' }} contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: '12px' }}/><Legend wrapperStyle={{fontSize: "12px"}}/><Bar dataKey="implemented" name="Implemented" stackId="a" fill="hsl(142.1 76.2% 36.3%)" radius={[0, 4, 4, 0]}/><Bar dataKey="pending" name="Pending" stackId="a" fill="hsl(47.9 95.8% 53.1%)" radius={[4, 0, 0, 4]} /></RechartsBarChart></ResponsiveContainer></CardContent></Card>
+                    <Card className="lg:col-span-2"><CardHeader><CardTitle className="text-base">User Performance</CardTitle></CardHeader><CardContent className="pl-2 h-[250px]"><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={mutationReportData} layout="vertical" margin={{ top: 5, right: 20, left: 60, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.3}/><XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} /><YAxis dataKey="fullName" type="category" width={100} stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} /><Tooltip cursor={{ fill: 'hsla(var(--accent) / 0.2)' }} contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: '12px' }}/><Legend wrapperStyle={{fontSize: "12px"}}/><Bar dataKey="implemented" name="Implemented" stackId="a" fill="hsl(142.1 76.2% 36.3%)" radius={[0, 4, 4, 0]}/><Bar dataKey="pending" name="Pending" stackId="a" fill="hsl(47.9 95.8% 53.1%)" radius={[4, 0, 0, 4]} /></RechartsBarChart></ResponsiveContainer></CardContent></Card>
                     <Card><CardHeader><CardTitle className="text-base">Overall Ratio</CardTitle></CardHeader><CardContent className="h-[250px] flex items-center justify-center"><ResponsiveContainer width="100%" height="100%"><RechartsPieChart><Tooltip cursor={{ fill: 'hsla(var(--accent) / 0.2)' }} contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: '12px', borderRadius: 'var(--radius)', }}/><Pie data={mutationPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} stroke="hsl(var(--background))" strokeWidth={2}>{mutationPieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={MUTATION_PIE_COLORS[index % MUTATION_PIE_COLORS.length]} />))}</Pie><Legend iconSize={10} wrapperStyle={{ fontSize: '12px' }}/></RechartsPieChart></ResponsiveContainer></CardContent></Card>
                   </div>
                   <div className="pt-4"><h3 className="text-lg font-semibold mb-2">Detailed Report</h3><div className="rounded-md border"><Table><TableHeader><TableRow><TableHead className="w-[50px]">#</TableHead><TableHead>Officer Name</TableHead><TableHead className="text-right">Pending</TableHead><TableHead className="text-right font-bold text-green-600">Implemented</TableHead><TableHead className="text-right">Total Activity</TableHead></TableRow></TableHeader><TableBody>{mutationReportData.map((row, i) => (<TableRow key={i}><TableCell className="font-medium">{i + 1}</TableCell><TableCell>{row.fullName}</TableCell><TableCell className="text-right text-muted-foreground">{row.pending}</TableCell><TableCell className="text-right font-bold bg-green-50/50 dark:bg-green-900/20">{row.implemented}</TableCell><TableCell className="text-right">{row.total}</TableCell></TableRow>))}</TableBody><TableFooter><TableRow className="bg-muted/50 font-bold"><TableCell colSpan={2} className="text-right">Total</TableCell><TableCell className="text-right">{mutationSummary.totalPending}</TableCell><TableCell className="text-right">{mutationSummary.totalImplemented}</TableCell><TableCell className="text-right">{mutationSummary.totalActivity}</TableCell></TableRow></TableFooter></Table></div></div>
@@ -517,27 +499,27 @@ export function DailyProgressTab() {
           </TabsContent>
 
           <TabsContent value="data-entry" className="mt-6">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
+            <div className="grid gap-4 md:grid-cols-12">
+              <div className="space-y-2 md:col-span-4">
                 <Label>1. JSON Data Source</Label>
                   <Button variant="outline" className="w-full justify-start text-left font-normal" onClick={() => dataEntryFileInputRef.current?.click()}>
-                      <Upload className="mr-2 h-4 w-4 shrink-0" />
-                      <span className="truncate">{dataEntryFileName || "Click to upload a .json file"}</span>
+                      <UploadCloud className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="truncate">{dataEntryFileNames.length > 1 ? `${dataEntryFileNames.length} files selected` : dataEntryFileNames[0] || 'Click to upload .json file(s)'}</span>
                   </Button>
-                  <input id="data-entry-file-input" type="file" ref={dataEntryFileInputRef} accept=".json" onChange={(e) => handleFileChange(e, 'data-entry')} className="hidden" />
+                  <input id="data-entry-file-input" type="file" multiple ref={dataEntryFileInputRef} accept=".json" onChange={(e) => handleFileChange(e, 'data-entry')} className="hidden" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-4">
                   <Label>2. Mauza Name</Label>
                   <Input placeholder="e.g. Dolo Khurd" value={dataEntryMauzaName} onChange={(e) => setDataEntryMauzaName(e.target.value)} />
               </div>
-              <div className="flex items-end gap-2">
-                  <Button onClick={() => handleProcessJson('data-entry')} className="flex-1" disabled={!dataEntryJsonInput}>
+              <div className="flex items-end gap-2 md:col-span-4">
+                  <Button onClick={() => handleProcessJson('data-entry')} className="flex-1" disabled={dataEntryJsonInputs.length === 0}>
                       <Play className="mr-2 h-4 w-4" /> Process
                   </Button>
                   <Button onClick={() => handleExportExcel('data-entry')} className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={!isDataEntryReportReady || dataEntryReportData.length === 0}>
                       <FileSpreadsheet className="mr-2 h-4 w-4" /> Download
                   </Button>
-                  <Button variant="outline" onClick={() => handleClear('data-entry')} title="Reset to Sample">
+                  <Button variant="outline" size="icon" onClick={() => handleClear('data-entry')} title="Reset to Sample">
                       <Trash2 className="h-4 w-4" />
                   </Button>
               </div>
@@ -562,3 +544,5 @@ export function DailyProgressTab() {
     </Card>
   );
 }
+
+    
