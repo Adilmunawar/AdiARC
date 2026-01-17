@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from "@/hooks/use-toast";
 import { FileSpreadsheet, Play, Trash2, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Textarea } from '../ui/textarea';
 
 // --- TYPE DEFINITIONS ---
 type RawProgressData = {
@@ -178,15 +177,22 @@ export function DailyProgressTab() {
   };
 
   const handleClear = () => {
-    setJsonInput('');
-    setReportData([]);
-    setIsReady(false);
-    setMauzaName('');
-    setFileName(null);
+    setJsonInput(defaultJsonString);
+    setFileName("Default Sample Data");
+    try {
+        const initialData = processJsonData(defaultJsonString);
+        setReportData(initialData);
+        setIsReady(true);
+    } catch (error) {
+        console.error("Failed to load default data", error);
+        setReportData([]);
+        setIsReady(false);
+    }
+    setMauzaName('Sample Mauza');
      if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
-    toast({ title: 'Cleared', description: 'All inputs and results have been cleared.' });
+    toast({ title: 'Reset', description: 'Inputs and results have been reset to the default sample.' });
   };
 
   return (
@@ -204,22 +210,18 @@ export function DailyProgressTab() {
         
         <div className="grid gap-4 md:grid-cols-2">
            <div className="space-y-2">
-            <Label>1. JSON Data</Label>
-             <div className="relative">
-                <Textarea 
-                placeholder='[ { "User Name": "...", "Full Name": "Ali...", ... } ]'
-                className="h-32 font-mono text-[10px] pr-28"
-                value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
-                />
-                <Button variant="outline" className="absolute top-2 right-2 h-8 px-3 text-xs" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload File
+            <Label>1. JSON Data Source</Label>
+             <div>
+                <Button variant="outline" className="w-full justify-start text-left font-normal" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                        {fileName || "Click to upload a .json file"}
+                    </span>
                 </Button>
                 <input id="json-file-input" type="file" ref={fileInputRef} accept=".json" onChange={handleFileChange} className="hidden" />
             </div>
              <p className="text-xs text-muted-foreground pt-1">
-                {fileName ? `Current file: ${fileName}` : "Upload a file or paste content above."}
+                The tab loads with sample data. Upload your own file to process it.
             </p>
           </div>
           
