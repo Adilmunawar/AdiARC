@@ -60,9 +60,105 @@ const defaultMutationRawData: RawMutationProgressData[] = [
 const defaultMutationJsonString = JSON.stringify(defaultMutationRawData, null, 2);
 
 const defaultDataEntryRawData: RawDataEntryItem[] = [
-    { "User Name": "...", "Full Name": "زین تجمل تجمل حسین", "Shajra (Family Tree)": 10, "Ownership": 20, "Khasra": 5, "Possession (Kashtkar)": 3, "Total Entries Today": 38 },
-    { "User Name": "...", "Full Name": "علی محمود محمود احمد", "Shajra (Family Tree)": 5, "Ownership": 30, "Khasra": 15, "Possession (Kashtkar)": 10, "Total Entries Today": 60 },
-    { "User Name": "...", "Full Name": "ایاز حیدر سجاد حیدر", "Shajra (Family Tree)": 2, "Ownership": 15, "Khasra": 25, "Possession (Kashtkar)": 8, "Total Entries Today": 50 },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b0302000000f3e620d9b7df3fdfe6f7e630ffa90200d512dd852e457cfda67db915f1279d3c",
+    "Full Name": "الساء محمد امجد",
+    "Shajra (Family Tree)": 898,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 898
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b03020000006916f12ff91af42bb528b7acaccaea71a8677834bbe03a5a0b0cd1047c24464cadc8afd412ef3feac9bba26adfc00bdf",
+    "Full Name": "لائبہ ارشاد ریاض",
+    "Shajra (Family Tree)": 855,
+    "Ownership": 4,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 859
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b030200000049deb3eb7a00c9cb2e78d325344a87fd52f05ff56ab88ad998c7bf9205f0a1074d4f55269d83983c",
+    "Full Name": "نیناں جان جان محمد",
+    "Shajra (Family Tree)": 712,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 712
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b03020000001621dd5b4a52985569516cf0bfb16b71c25d266cd43eccfc29ba88e23b5e4d085c17bd6b122ae6de",
+    "Full Name": "روحیل طارق محمد طارق",
+    "Shajra (Family Tree)": 586,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 586
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b0302000000abafebfc6a9dbd5b3045627d827d8e29a227b3204095f7d07eb9982b2c0034fa",
+    "Full Name": "ایاز حیدر سجاد حیدر",
+    "Shajra (Family Tree)": 572,
+    "Ownership": 11,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 583
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b0302000000a5610d78a86e7abf24b30216a9b15dd5b20e40309e421181f67722cc31115a3913edb914d64a2a31",
+    "Full Name": "علی محمود محمود احمد ",
+    "Shajra (Family Tree)": 573,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 573
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b030200000068c69220cee70c2710fca5636a0009d2518cbf41d66d52156e98eca7c78cbcc3",
+    "Full Name": "اویس زاہد محمد زاہد",
+    "Shajra (Family Tree)": 554,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 554
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b0302000000b29bc759527e3a64165e31f9e5a37af555ff36ac05676d2af8902d6bad4f70fc",
+    "Full Name": "لبنی لیاقت علی",
+    "Shajra (Family Tree)": 538,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 538
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b03020000001fc20a5be2824696ae363ca78cc0a99ac948eb72c6c0dea16bde09bbe4320cafe655db7cd1f1f4cd",
+    "Full Name": "شکیل غلام مصطفی",
+    "Shajra (Family Tree)": 236,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 236
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b0302000000a03f6ce66bf427eebdc50e31fb907d1bc3cd2cfac5cffc8752927faa5b40ff64d958fb9f28ba5b713872620ccaa6dc4d",
+    "Full Name": "صلیحہ طارق محمد طارق",
+    "Shajra (Family Tree)": 226,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 226
+  },
+  {
+    "User Name": "0x0082ea355fb4a2dcc5a18c2849e36b0302000000c3944a4541f77a96355dafd35e0d3047a330005e0b2281e2b4d5fb7a91997d94",
+    "Full Name": "عمیر حسین محمد سلیم",
+    "Shajra (Family Tree)": 191,
+    "Ownership": 0,
+    "Khasra": 0,
+    "Possession (Kashtkar)": 0,
+    "Total Entries Today": 191
+  }
 ];
 const defaultDataEntryJsonString = JSON.stringify(defaultDataEntryRawData, null, 2);
 
