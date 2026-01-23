@@ -1,3 +1,4 @@
+
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, Clip
 import Link from "next/link";
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
+import { useSecretMode } from "@/components/layout/Sidebar";
 
 const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -17,12 +19,13 @@ const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
         strokeLinejoin="round"
         {...props}
     >
-        <polyline points="8 9 13 12 8 15" />
-        <line x1="14" y1="15" x2="18" y2="15" />
+        <path d="M4 7.25h14.5" />
+        <path d="M4 12.25h14.5" />
+        <path d="m4.25 16.5 6-6-6-6" />
     </svg>
 );
 
-const tools = [
+const allTools = [
     {
         name: "Property Consultant",
         description: "Get advice on Pakistani property laws and inheritance. All conversations are in Urdu.",
@@ -57,13 +60,15 @@ const tools = [
         name: "Server Sync",
         description: "Bridge to legacy LRMIS SQL Server for direct uploads.",
         icon: Database,
-        path: "/sync"
+        path: "/sync",
+        isPremium: true,
     },
     {
         name: "DB Status",
         description: "Check the status and connectivity of a local database.",
         icon: DatabaseZap,
-        path: "/db-status"
+        path: "/db-status",
+        isPremium: true,
     },
     {
         name: "Local OCR Detective",
@@ -93,7 +98,8 @@ const tools = [
         name: "SQL Generator",
         description: "Generate a SQL script to delete multiple Intiqal records.",
         icon: FileKey,
-        path: "/sql-generator"
+        path: "/sql-generator",
+        isPremium: true,
     },
     {
         name: "Meta Tag Remover",
@@ -105,17 +111,21 @@ const tools = [
         name: "Daily Progress Report",
         description: "Generate an Excel report from daily activity JSON data.",
         icon: FileSpreadsheet,
-        path: "/daily-progress"
+        path: "/daily-progress",
+        isPremium: true,
     },
     {
         name: "PowerShell Queries",
         description: "Generate PowerShell scripts to query the database directly.",
         icon: PowerShellIcon,
-        path: "/powershell-queries"
+        path: "/powershell-queries",
+        isPremium: true,
     }
 ];
 
 export default function Home() {
+  const { isUnlocked } = useSecretMode();
+  const tools = allTools.filter(tool => !tool.isPremium || isUnlocked);
 
   return (
     <div className="flex flex-col gap-8 animate-enter">

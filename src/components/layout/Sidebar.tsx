@@ -1,32 +1,130 @@
+
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, 
-  Calculator, 
-  Box, 
-  ScanText, 
-  FileCode, 
-  Split, 
-  DatabaseZap,
-  ChevronsLeft,
-  ChevronsRight,
-  Database,
-  ClipboardCheck,
-  Printer,
-  Globe,
-  UserCircle,
-  ImageIcon,
-  FileKey,
-  FileMinus,
-  FileSpreadsheet
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import React, { useState, useEffect, createContext, useContext } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import Image from 'next/image';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+
+// --- START: SECRET MODE CONTEXT & PROVIDER ---
+interface SecretModeContextType {
+  isUnlocked: boolean;
+  requestUnlock: () => void;
+  lock: () => void;
+}
+
+const SecretModeContext = createContext<SecretModeContextType | undefined>(undefined);
+
+export const useSecretMode = () => {
+  const context = useContext(SecretModeContext);
+  if (!context) {
+    throw new Error('useSecretMode must be used within the SecretModeProvider');
+  }
+  return context;
+};
+
+function PasswordDialog({ open, onOpenChange, onUnlockSuccess }: { open: boolean, onOpenChange: (open: boolean) => void, onUnlockSuccess: () => void }) {
+    const [password, setPassword] = useState("");
+    const { toast } = useToast();
+
+    const handleUnlockAttempt = () => {
+        if (password === 'python360') {
+            onUnlockSuccess();
+            toast({ title: "Access Granted", description: "Premium features unlocked." });
+        } else {
+            toast({ variant: "destructive", title: "Access Denied", description: "Incorrect password." });
+            setPassword("");
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5"/> Enter Access Code</DialogTitle>
+                    <DialogDescription>
+                        This area contains restricted features. Please enter the password to proceed.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <Input 
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleUnlockAttempt()}
+                    />
+                    <Button onClick={handleUnlockAttempt} className="w-full">Unlock Features</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export function SecretModeProvider({ children }: { children: React.ReactNode }) {
+    const [isUnlocked, setIsUnlocked] = useState(false);
+    const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const storedUnlockStatus = localStorage.getItem('adiarc_unlocked');
+        if (storedUnlockStatus === 'true') {
+            setIsUnlocked(true);
+        }
+    }, []);
+
+    const requestUnlock = () => {
+        setShowPasswordDialog(true);
+    };
+    
+    const handleUnlockSuccess = () => {
+        setIsUnlocked(true);
+        localStorage.setItem('adiarc_unlocked', 'true');
+        setShowPasswordDialog(false);
+    };
+
+    const lock = () => {
+        setIsUnlocked(false);
+        localStorage.removeItem('adiarc_unlocked');
+        toast({ title: "Locked", description: "Premium features have been secured." });
+    };
+
+    return (
+        <SecretModeContext.Provider value={{ isUnlocked, requestUnlock, lock }}>
+            {children}
+            <PasswordDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog} onUnlockSuccess={handleUnlockSuccess} />
+        </SecretModeContext.Provider>
+    );
+}
+
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+    const { isUnlocked } = useSecretMode();
+    const router = useRouter();
+
+    useEffect(() => {
+        // This check runs on the client-side after hydration
+        if (isUnlocked === false && localStorage.getItem('adiarc_unlocked') !== 'true') {
+            router.replace('/');
+        }
+    }, [isUnlocked, router]);
+
+    if (!isUnlocked) {
+        // Render a loading state or null while we wait for the client-side check
+        return null;
+    }
+
+    return <>{children}</>;
+}
+// --- END: SECRET MODE ---
+
 
 const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -39,35 +137,61 @@ const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
         strokeLinejoin="round"
         {...props}
     >
-        <polyline points="8 9 13 12 8 15" />
-        <line x1="14" y1="15" x2="18" y2="15" />
+        <path d="M4 7.25h14.5" />
+        <path d="M4 12.25h14.5" />
+        <path d="m4.25 16.5 6-6-6-6" />
     </svg>
 );
 
 
-const navItems = [
+const allNavItems = [
   { name: "Dashboard", icon: Home, path: "/" },
   { name: "Property Consultant", icon: UserCircle, path: "/ai-assistant" },
-  { name: "DB Status", icon: DatabaseZap, path: "/db-status"},
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
   { name: "Local OCR", icon: ScanText, path: "/ocr" },
   { name: "HTML Extractor", icon: FileCode, path: "/extractor" },
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
-  { name: "Server Sync", icon: Database, path: "/sync" },
   { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
   { name: "Mutation Print Layout", icon: Printer, path: "/print-layout" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
-  { name: "SQL Generator", icon: FileKey, path: "/sql-generator" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
-  { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress" },
-  { name: "PowerShell Queries", icon: PowerShellIcon, path: "/powershell-queries" },
+  { name: "SQL Generator", icon: FileKey, path: "/sql-generator", isPremium: true },
+  { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress", isPremium: true },
+  { name: "PowerShell Queries", icon: PowerShellIcon, path: "/powershell-queries", isPremium: true },
+  { name: "Server Sync", icon: Database, path: "/sync", isPremium: true },
+  { name: "DB Status", icon: DatabaseZap, path: "/db-status", isPremium: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
+  const { isUnlocked, requestUnlock, lock } = useSecretMode();
+  const clickTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const clickCountRef = React.useRef(0);
+
+  const handleLogoClick = () => {
+    clickCountRef.current += 1;
+
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+    }
+    
+    clickTimeoutRef.current = setTimeout(() => {
+      clickCountRef.current = 0;
+    }, 1500); // Reset after 1.5 seconds
+
+    if (clickCountRef.current >= 5) {
+      requestUnlock();
+      clickCountRef.current = 0;
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+    }
+  };
   
+  const navItems = allNavItems.filter(item => !item.isPremium || isUnlocked);
+
   const sortedNavItems = [
       ...navItems.filter(item => item.path === '/'),
       ...navItems.filter(item => item.path === '/ai-assistant'),
@@ -82,10 +206,10 @@ export function Sidebar() {
       )}
     >
       <div className={cn("flex h-16 items-center border-b px-4 transition-all duration-300", isOpen ? "justify-start" : "justify-center")}>
-         <Link href="/" className="flex items-center gap-2 group">
+         <div onClick={handleLogoClick} className="flex items-center gap-2 group cursor-pointer" title="Unlock secret features...">
             <Globe className="h-7 w-7 text-primary transition-transform duration-300 group-hover:scale-110" />
             {isOpen && <span className="font-bold text-lg transition-opacity duration-300">AdiARC</span>}
-        </Link>
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
@@ -109,6 +233,12 @@ export function Sidebar() {
       </ScrollArea>
 
        <div className="mt-auto p-2 border-t">
+          {isUnlocked && isOpen && (
+            <Button variant="ghost" className="w-full justify-start gap-3 mb-1" onClick={lock}>
+              <Lock className="h-5 w-5 text-muted-foreground" />
+              <span>Lock Features</span>
+            </Button>
+          )}
           <Button
             variant="ghost"
             className="w-full justify-center"
