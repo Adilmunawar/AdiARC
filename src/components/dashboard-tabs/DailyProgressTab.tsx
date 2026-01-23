@@ -216,9 +216,9 @@ export function DailyProgressTab() {
             
             if (type === 'mutation') {
                 const mutItem = item as RawMutationProgressData;
-                const implemented = Number(mutItem["Implemented Today"]) || 0;
-                const pending = Number(mutItem["Pending (Active Today)"]) || 0;
                 const total = Number(mutItem["Total Activity Today"]) || 0;
+                const pending = Number(mutItem["Pending (Active Today)"]) || 0;
+                const implemented = Math.max(0, total - pending);
 
                 if (existing) {
                     existing.implemented += implemented;
