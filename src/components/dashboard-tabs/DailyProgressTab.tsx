@@ -191,6 +191,65 @@ export function DailyProgressTab() {
   const [dataEntryFileNames, setDataEntryFileNames] = useState<string[]>([]);
   const dataEntryFileInputRef = useRef<HTMLInputElement>(null);
 
+  const processJsonData = useMemo(() => <T, U>(jsonInputs: string[], type: 'mutation' | 'data-entry'): U[] => {
+    const aggregatedData = new Map<string, any>();
+
+    for (const jsonInput of jsonInputs) {
+        let rawData: T[];
+        try {
+          rawData = JSON.parse(jsonInput);
+        } catch {
+          toast({ title: "Invalid JSON", description: "One of the files contains invalid JSON and was skipped.", variant: "destructive"});
+          continue;
+        }
+
+        if (!Array.isArray(rawData)) {
+          toast({ title: "Invalid Data Format", description: "One of the files is not a JSON array and was skipped.", variant: "destructive"});
+          continue;
+        }
+        
+        for (const item of rawData) {
+            const fullName = (item as any)["Full Name"];
+            if (!fullName) continue;
+
+            const existing = aggregatedData.get(fullName);
+            
+            if (type === 'mutation') {
+                const mutItem = item as RawMutationProgressData;
+                const total = Number(mutItem["Total Activity Today"]) || 0;
+                const pending = Number(mutItem["Pending (Active Today)"]) || 0;
+                const implemented = Math.max(0, total - pending);
+
+                if (existing) {
+                    existing.implemented += implemented;
+                    existing.pending += pending;
+                    existing.total += total;
+                } else {
+                    aggregatedData.set(fullName, { fullName, implemented, pending, total });
+                }
+            } else { // type === 'data-entry'
+                const deItem = item as RawDataEntryItem;
+                const shajra = Number(deItem["Shajra (Family Tree)"]) || 0;
+                const ownership = Number(deItem["Ownership"]) || 0;
+                const khasra = Number(deItem["Khasra"]) || 0;
+                const possession = Number(deItem["Possession (Kashtkar)"]) || 0;
+                const total = Number(deItem["Total Entries Today"]) || 0;
+
+                 if (existing) {
+                    existing.shajra += shajra;
+                    existing.ownership += ownership;
+                    existing.khasra += khasra;
+                    existing.possession += possession;
+                    existing.total += total;
+                } else {
+                    aggregatedData.set(fullName, { fullName, shajra, ownership, khasra, possession, total });
+                }
+            }
+        }
+    }
+    return Array.from(aggregatedData.values()).sort((a, b) => b.total - a.total);
+  }, [toast]);
+
   useEffect(() => {
     setMutationJsonInputs([defaultMutationJsonString]);
     setMutationFileNames(["Using default sample data"]);
@@ -206,7 +265,7 @@ export function DailyProgressTab() {
     } catch (error) {
         console.error("Failed to load default data", error);
     }
-  }, []);
+  }, [processJsonData]);
 
   const mutationSummary = useMemo(() => {
     if (!mutationReportData || mutationReportData.length === 0) {
@@ -296,53 +355,6 @@ export function DailyProgressTab() {
     } catch (error) {
       toast({ title: "Error Reading Files", variant: "destructive" });
     }
-  };
-
-  const processJsonData = <T, U>(jsonInputs: string[], type: 'mutation' | 'data-entry'): U[] => {
-    const aggregatedData = new Map<string, any>();
-
-    for (const jsonInput of jsonInputs) {
-        const rawData: T[] = JSON.parse(jsonInput);
-        if (!Array.isArray(rawData)) throw new Error("Input must be a JSON array.");
-        
-        for (const item of rawData) {
-            const fullName = (item as any)["Full Name"];
-            if (!fullName) continue;
-
-            const existing = aggregatedData.get(fullName);
-            
-            if (type === 'mutation') {
-                const mutItem = item as RawMutationProgressData;
-                const implemented = Number(mutItem["Implemented Today"]) || 0;
-                const pending = Number(mutItem["Pending (Active Today)"]) || 0;
-                const total = Number(mutItem["Total Activity Today"]) || 0;
-                if (existing) {
-                    existing.implemented += implemented;
-                    existing.pending += pending;
-                    existing.total += total;
-                } else {
-                    aggregatedData.set(fullName, { fullName, implemented, pending, total });
-                }
-            } else {
-                const deItem = item as RawDataEntryItem;
-                const shajra = Number(deItem["Shajra (Family Tree)"]) || 0;
-                const ownership = Number(deItem["Ownership"]) || 0;
-                const khasra = Number(deItem["Khasra"]) || 0;
-                const possession = Number(deItem["Possession (Kashtkar)"]) || 0;
-                const total = Number(deItem["Total Entries Today"]) || 0;
-                 if (existing) {
-                    existing.shajra += shajra;
-                    existing.ownership += ownership;
-                    existing.khasra += khasra;
-                    existing.possession += possession;
-                    existing.total += total;
-                } else {
-                    aggregatedData.set(fullName, { fullName, shajra, ownership, khasra, possession, total });
-                }
-            }
-        }
-    }
-    return Array.from(aggregatedData.values()).sort((a, b) => b.total - a.total);
   };
   
   const handleProcessJson = (type: 'mutation' | 'data-entry') => {
@@ -544,5 +556,3 @@ export function DailyProgressTab() {
     </Card>
   );
 }
-
-    
