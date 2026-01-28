@@ -14,7 +14,7 @@ import { PlusCircle, Trash2, User, UserCheck, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Diagram Component ---
-const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, deceased, marlaSize }: { rows: WirasatRow[]; totalAreaFormatted: string; allHeirs: any; deceased: any, marlaSize: number }) => {
+const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, marlaSize }: { rows: WirasatRow[]; totalAreaFormatted: string; allHeirs: any; marlaSize: number }) => {
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -24,72 +24,74 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, deceased, mar
 
   useEffect(() => {
     const initialPositions: Record<string, { x: number, y: number }> = {};
-    const center = (containerRef.current?.offsetWidth || 800) / 2;
+    if (!containerRef.current) return;
+    const center = containerRef.current.offsetWidth / 2;
 
     // Level 0: Parents
-    let level0Y = 0;
-    if (allHeirs.fatherAlive && allHeirs.motherAlive) {
-        initialPositions['Father'] = { x: center - NODE_WIDTH - 20, y: level0Y };
-        initialPositions['Mother'] = { x: center + 20, y: level0Y };
-    } else if (allHeirs.fatherAlive) {
-        initialPositions['Father'] = { x: center - NODE_WIDTH / 2, y: level0Y };
-    } else if (allHeirs.motherAlive) {
-        initialPositions['Mother'] = { x: center - NODE_WIDTH / 2, y: level0Y };
+    const parents = allHeirs.fatherAlive || allHeirs.motherAlive;
+    if (parents) {
+      if (allHeirs.fatherAlive && allHeirs.motherAlive) {
+          initialPositions['Father'] = { x: center - NODE_WIDTH - 20, y: 0 };
+          initialPositions['Mother'] = { x: center + 20, y: 0 };
+      } else if (allHeirs.fatherAlive) {
+          initialPositions['Father'] = { x: center - NODE_WIDTH / 2, y: 0 };
+      } else {
+          initialPositions['Mother'] = { x: center - NODE_WIDTH / 2, y: 0 };
+      }
     }
-
+    
     // Level 1: Deceased and Spouse(s)
-    let level1Y = level0Y + LEVEL_GAP;
+    const level1Y = parents ? LEVEL_GAP : 0;
     initialPositions['Deceased'] = { x: center - NODE_WIDTH / 2, y: level1Y };
+    
+    let spouseXOffset = -180; // Start left of the deceased
     if (allHeirs.widows > 0) {
         for(let i=0; i < allHeirs.widows; i++) {
-           initialPositions[`Widow ${i+1}`] = { x: center - NODE_WIDTH * (i + 2) - 40, y: level1Y };
+           initialPositions[`Widow ${i+1}`] = { x: center + spouseXOffset, y: level1Y };
+           spouseXOffset -= (NODE_WIDTH + 20);
         }
     }
     if (allHeirs.husbandAlive) {
-       initialPositions['Husband'] = { x: center - NODE_WIDTH * 2 - 40, y: level1Y };
+       initialPositions['Husband'] = { x: center + spouseXOffset, y: level1Y };
     }
     
     // Level 2: Children
-    let level2Y = level1Y + LEVEL_GAP;
-    const livingChildren = allHeirs.children.filter((c: ChildHeir) => c.isAlive);
-    const childrenCount = livingChildren.length;
-    const childrenTotalWidth = childrenCount * (NODE_WIDTH + 20) - 20;
-    let startX = center - childrenTotalWidth / 2;
-    livingChildren.forEach((child: ChildHeir, i: number) => {
-        const childKey = `${child.type === 'son' ? 'Son' : 'Daughter'} ${i+1}`; // Simple key for living
-        initialPositions[childKey] = { x: startX, y: level2Y };
-        startX += NODE_WIDTH + 20;
-    });
+    const children = allHeirs.children || [];
+    if (children.length > 0) {
+        const level2Y = level1Y + LEVEL_GAP;
+        const childrenTotalWidth = children.length * (NODE_WIDTH + 40) - 40;
+        let startX = center - childrenTotalWidth / 2;
 
-    // Level 2/3: Deceased Children and their heirs
-    const deceasedChildren = allHeirs.children.filter((c: ChildHeir) => !c.isAlive);
-    let level3Y = level2Y + LEVEL_GAP;
-    startX = center - (deceasedChildren.length * (NODE_WIDTH*2)) / 2;
+        children.forEach((child: ChildHeir, i: number) => {
+            const childKey = `${child.isAlive ? '' : 'Deceased '}${child.type} ${i + 1}`;
+            initialPositions[childKey] = { x: startX, y: level2Y };
+            
+            // Level 3: Grandchildren & their spouses
+            if (!child.isAlive) {
+                const subHeirs = [];
+                if (child.heirs.widows > 0) subHeirs.push({key: 'Widow', count: child.heirs.widows});
+                if (child.heirs.husbandAlive) subHeirs.push({key: 'Husband', count: 1});
+                if (child.heirs.sons > 0) subHeirs.push({key: 'Son', count: child.heirs.sons});
+                if (child.heirs.daughters > 0) subHeirs.push({key: 'Daughter', count: child.heirs.daughters});
+                
+                const level3Y = level2Y + LEVEL_GAP;
+                const subHeirsTotalWidth = subHeirs.reduce((acc, s) => acc + s.count * (NODE_WIDTH + 20), 0) - 20;
+                let subStartX = startX + NODE_WIDTH / 2 - subHeirsTotalWidth / 2;
 
-    deceasedChildren.forEach((child: ChildHeir, i: number) => {
-        const childKey = `Deceased ${child.type} ${i+1}`;
-        initialPositions[childKey] = { x: startX, y: level2Y };
-        
-        const subHeirs = [];
-        if (child.heirs.widows > 0) subHeirs.push({key: `${childKey}-Widow`, count: child.heirs.widows});
-        if (child.heirs.husbandAlive) subHeirs.push({key: `${childKey}-Husband`, count: 1});
-        if (child.heirs.sons > 0) subHeirs.push({key: `${childKey}-Son`, count: child.heirs.sons});
-        if (child.heirs.daughters > 0) subHeirs.push({key: `${childKey}-Daughter`, count: child.heirs.daughters});
-        
-        let subStartX = startX - (subHeirs.length * (NODE_WIDTH + 10) - 10) / 2 + NODE_WIDTH / 2;
-        
-        subHeirs.forEach(sub => {
-            for(let j=0; j<sub.count; j++){
-                const subKey = `${sub.key} ${j+1}`;
-                initialPositions[subKey] = {x: subStartX, y: level3Y};
-                subStartX += NODE_WIDTH + 10;
+                subHeirs.forEach(sub => {
+                    for(let j=0; j<sub.count; j++){
+                        const subKey = `${childKey}-${sub.key} ${j+1}`;
+                        initialPositions[subKey] = {x: subStartX, y: level3Y};
+                        subStartX += NODE_WIDTH + 20;
+                    }
+                });
             }
+            startX += NODE_WIDTH + 40;
         });
-        startX += NODE_WIDTH*2 + 40;
-    });
+    }
 
     setPositions(initialPositions);
-  }, [rows, allHeirs, deceased]);
+  }, [rows, allHeirs, marlaSize]);
 
 
   const handleDrag = (e: any, data: any, key: string) => {
@@ -97,8 +99,8 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, deceased, mar
   };
 
   const getNodeShape = (relation: string) => {
-    if (relation.startsWith("Daughter") || relation.includes("-Daughter")) return "triangle";
-    if (["Mother", "Widow", "Sister"].some(prefix => relation.startsWith(prefix) || relation.includes(`-${prefix}`))) return "oval";
+    if (relation.includes("Daughter")) return "triangle";
+    if (["Mother", "Widow", "Sister"].some(prefix => relation.includes(prefix))) return "oval";
     return "square";
   };
   
@@ -137,46 +139,69 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, deceased, mar
         <path d={d} className={cn("stroke-border", className)} strokeWidth="1.5" fill="none" />
     );
 
-    const getElbowPath = (x1: number, y1: number, x2: number, y2: number) => {
-        const midY = y1 + (y2 - y1) / 2;
-        return `M ${x1},${y1} V ${midY} H ${x2} V ${y2}`;
-    };
-
-    const allNodes = [...rows];
-    rows.forEach(r => {
-        if(r.subRows) allNodes.push(...r.subRows);
-    });
-  
     const deceasedPos = positions['Deceased'];
   
   return (
     <div ref={containerRef} className="relative w-full min-h-[600px] p-4 bg-muted/30 rounded-lg border overflow-hidden">
-      {Object.keys(positions).length > 0 && (
+      {deceasedPos && (
         <>
             <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
-               {/* Connections */}
+               {Object.keys(positions).map(key => {
+                   if (key === 'Deceased') return null;
+                   const pos = positions[key];
+                   
+                   if (key.includes('-')) { // Grandchild or sub-heir
+                       const parentKey = key.split('-')[0];
+                       const parentPos = positions[parentKey];
+                       if (parentPos) {
+                           return <SvgPath key={key} d={`M ${parentPos.x + NODE_WIDTH/2},${parentPos.y + NODE_HEIGHT} V ${pos.y}`} />;
+                       }
+                   } else if (['Son', 'Daughter'].some(p => key.startsWith(p)) || key.startsWith('Deceased Son') || key.startsWith('Deceased Daughter')) {
+                        return <SvgPath key={key} d={`M ${deceasedPos.x + NODE_WIDTH/2},${deceasedPos.y + NODE_HEIGHT} V ${pos.y}`} />;
+                   } else if (['Father', 'Mother'].some(p => key.startsWith(p))) {
+                        return <SvgPath key={key} d={`M ${deceasedPos.x + NODE_WIDTH/2},${deceasedPos.y} V ${pos.y + NODE_HEIGHT}`} />;
+                   } else if (['Husband', 'Widow'].some(p => key.startsWith(p))) {
+                        const startX = deceasedPos.x < pos.x ? deceasedPos.x + NODE_WIDTH : deceasedPos.x;
+                        const endX = deceasedPos.x < pos.x ? pos.x : pos.x + NODE_WIDTH;
+                        return <SvgPath key={key} d={`M ${startX},${deceasedPos.y + NODE_HEIGHT/2} H ${endX}`} />;
+                   }
+                   return null;
+               })}
             </svg>
 
             {/* Render Nodes */}
-            {allNodes.map(p => {
-                 const pos = positions[p.relation];
+            {rows.map(row => {
+                 const pos = positions[row.relation];
                  if (!pos) return null;
-                 const { kanal, marla, feet } = fromSqFt(p.areaSqFtRaw, marlaSize);
+                 const { kanal, marla, feet } = fromSqFt(row.areaSqFtRaw, marlaSize);
                  return (
-                    <Draggable key={p.relation} position={pos} onDrag={(e, data) => handleDrag(e, data, p.relation)}>
-                        <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
-                          <Node title={p.relation} area={`${kanal}K-${marla}M-${feet}ft`} share={p.shareLabel} />
-                        </div>
-                    </Draggable>
+                    <React.Fragment key={row.relation}>
+                      <Draggable position={pos} onDrag={(e, data) => handleDrag(e, data, row.relation)}>
+                          <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                            <Node title={row.relation} area={`${kanal}K-${marla}M-${feet}ft`} share={row.shareLabel} isDeceased={row.relation.startsWith('Deceased')} />
+                          </div>
+                      </Draggable>
+                      {row.subRows?.map(subRow => {
+                          const subKey = `${row.relation}-${subRow.relation}`;
+                          const subPos = positions[subKey];
+                          if (!subPos) return null;
+                          const { kanal: sk, marla: sm, feet: sf } = fromSqFt(subRow.areaSqFtRaw, marlaSize);
+                          return (
+                               <Draggable key={subKey} position={subPos} onDrag={(e, data) => handleDrag(e, data, subKey)}>
+                                  <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                                    <Node title={subRow.relation} area={`${sk}K-${sm}M-${sf}ft`} share={subRow.shareLabel} />
+                                  </div>
+                              </Draggable>
+                          );
+                      })}
+                    </React.Fragment>
                  );
             })}
-            {deceasedPos && (
-                 <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
-                    <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
-                      <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
-                    </div>
-                </Draggable>
-            )}
+             <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
+                <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                  <Node title="Deceased" area={totalAreaFormatted} isDeceased={true} />
+                </div>
+            </Draggable>
         </>
       )}
     </div>
@@ -204,8 +229,15 @@ const HeirCard = ({
   
   const handleHusbandToggle = (checked: boolean) => {
       onUpdate(child.id, {
-          heirs: { ...child.heirs, husbandAlive: checked }
+          heirs: { ...child.heirs, husbandAlive: checked, widows: 0 }
       })
+  }
+  
+  const handleWidowsChange = (value: string) => {
+     const numericValue = Number(value) || 0;
+     onUpdate(child.id, {
+         heirs: { ...child.heirs, widows: numericValue < 0 ? 0 : numericValue, husbandAlive: false }
+     });
   }
 
   return (
@@ -240,7 +272,7 @@ const HeirCard = ({
                 {child.type === 'son' ? (
                      <div className="space-y-1">
                         <Label htmlFor={`heir-widows-${child.id}`} className="text-[11px]">His Widow(s)</Label>
-                        <Input id={`heir-widows-${child.id}`} type="number" min={0} value={child.heirs.widows} onChange={e => handleHeirChange('widows', e.target.value)} />
+                        <Input id={`heir-widows-${child.id}`} type="number" min={0} value={child.heirs.widows} onChange={e => handleWidowsChange(e.target.value)} />
                     </div>
                 ) : (
                     <div className="flex items-center space-x-2 pt-5">
@@ -628,11 +660,6 @@ export function WirasatTab() {
                             fatherAlive: wirasatFatherAlive,
                             motherAlive: wirasatMotherAlive,
                             children: children
-                        }}
-                        deceased={{
-                            kanal: wirasatKanal,
-                            marla: wirasatMarla,
-                            feet: wirasatFeet
                         }}
                         marlaSize={Number(wirasatMarlaSize)}
                     />
