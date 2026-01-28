@@ -20,51 +20,54 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, marlaSize }: 
 
   const NODE_WIDTH = 120;
   const NODE_HEIGHT = 80;
-  const LEVEL_GAP = 150;
+  const LEVEL_GAP = 120;
 
   useEffect(() => {
     const initialPositions: Record<string, { x: number, y: number }> = {};
     if (!containerRef.current) return;
-    const center = containerRef.current.offsetWidth / 2;
+
+    const canvasWidth = containerRef.current.offsetWidth;
+    const center = canvasWidth > 0 ? canvasWidth / 2 : 400;
+    
+    let yLevel = 0;
 
     // Level 0: Parents
-    const parents = allHeirs.fatherAlive || allHeirs.motherAlive;
-    if (parents) {
+    if (allHeirs.fatherAlive || allHeirs.motherAlive) {
       if (allHeirs.fatherAlive && allHeirs.motherAlive) {
-          initialPositions['Father'] = { x: center - NODE_WIDTH - 20, y: 0 };
-          initialPositions['Mother'] = { x: center + 20, y: 0 };
+          initialPositions['Father'] = { x: center - NODE_WIDTH - 20, y: yLevel };
+          initialPositions['Mother'] = { x: center + 20, y: yLevel };
       } else if (allHeirs.fatherAlive) {
-          initialPositions['Father'] = { x: center - NODE_WIDTH / 2, y: 0 };
+          initialPositions['Father'] = { x: center - NODE_WIDTH / 2, y: yLevel };
       } else {
-          initialPositions['Mother'] = { x: center - NODE_WIDTH / 2, y: 0 };
+          initialPositions['Mother'] = { x: center - NODE_WIDTH / 2, y: yLevel };
       }
+      yLevel += LEVEL_GAP;
     }
     
     // Level 1: Deceased and Spouse(s)
-    const level1Y = parents ? LEVEL_GAP : 0;
-    initialPositions['Deceased'] = { x: center - NODE_WIDTH / 2, y: level1Y };
+    initialPositions['Deceased'] = { x: center - NODE_WIDTH / 2, y: yLevel };
     
-    let spouseXOffset = -180; // Start left of the deceased
+    let spouseXOffset = center + NODE_WIDTH / 2 + 60;
     if (allHeirs.widows > 0) {
         for(let i=0; i < allHeirs.widows; i++) {
-           initialPositions[`Widow ${i+1}`] = { x: center + spouseXOffset, y: level1Y };
-           spouseXOffset -= (NODE_WIDTH + 20);
+           initialPositions[`Widow ${i+1}`] = { x: spouseXOffset, y: yLevel };
+           spouseXOffset += (NODE_WIDTH + 20);
         }
     }
     if (allHeirs.husbandAlive) {
-       initialPositions['Husband'] = { x: center + spouseXOffset, y: level1Y };
+       initialPositions['Husband'] = { x: spouseXOffset, y: yLevel };
     }
+    yLevel += LEVEL_GAP;
     
     // Level 2: Children
     const children = allHeirs.children || [];
     if (children.length > 0) {
-        const level2Y = level1Y + LEVEL_GAP;
         const childrenTotalWidth = children.length * (NODE_WIDTH + 40) - 40;
-        let startX = center - childrenTotalWidth / 2;
+        let childStartX = center - childrenTotalWidth / 2;
 
         children.forEach((child: ChildHeir, i: number) => {
             const childKey = `${child.isAlive ? '' : 'Deceased '}${child.type} ${i + 1}`;
-            initialPositions[childKey] = { x: startX, y: level2Y };
+            initialPositions[childKey] = { x: childStartX, y: yLevel };
             
             // Level 3: Grandchildren & their spouses
             if (!child.isAlive) {
@@ -74,9 +77,9 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, marlaSize }: 
                 if (child.heirs.sons > 0) subHeirs.push({key: 'Son', count: child.heirs.sons});
                 if (child.heirs.daughters > 0) subHeirs.push({key: 'Daughter', count: child.heirs.daughters});
                 
-                const level3Y = level2Y + LEVEL_GAP;
+                const level3Y = yLevel + LEVEL_GAP;
                 const subHeirsTotalWidth = subHeirs.reduce((acc, s) => acc + s.count * (NODE_WIDTH + 20), 0) - 20;
-                let subStartX = startX + NODE_WIDTH / 2 - subHeirsTotalWidth / 2;
+                let subStartX = childStartX + NODE_WIDTH / 2 - subHeirsTotalWidth / 2;
 
                 subHeirs.forEach(sub => {
                     for(let j=0; j<sub.count; j++){
@@ -86,7 +89,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, marlaSize }: 
                     }
                 });
             }
-            startX += NODE_WIDTH + 40;
+            childStartX += NODE_WIDTH + 40;
         });
     }
 
@@ -117,13 +120,14 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, marlaSize }: 
 
     const baseClasses = "relative flex items-center justify-center border-2 shadow-sm bg-background z-10";
     const sizeClasses = `w-[${NODE_WIDTH}px] h-[${NODE_HEIGHT}px]`;
+    const deceasedClasses = "bg-amber-500/10 border-amber-500/80";
 
     if (shape === "triangle") {
       return (
-         <div className={cn("relative", sizeClasses, isDeceased ? "bg-amber-500/10 border-amber-500/80" : "border-border")}>
+         <div className={cn("relative", sizeClasses)}>
             <div 
-                className="absolute top-0 left-0 w-full h-full bg-background border-2" 
-                style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)', borderColor: 'inherit' }}
+                className={cn("absolute top-0 left-0 w-full h-full bg-background border-2", isDeceased ? deceasedClasses : "border-border")}
+                style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
             />
             <div className="relative z-10 w-full h-full flex items-center justify-center pt-4">{content}</div>
         </div>
@@ -132,41 +136,84 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs, marlaSize }: 
     
     const shapeClasses = { oval: "rounded-full", square: "rounded-lg" };
 
-    return <div className={cn(baseClasses, sizeClasses, shapeClasses[shape], isDeceased ? "bg-amber-500/10 border-amber-500/80" : "border-border")}>{content}</div>;
+    return <div className={cn(baseClasses, sizeClasses, shapeClasses[shape], isDeceased ? deceasedClasses : "border-border")}>{content}</div>;
   };
   
     const SvgPath = ({ d, className }: { d: string, className?: string }) => (
         <path d={d} className={cn("stroke-border", className)} strokeWidth="1.5" fill="none" />
     );
-
+    
     const deceasedPos = positions['Deceased'];
+    const fatherPos = positions['Father'];
+    const motherPos = positions['Mother'];
+    const childRows = rows.filter(r => r.relation.startsWith('Son') || r.relation.startsWith('Daughter') || r.relation.startsWith('Deceased'));
   
   return (
-    <div ref={containerRef} className="relative w-full min-h-[600px] p-4 bg-muted/30 rounded-lg border overflow-hidden">
+    <div ref={containerRef} className="relative w-full min-h-[600px] p-4 bg-muted/30 rounded-lg border overflow-auto">
       {deceasedPos && (
         <>
             <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
-               {Object.keys(positions).map(key => {
-                   if (key === 'Deceased') return null;
-                   const pos = positions[key];
-                   
-                   if (key.includes('-')) { // Grandchild or sub-heir
-                       const parentKey = key.split('-')[0];
-                       const parentPos = positions[parentKey];
-                       if (parentPos) {
-                           return <SvgPath key={key} d={`M ${parentPos.x + NODE_WIDTH/2},${parentPos.y + NODE_HEIGHT} V ${pos.y}`} />;
-                       }
-                   } else if (['Son', 'Daughter'].some(p => key.startsWith(p)) || key.startsWith('Deceased Son') || key.startsWith('Deceased Daughter')) {
-                        return <SvgPath key={key} d={`M ${deceasedPos.x + NODE_WIDTH/2},${deceasedPos.y + NODE_HEIGHT} V ${pos.y}`} />;
-                   } else if (['Father', 'Mother'].some(p => key.startsWith(p))) {
-                        return <SvgPath key={key} d={`M ${deceasedPos.x + NODE_WIDTH/2},${deceasedPos.y} V ${pos.y + NODE_HEIGHT}`} />;
-                   } else if (['Husband', 'Widow'].some(p => key.startsWith(p))) {
-                        const startX = deceasedPos.x < pos.x ? deceasedPos.x + NODE_WIDTH : deceasedPos.x;
-                        const endX = deceasedPos.x < pos.x ? pos.x : pos.x + NODE_WIDTH;
-                        return <SvgPath key={key} d={`M ${startX},${deceasedPos.y + NODE_HEIGHT/2} H ${endX}`} />;
-                   }
-                   return null;
-               })}
+              {/* 1. Parent Connections */}
+              {fatherPos && (
+                <SvgPath d={`M ${fatherPos.x + NODE_WIDTH / 2},${fatherPos.y + NODE_HEIGHT} V ${deceasedPos.y - 30}`} />
+              )}
+              {motherPos && (
+                <SvgPath d={`M ${motherPos.x + NODE_WIDTH / 2},${motherPos.y + NODE_HEIGHT} V ${deceasedPos.y - 30}`} />
+              )}
+              {fatherPos && motherPos && (
+                <SvgPath d={`M ${fatherPos.x + NODE_WIDTH / 2},${deceasedPos.y - 30} H ${motherPos.x + NODE_WIDTH / 2}`} />
+              )}
+              {((fatherPos || motherPos)) && (
+                <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y - 30} V ${deceasedPos.y}`} />
+              )}
+
+              {/* 2. Spouse Connection */}
+              {allHeirs.widows > 0 && positions['Widow 1'] && (
+                <SvgPath d={`M ${deceasedPos.x},${deceasedPos.y + NODE_HEIGHT / 2} H ${positions['Widow 1'].x + NODE_WIDTH}`} />
+              )}
+              {allHeirs.husbandAlive && positions['Husband'] && (
+                <SvgPath d={`M ${deceasedPos.x},${deceasedPos.y + NODE_HEIGHT / 2} H ${positions['Husband'].x + NODE_WIDTH}`} />
+              )}
+
+              {/* 3. Children Connections */}
+              {childRows.length > 0 && (
+                <>
+                  <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT} V ${deceasedPos.y + NODE_HEIGHT / 2 + LEVEL_GAP / 2}`} />
+                  {childRows.length > 0 && positions[childRows[0].relation] && positions[childRows[childRows.length-1].relation] && (
+                    <SvgPath d={`M ${positions[childRows[0].relation].x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2 + LEVEL_GAP / 2} H ${positions[childRows[childRows.length-1].relation].x + NODE_WIDTH / 2}`} />
+                  )}
+                  {childRows.map(childRow => {
+                    const childPos = positions[childRow.relation];
+                    if (!childPos) return null;
+                    return <SvgPath key={`line-${childRow.relation}`} d={`M ${childPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT/2 + LEVEL_GAP/2} V ${childPos.y}`} />;
+                  })}
+                </>
+              )}
+
+               {/* 4. Grandchildren Connections */}
+              {childRows.filter(r => r.subRows && r.subRows.length > 0).map(childRow => {
+                const parentPos = positions[childRow.relation];
+                const grandChildRows = childRow.subRows!;
+                if (!parentPos) return null;
+
+                const grandChildPositions = grandChildRows.map(gcr => positions[`${childRow.relation}-${gcr.relation}`]).filter(Boolean);
+
+                return (
+                  <React.Fragment key={`sub-branch-${childRow.relation}`}>
+                    <SvgPath d={`M ${parentPos.x + NODE_WIDTH / 2},${parentPos.y + NODE_HEIGHT} V ${parentPos.y + NODE_HEIGHT / 2 + LEVEL_GAP / 2}`} className="stroke-dashed" />
+                    
+                    {grandChildPositions.length > 0 && (
+                      <SvgPath d={`M ${grandChildPositions[0].x + NODE_WIDTH / 2},${parentPos.y + NODE_HEIGHT / 2 + LEVEL_GAP / 2} H ${grandChildPositions[grandChildPositions.length - 1].x + NODE_WIDTH / 2}`} className="stroke-dashed"/>
+                    )}
+
+                    {grandChildPositions.map((gcPos, index) => (
+                      <SvgPath key={`line-sub-${index}`} d={`M ${gcPos.x + NODE_WIDTH / 2},${parentPos.y + NODE_HEIGHT / 2 + LEVEL_GAP / 2} V ${gcPos.y}`} className="stroke-dashed" />
+                    ))}
+                  </React.Fragment>
+                )
+              })}
+            </>
+          )}
             </svg>
 
             {/* Render Nodes */}
