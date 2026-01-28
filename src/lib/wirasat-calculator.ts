@@ -7,6 +7,7 @@ export type WirasatRow = {
   kanal: number;
   marla: number;
   feet: number;
+  subRows?: WirasatRow[];
 };
 
 export type WirasatMode = "basic" | "advanced";
@@ -57,31 +58,6 @@ export const fromSqFt = (
     const marla = totalMarlas - kanal * 20;
     return { kanal, marla, feet, areaSqFtRounded: rounded };
   };
-
-const distributeShare = (
-  share: number,
-  heirs: { widows: number; husbandAlive: boolean; sons: number; daughters: number; },
-  prefix: string,
-  marlaSize: number
-): WirasatRow[] => {
-    const subResult = calculateWirasatShares({
-        totalSqFt: share,
-        marlaSize,
-        widows: heirs.widows,
-        husbandAlive: heirs.husbandAlive,
-        fatherAlive: false,
-        motherAlive: false,
-        children: [],
-        sons: heirs.sons,
-        daughters: heirs.daughters,
-        brothers: 0,
-        sisters: 0,
-        grandsons: 0,
-        mode: 'basic'
-    });
-    
-    return subResult.rows.map(row => ({ ...row, relation: `${prefix}'s ${row.relation}`}));
-}
 
 export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculationResult => {
   const {
@@ -155,8 +131,32 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
             if (child.isAlive) {
                  rows.push({ relation: `${child.type === 'son' ? 'Son' : 'Daughter'} ${index + 1}`, shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`, areaSqFtRaw: childShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
             } else {
-                const subRows = distributeShare(childShare, child.heirs, `Deceased ${child.type} ${index+1}`, marlaSize);
-                rows = [...rows, ...subRows];
+                const subResult = calculateWirasatShares({
+                    totalSqFt: childShare,
+                    marlaSize,
+                    widows: child.heirs.widows,
+                    husbandAlive: child.heirs.husbandAlive,
+                    fatherAlive: false,
+                    motherAlive: false,
+                    children: [], 
+                    sons: child.heirs.sons,
+                    daughters: child.heirs.daughters,
+                    brothers: 0,
+                    sisters: 0,
+                    grandsons: 0,
+                    mode: 'basic'
+                });
+                const formattedParentShare = fromSqFt(childShare, marlaSize);
+                rows.push({
+                    relation: `Deceased ${child.type} ${index + 1}`,
+                    shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`,
+                    areaSqFtRaw: childShare,
+                    areaSqFtRounded: formattedParentShare.areaSqFtRounded,
+                    kanal: formattedParentShare.kanal,
+                    marla: formattedParentShare.marla,
+                    feet: formattedParentShare.feet,
+                    subRows: subResult.rows,
+                });
             }
         });
         remainder = 0;
@@ -177,8 +177,16 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
              const unitValue = remainder / (predeceasedSons.length * 2);
              predeceasedSons.forEach((son, index) => {
                 const sonShare = unitValue * 2;
-                const subRows = distributeShare(sonShare, son.heirs, `Deceased Son ${index+1}`, marlaSize);
-                rows = [...rows, ...subRows];
+                const subResult = calculateWirasatShares({
+                    totalSqFt: sonShare, marlaSize, widows: son.heirs.widows, husbandAlive: son.heirs.husbandAlive,
+                    fatherAlive: false, motherAlive: false, children: [], sons: son.heirs.sons, daughters: son.heirs.daughters,
+                    brothers: 0, sisters: 0, grandsons: 0, mode: 'basic'
+                });
+                const formattedParentShare = fromSqFt(sonShare, marlaSize);
+                rows.push({
+                    relation: `Deceased Son ${index + 1}`, shareLabel: `Residue`,
+                    areaSqFtRaw: sonShare, ...formattedParentShare, subRows: subResult.rows
+                });
              });
              remainder = 0;
         }
@@ -197,8 +205,17 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
         const unitValue = remainder / totalChildUnits;
         children.forEach((child, index) => {
              const childShare = unitValue * (child.type === 'son' ? 2 : 1);
-             const subRows = distributeShare(childShare, child.heirs, `Deceased ${child.type} ${index+1}`, marlaSize);
-             rows = [...rows, ...subRows];
+             const subResult = calculateWirasatShares({
+                totalSqFt: childShare, marlaSize, widows: child.heirs.widows, husbandAlive: child.heirs.husbandAlive,
+                fatherAlive: false, motherAlive: false, children: [], sons: child.heirs.sons, daughters: child.heirs.daughters,
+                brothers: 0, sisters: 0, grandsons: 0, mode: 'basic'
+            });
+            const formattedParentShare = fromSqFt(childShare, marlaSize);
+            rows.push({
+                relation: `Deceased ${child.type} ${index + 1}`,
+                shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`,
+                areaSqFtRaw: childShare, ...formattedParentShare, subRows: subResult.rows,
+            });
         });
         remainder = 0;
     }

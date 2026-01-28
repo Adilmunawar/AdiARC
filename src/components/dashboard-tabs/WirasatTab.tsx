@@ -11,6 +11,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { calculateWirasatShares, WirasatMode, WirasatRow, ChildHeir, fromSqFt } from "@/lib/wirasat-calculator";
 import { PlusCircle, Trash2, User, UserCheck, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FamilyTreeDiagram } from "@/components/wirasat/FamilyTreeDiagram";
 
 const HeirCard = ({
   child,
@@ -206,16 +207,30 @@ export function WirasatTab() {
 
     let sumRounded = 0;
     const marlaSizeForFormat = marlaSize;
-    const formattedRows = calcResult.rows.map((row) => {
-      const formatted = fromSqFt(row.areaSqFtRaw, marlaSizeForFormat);
-      sumRounded += formatted.areaSqFtRounded;
-      return {
-        ...row,
-        areaSqFtRounded: formatted.areaSqFtRounded,
-        kanal: formatted.kanal,
-        marla: formatted.marla,
-        feet: formatted.feet,
-      };
+    const formattedRows: WirasatRow[] = [];
+
+    calcResult.rows.forEach(row => {
+        const mainFormatted = fromSqFt(row.areaSqFtRaw, marlaSizeForFormat);
+        sumRounded += mainFormatted.areaSqFtRounded;
+        
+        const newRow: WirasatRow = { ...row, ...mainFormatted };
+
+        if(row.subRows) {
+            let subSumRounded = 0;
+            newRow.subRows = row.subRows.map(subRow => {
+                const subFormatted = fromSqFt(subRow.areaSqFtRaw, marlaSizeForFormat);
+                subSumRounded += subFormatted.areaSqFtRounded;
+                return {...subRow, ...subFormatted};
+            });
+            const subDiff = mainFormatted.areaSqFtRounded - subSumRounded;
+            if(subDiff !== 0 && newRow.subRows.length > 0) {
+                 const lastSubRow = newRow.subRows[newRow.subRows.length-1];
+                 const adjustedSubSqFt = lastSubRow.areaSqFtRounded + subDiff;
+                 const finalSubFormatted = fromSqFt(adjustedSubSqFt, marlaSizeForFormat);
+                 newRow.subRows[newRow.subRows.length-1] = {...lastSubRow, ...finalSubFormatted};
+            }
+        }
+        formattedRows.push(newRow);
     });
 
     const targetTotal = Math.round(totalSqFt);
@@ -371,48 +386,70 @@ export function WirasatTab() {
         
         {wirasatError && <p className="text-sm text-destructive font-medium text-center">{wirasatError}</p>}
 
-        <section className="space-y-3 pt-4 border-t border-dashed">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <section className="grid gap-6 md:grid-cols-2">
             <div>
-              <p className="text-sm font-semibold">Proposed Mutation Details</p>
-              <p className="text-[11px] text-muted-foreground">Shares are shown as approximate fractions and precise square-foot areas with Kanal / Marla / Sq Ft breakdown.</p>
-            </div>
-            {wirasatTotalSqFt !== null && (<p className="text-[11px] text-muted-foreground">Total area: <span className="font-medium">{wirasatTotalSqFt.toLocaleString()} Sq Ft</span></p>)}
-          </div>
+                 <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between mb-3">
+                    <div>
+                        <p className="text-sm font-semibold">Proposed Mutation Details</p>
+                        <p className="text-[11px] text-muted-foreground">Shares are shown as approximate fractions and precise square-foot areas.</p>
+                    </div>
+                    {wirasatTotalSqFt !== null && (<p className="text-[11px] text-muted-foreground">Total area: <span className="font-medium">{wirasatTotalSqFt.toLocaleString()} Sq Ft</span></p>)}
+                </div>
 
-          <div className="overflow-x-auto rounded-md border border-border bg-card/70">
-            <Table>
-              <TableCaption className="text-[11px]">
-                Verify that the sum of all shares equals the total area. Small rounding adjustments (±1–2 Sq Ft) are applied to the final row automatically.
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-40">Relation</TableHead>
-                  <TableHead>Share fraction</TableHead>
-                  <TableHead className="text-right">Area (Sq Ft)</TableHead>
-                  <TableHead className="text-right">Formatted area</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {wirasatRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-[12px] text-muted-foreground h-24">
-                      Enter area and heirs above, then click 'Calculate' to see proposed mutation details.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  wirasatRows.map((row, index) => (
-                    <TableRow key={`${row.relation}-${index}`}>
-                      <TableCell className="text-sm font-medium">{row.relation}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{row.shareLabel}</TableCell>
-                      <TableCell className="text-right text-sm">{row.areaSqFtRounded.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">{`${row.kanal}K — ${row.marla}M — ${row.feet}ft`}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                <div className="overflow-x-auto rounded-md border border-border bg-card/70">
+                    <Table>
+                    <TableCaption className="text-[11px]">
+                        Verify that the sum of all shares equals the total area. Small rounding adjustments (±1–2 Sq Ft) are applied automatically.
+                    </TableCaption>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead className="w-40">Relation</TableHead>
+                        <TableHead>Share fraction</TableHead>
+                        <TableHead className="text-right">Area (Sq Ft)</TableHead>
+                        <TableHead className="text-right">Formatted area</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {wirasatRows.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={4} className="h-24 text-center text-[12px] text-muted-foreground">
+                            Enter area and heirs above, then click 'Calculate' to see proposed mutation details.
+                            </TableCell>
+                        </TableRow>
+                        ) : (
+                        wirasatRows.map((row, index) => (
+                           <React.Fragment key={`${row.relation}-${index}`}>
+                                <TableRow className={cn(row.subRows && "bg-muted/40 font-semibold")}>
+                                    <TableCell className="py-3">{row.relation}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{row.shareLabel}</TableCell>
+                                    <TableCell className="text-right text-sm">{row.areaSqFtRounded.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right text-xs text-muted-foreground">{`${row.kanal}K — ${row.marla}M — ${row.feet}ft`}</TableCell>
+                                </TableRow>
+                                {row.subRows?.map((subRow, subIndex) => (
+                                    <TableRow key={`${row.relation}-${index}-${subIndex}`} className="bg-background hover:bg-muted/60">
+                                        <TableCell className="pl-8 text-sm text-muted-foreground">{subRow.relation}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{subRow.shareLabel}</TableCell>
+                                        <TableCell className="text-right text-sm">{subRow.areaSqFtRounded.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right text-xs text-muted-foreground">{`${subRow.kanal}K — ${subRow.marla}M — ${subRow.feet}ft`}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </React.Fragment>
+                        ))
+                        )}
+                    </TableBody>
+                    </Table>
+                </div>
+            </div>
+             <div className="space-y-3 pt-4 md:pt-0">
+                <p className="text-sm font-semibold">Heir Structure</p>
+                <FamilyTreeDiagram 
+                    widows={Number(wirasatWidows) || 0}
+                    husbandAlive={wirasatHusbandAlive}
+                    fatherAlive={wirasatFatherAlive}
+                    motherAlive={wirasatMotherAlive}
+                    children={children}
+                />
+            </div>
         </section>
       </CardContent>
     </Card>
