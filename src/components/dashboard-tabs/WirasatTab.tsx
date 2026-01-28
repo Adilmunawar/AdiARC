@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { calculateWirasatShares, WirasatMode, WirasatRow } from "@/lib/wirasat-calculator";
+import { calculateWirasatShares, WirasatMode, WirasatRow, PredeceasedSonHeirs } from "@/lib/wirasat-calculator";
 import { cn } from "@/lib/utils";
 
 // --- Diagram Component ---
@@ -17,16 +17,28 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
   const containerRef = React.useRef<HTMLDivElement>(null);
 
+  const { primaryHeirs, subHeirs, predeceasedSonShareFormatted } = useMemo(() => {
+    const primary = rows.filter(r => !r.relation.startsWith("Predeceased Son's"));
+    const sub = rows.filter(r => r.relation.startsWith("Predeceased Son's"));
+    const totalSubShare = sub.reduce((acc, r) => acc + r.areaSqFtRaw, 0);
+    const { kanal, marla, feet } = fromSqFt(totalSubShare, 272); // Assuming 272 for diagram display
+    return {
+        primaryHeirs: primary,
+        subHeirs: sub,
+        predeceasedSonShareFormatted: `${kanal}K-${marla}M-${feet}ft`
+    };
+  }, [rows]);
+
   const heirGroups = useMemo(() => {
     return {
-      parents: rows.filter((r) => r.relation.startsWith("Father") || r.relation.startsWith("Mother")),
-      spouses: rows.filter((r) => r.relation.startsWith("Widow") || r.relation.startsWith("Husband")),
-      children: rows.filter((r) => r.relation.startsWith("Son") || r.relation.startsWith("Daughter")),
-      others: rows.filter(
+      parents: primaryHeirs.filter((r) => r.relation.startsWith("Father") || r.relation.startsWith("Mother")),
+      spouses: primaryHeirs.filter((r) => r.relation.startsWith("Widow") || r.relation.startsWith("Husband")),
+      children: primaryHeirs.filter((r) => r.relation.startsWith("Son") || r.relation.startsWith("Daughter")),
+      others: primaryHeirs.filter(
         (r) => !["Father", "Mother", "Widow", "Husband", "Son", "Daughter"].some((prefix) => r.relation.startsWith(prefix)),
       ),
     };
-  }, [rows]);
+  }, [primaryHeirs]);
 
   const NODE_WIDTH = 120;
   const NODE_HEIGHT = 80;
@@ -52,18 +64,20 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
         });
     }
 
-    // Children
-    const childrenAndOthers = [...heirGroups.children, ...heirGroups.others];
-    const childrenCount = childrenAndOthers.length;
-    const childrenTotalWidth = childrenCount * (NODE_WIDTH + 20) - 20;
+    // Children & Predeceased Son
+    const livingChildren = heirGroups.children;
+    const hasPredeceased = subHeirs.length > 0;
+    const childrenToDisplay = hasPredeceased ? [...livingChildren, { relation: "Predeceased Son" }] : livingChildren;
+
+    const childrenTotalWidth = childrenToDisplay.length * (NODE_WIDTH + 20) - 20;
     let startX = center - childrenTotalWidth / 2;
-    childrenAndOthers.forEach((c) => {
+    childrenToDisplay.forEach((c) => {
         initialPositions[c.relation] = { x: startX, y: 300 };
         startX += NODE_WIDTH + 20;
     });
 
     setPositions(initialPositions);
-  }, [rows, heirGroups.parents, heirGroups.spouses, heirGroups.children, heirGroups.others]);
+  }, [rows, heirGroups, subHeirs]);
 
 
   const handleDrag = (e: any, data: any, key: string) => {
@@ -124,6 +138,7 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
   
   return (
     <div ref={containerRef} className="relative w-full min-h-[450px] p-4 bg-muted/30 rounded-lg border overflow-hidden">
+      <p className="text-xs text-muted-foreground absolute top-2 left-2">Diagram is a simplified view and may not show all nested heirs.</p>
       {Object.keys(positions).length > 0 && (
         <>
             <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
@@ -135,44 +150,46 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                     fatherPos.x + NODE_WIDTH / 2 + (motherPos.x - fatherPos.x)/2, 
                     fatherPos.y + NODE_HEIGHT / 2,
                     deceasedPos.x + NODE_WIDTH / 2,
-                    deceasedPos.y + NODE_HEIGHT / 2
+                    deceasedPos.y
                   )} />
                 </>
               )}
                {/* Single parent lines */}
               {fatherPos && !motherPos && deceasedPos && (
-                <SvgPath d={getElbowPath(fatherPos.x + NODE_WIDTH / 2, fatherPos.y + NODE_HEIGHT / 2, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y + NODE_HEIGHT / 2)} />
+                <SvgPath d={getElbowPath(fatherPos.x + NODE_WIDTH / 2, fatherPos.y + NODE_HEIGHT, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y)} />
               )}
               {!fatherPos && motherPos && deceasedPos && (
-                <SvgPath d={getElbowPath(motherPos.x + NODE_WIDTH / 2, motherPos.y + NODE_HEIGHT / 2, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y + NODE_HEIGHT / 2)} />
+                <SvgPath d={getElbowPath(motherPos.x + NODE_WIDTH / 2, motherPos.y + NODE_HEIGHT, deceasedPos.x + NODE_WIDTH / 2, deceasedPos.y)} />
               )}
 
               {/* Spouse line */}
               {spouses.length > 0 && spouses[0].pos && deceasedPos && (
-                <SvgPath d={`M ${spouses[0].pos.x + NODE_WIDTH / 2},${spouses[0].pos.y + NODE_HEIGHT / 2} H ${deceasedPos.x + NODE_WIDTH / 2}`} />
+                <SvgPath d={`M ${spouses[0].pos.x + NODE_WIDTH},${spouses[0].pos.y + NODE_HEIGHT / 2} H ${deceasedPos.x}`} />
               )}
               
-              {/* Children lines */}
-                {children.length > 0 && deceasedPos && (
-                    <>
-                         {children.length > 0 && children[0].pos && children[children.length - 1].pos && (
-                           <SvgPath d={`M ${children[0].pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 40} H ${children[children.length - 1].pos.x + NODE_WIDTH / 2}`} />
-                        )}
-
-                        <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT / 2} V ${deceasedPos.y + NODE_HEIGHT + 40}`} />
-
-                        {children.map((child, i) => {
-                            if (!child.pos) return null;
-                            return (
-                                <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 40} V ${child.pos.y + NODE_HEIGHT / 2}`} />
-                            )
-                        })}
-                    </>
-                )}
+             {/* Children lines */}
+              {(children.length > 0 || subHeirs.length > 0) && deceasedPos && (
+                  <>
+                      <SvgPath d={`M ${deceasedPos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT} V ${deceasedPos.y + NODE_HEIGHT + 30}`} />
+                      
+                      {[...children, ...(subHeirs.length > 0 ? [{relation: 'Predeceased Son', pos: positions['Predeceased Son']}] : [])].forEach((child, i, arr) => {
+                          if (!child.pos) return;
+                          
+                           if (arr.length > 1 && i === 0 && arr[i+1].pos) {
+                              const lastChild = arr[arr.length - 1];
+                              if(lastChild.pos) {
+                                  <SvgPath d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 30} H ${lastChild.pos.x + NODE_WIDTH / 2}`} />
+                              }
+                           }
+                          
+                          <SvgPath key={i} d={`M ${child.pos.x + NODE_WIDTH / 2},${deceasedPos.y + NODE_HEIGHT + 30} V ${child.pos.y}`} />
+                      })}
+                  </>
+              )}
             </svg>
 
             {/* Render Nodes */}
-            {rows.map(p => {
+            {primaryHeirs.map(p => {
                  const pos = positions[p.relation];
                  if (!pos) return null;
                  return (
@@ -183,6 +200,13 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
                     </Draggable>
                  );
             })}
+             {subHeirs.length > 0 && positions['Predeceased Son'] && (
+                 <Draggable key="Predeceased Son" position={positions['Predeceased Son']} onDrag={(e, data) => handleDrag(e, data, "Predeceased Son")}>
+                    <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
+                        <Node title="Predeceased Son" area={predeceasedSonShareFormatted} share="His Share" />
+                    </div>
+                 </Draggable>
+            )}
             {deceasedPos && (
                  <Draggable position={deceasedPos} onDrag={(e, data) => handleDrag(e, data, 'Deceased')}>
                     <div className="absolute cursor-move z-10" style={{width: `${NODE_WIDTH}px`, height: `${NODE_HEIGHT}px`}}>
@@ -195,6 +219,20 @@ const DistributionDiagram = ({ rows, totalAreaFormatted }: { rows: WirasatRow[];
     </div>
   );
 };
+const fromSqFt = (
+    areaSqFt: number,
+    marlaSize: number,
+  ): { kanal: number; marla: number; feet: number; areaSqFtRounded: number } => {
+    if (isNaN(areaSqFt) || areaSqFt <= 0) {
+        return { kanal: 0, marla: 0, feet: 0, areaSqFtRounded: 0 };
+    }
+    const rounded = Math.round(areaSqFt);
+    const totalMarlas = Math.floor(rounded / marlaSize);
+    const feet = rounded - totalMarlas * marlaSize;
+    const kanal = Math.floor(totalMarlas / 20);
+    const marla = totalMarlas - kanal * 20;
+    return { kanal, marla, feet, areaSqFtRounded: rounded };
+  };
 
 
 export function WirasatTab() {
@@ -214,27 +252,15 @@ export function WirasatTab() {
   const [wirasatGrandsons, setWirasatGrandsons] = useState<string>("0");
   const [wirasatMode, setWirasatMode] = useState<WirasatMode>("basic");
 
+  const [showPredeceasedSon, setShowPredeceasedSon] = useState<boolean>(false);
+  const [predeceasedSonHeirs, setPredeceasedSonHeirs] = useState({ widows: '0', sons: '0', daughters: '0' });
+
   const [wirasatRows, setWirasatRows] = useState<WirasatRow[]>([]);
   const [wirasatTotalSqFt, setWirasatTotalSqFt] = useState<number | null>(null);
   const [wirasatError, setWirasatError] = useState<string | null>(null);
 
   const toTotalSqFt = (kanal: number, marla: number, feet: number, marlaSize: number) => {
     return kanal * 20 * marlaSize + marla * marlaSize + feet;
-  };
-
-  const fromSqFt = (
-    areaSqFt: number,
-    marlaSize: number,
-  ): { kanal: number; marla: number; feet: number; areaSqFtRounded: number } => {
-    if (isNaN(areaSqFt) || areaSqFt <= 0) {
-        return { kanal: 0, marla: 0, feet: 0, areaSqFtRounded: 0 };
-    }
-    const rounded = Math.round(areaSqFt);
-    const totalMarlas = Math.floor(rounded / marlaSize);
-    const feet = rounded - totalMarlas * marlaSize;
-    const kanal = Math.floor(totalMarlas / 20);
-    const marla = totalMarlas - kanal * 20;
-    return { kanal, marla, feet, areaSqFtRounded: rounded };
   };
   
   const handleCalculatePartitions = () => {
@@ -280,7 +306,8 @@ export function WirasatTab() {
       !daughtersCount &&
       !brothersCount &&
       !sistersCount &&
-      !grandsonsCount
+      !grandsonsCount &&
+      !showPredeceasedSon
     ) {
       setWirasatError("Please specify at least one heir.");
       return;
@@ -299,6 +326,11 @@ export function WirasatTab() {
       sisters: sistersCount,
       grandsons: grandsonsCount,
       mode: wirasatMode,
+      predeceasedSon: showPredeceasedSon ? {
+        widows: Number(predeceasedSonHeirs.widows) || 0,
+        sons: Number(predeceasedSonHeirs.sons) || 0,
+        daughters: Number(predeceasedSonHeirs.daughters) || 0,
+      } : undefined
     });
 
     if (calcResult.error) {
@@ -566,6 +598,44 @@ export function WirasatTab() {
                 onCheckedChange={setWirasatHusbandAlive}
               />
             </div>
+             <div className="mt-4 flex items-center justify-between rounded-md border border-dashed border-amber-500/50 bg-amber-500/10 px-3 py-2 text-[11px]">
+                <div className="space-y-0.5">
+                    <p className="font-medium text-amber-800 dark:text-amber-300">Include a Predeceased Son?</p>
+                    <p className="text-muted-foreground">
+                    Calculate the share for a son who died before the deceased, passing his inheritance to his own heirs.
+                    </p>
+                </div>
+                <Switch
+                    id="predeceased-son-toggle"
+                    checked={showPredeceasedSon}
+                    onCheckedChange={setShowPredeceasedSon}
+                />
+            </div>
+
+            {showPredeceasedSon && (
+                <Card className="mt-4 animate-accordion-down border-amber-500/30">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">Heirs of the Predeceased Son</CardTitle>
+                        <CardDescription className="text-xs">
+                            Enter the family details for the son who is deceased. His share will be distributed among them.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="predeceased-son-widows" className="text-[11px]">His Widow(s)</Label>
+                            <Input id="predeceased-son-widows" type="number" min={0} value={predeceasedSonHeirs.widows} onChange={e => setPredeceasedSonHeirs(p => ({...p, widows: e.target.value}))} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="predeceased-son-sons" className="text-[11px]">His Son(s)</Label>
+                             <Input id="predeceased-son-sons" type="number" min={0} value={predeceasedSonHeirs.sons} onChange={e => setPredeceasedSonHeirs(p => ({...p, sons: e.target.value}))} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="predeceased-son-daughters" className="text-[11px]">His Daughter(s)</Label>
+                             <Input id="predeceased-son-daughters" type="number" min={0} value={predeceasedSonHeirs.daughters} onChange={e => setPredeceasedSonHeirs(p => ({...p, daughters: e.target.value}))} />
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-border pt-3">
               <p className="text-[11px] text-muted-foreground max-w-sm">

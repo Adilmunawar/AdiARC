@@ -11,6 +11,12 @@ export type WirasatRow = {
 
 export type WirasatMode = "basic" | "advanced";
 
+export type PredeceasedSonHeirs = {
+    widows: number;
+    sons: number;
+    daughters: number;
+};
+
 export type WirasatInputs = {
   totalSqFt: number;
   marlaSize: number;
@@ -24,6 +30,7 @@ export type WirasatInputs = {
   sisters: number;
   grandsons: number;
   mode: WirasatMode;
+  predeceasedSon?: PredeceasedSonHeirs;
 };
 
 export type WirasatCalculationResult = {
@@ -46,6 +53,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
     sisters,
     grandsons,
     mode,
+    predeceasedSon
   } = inputs;
 
   if (totalSqFt <= 0) {
@@ -54,7 +62,8 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
 
   const rows: WirasatRow[] = [];
 
-  const hasDescendants = sons > 0 || daughters > 0 || grandsons > 0;
+  const hasLivingDescendants = sons > 0 || daughters > 0 || (predeceasedSon && (predeceasedSon.sons > 0 || predeceasedSon.daughters > 0));
+  const hasAnyDescendants = hasLivingDescendants || grandsons > 0;
   const hasSiblings = brothers > 0 || sisters > 0;
 
   // --- Step A: Spouse & parents base shares ---
@@ -71,17 +80,17 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
 
   if (widows > 0) {
     // Deceased is male; wives (widows) inherit collectively
-    spouseTotalShare = hasDescendants ? totalSqFt / 8 : totalSqFt / 4;
+    spouseTotalShare = hasAnyDescendants ? totalSqFt / 8 : totalSqFt / 4;
     widowIndividualShare = spouseTotalShare / widows;
   } else if (husbandAlive) {
     // Deceased is female; husband inherits
-    spouseTotalShare = hasDescendants ? totalSqFt / 4 : totalSqFt / 2;
+    spouseTotalShare = hasAnyDescendants ? totalSqFt / 4 : totalSqFt / 2;
   }
 
   // Mother share: 1/6 if children or siblings, otherwise 1/3 (advanced fiqh rule)
   let motherShare = 0;
   if (motherAlive) {
-    if (hasDescendants || hasSiblings) {
+    if (hasAnyDescendants || hasSiblings) {
       motherShare = totalSqFt / 6;
     } else {
       motherShare = mode === "advanced" ? totalSqFt / 3 : totalSqFt / 6;
@@ -91,7 +100,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
   // Father share setup
   let fatherShare = 0;
   if (fatherAlive) {
-    if (hasDescendants) {
+    if (hasAnyDescendants) {
       // With descendants, father is a sharer with 1/6 (as in basic mode)
       fatherShare = totalSqFt / 6;
     } else {
@@ -105,7 +114,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
     if (widows === 1) {
       rows.push({
         relation: "Widow",
-        shareLabel: hasDescendants ? "1/8" : "1/4",
+        shareLabel: hasAnyDescendants ? "1/8" : "1/4",
         areaSqFtRaw: spouseTotalShare,
         areaSqFtRounded: 0,
         kanal: 0,
@@ -116,7 +125,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
       for (let i = 0; i < widows; i++) {
         rows.push({
           relation: `Widow ${i + 1}`,
-          shareLabel: `${hasDescendants ? "1/8" : "1/4"} ÷ ${widows}`,
+          shareLabel: `${hasAnyDescendants ? "1/8" : "1/4"} ÷ ${widows}`,
           areaSqFtRaw: widowIndividualShare,
           areaSqFtRounded: 0,
           kanal: 0,
@@ -128,7 +137,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
   } else if (husbandAlive) {
     rows.push({
       relation: "Husband",
-      shareLabel: hasDescendants ? "1/4" : "1/2",
+      shareLabel: hasAnyDescendants ? "1/4" : "1/2",
       areaSqFtRaw: spouseTotalShare,
       areaSqFtRounded: 0,
       kanal: 0,
@@ -140,7 +149,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
   if (motherAlive && motherShare > 0) {
     rows.push({
       relation: "Mother",
-      shareLabel: hasDescendants || hasSiblings ? "1/6" : mode === "advanced" ? "1/3" : "1/6",
+      shareLabel: hasAnyDescendants || hasSiblings ? "1/6" : mode === "advanced" ? "1/3" : "1/6",
       areaSqFtRaw: motherShare,
       areaSqFtRounded: 0,
       kanal: 0,
@@ -161,277 +170,120 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
     });
   }
 
-  // --- Step B: Branching logic ---
-  if (mode === "basic") {
     const sonsCount = sons;
     const daughtersCount = daughters;
+    const hasPredeceasedSon = !!predeceasedSon;
 
-    const baseForBasic = spouseTotalShare + motherShare + fatherShare;
+    const usedBase = spouseTotalShare + motherShare + fatherShare;
+    let remainder = totalSqFt - usedBase;
 
-    if (sonsCount > 0) {
-      // Scenario 1: Sons present
-      const usedBase = baseForBasic;
-      const remainder = totalSqFt - usedBase;
-
-      if (remainder < 0) {
+    if(remainder < 0) {
         return { rows: [], targetTotal: 0, error: "Base shares exceed total area. Please review inputs." };
-      }
+    }
 
-      if (remainder > 0 && (sonsCount > 0 || daughtersCount > 0)) {
-        const totalChildUnits = sonsCount * 2 + daughtersCount * 1;
+    if (sonsCount > 0 || daughtersCount > 0 || hasPredeceasedSon) {
+        const totalChildUnits = sonsCount * 2 + daughtersCount * 1 + (hasPredeceasedSon ? 2 : 0);
 
-        if (totalChildUnits <= 0) {
-          return { rows: [], targetTotal: 0, error: "Children count is invalid for distribution." };
+        if (totalChildUnits > 0) {
+            const singleUnitValue = remainder / totalChildUnits;
+            const sonShare = singleUnitValue * 2;
+            const daughterShare = singleUnitValue;
+
+            for (let i = 0; i < sonsCount; i++) {
+                rows.push({
+                    relation: sonsCount === 1 ? "Son" : `Son ${i + 1}`,
+                    shareLabel: `Asaba (${2}/${totalChildUnits})`,
+                    areaSqFtRaw: sonShare,
+                    areaSqFtRounded: 0, canal: 0, marla: 0, feet: 0,
+                });
+            }
+
+            for (let i = 0; i < daughtersCount; i++) {
+                rows.push({
+                    relation: daughtersCount === 1 ? "Daughter" : `Daughter ${i + 1}`,
+                    shareLabel: `Asaba (${1}/${totalChildUnits})`,
+                    areaSqFtRaw: daughterShare,
+                    areaSqFtRounded: 0, canal: 0, marla: 0, feet: 0,
+                });
+            }
+
+            if (hasPredeceasedSon) {
+                const predeceasedSonShare = sonShare;
+                const subResult = calculateWirasatShares({
+                    totalSqFt: predeceasedSonShare,
+                    marlaSize: marlaSize,
+                    widows: predeceasedSon.widows,
+                    husbandAlive: false,
+                    fatherAlive: false,
+                    motherAlive: false,
+                    sons: predeceasedSon.sons,
+                    daughters: predeceasedSon.daughters,
+                    brothers: 0, sisters: 0, grandsons: 0,
+                    mode: 'basic',
+                });
+                 if (subResult.rows.length > 0) {
+                    subResult.rows.forEach(subRow => {
+                        rows.push({
+                            ...subRow,
+                            relation: `Predeceased Son's ${subRow.relation}`
+                        });
+                    });
+                }
+            }
         }
+         remainder = 0;
+    }
 
-        const singleUnitValue = remainder / totalChildUnits;
-        const sonShare = singleUnitValue * 2;
-        const daughterShare = singleUnitValue * 1;
-
-        for (let i = 0; i < sonsCount; i++) {
-          rows.push({
-            relation: sonsCount === 1 ? "Son" : `Son ${i + 1}`,
-            shareLabel: `Asaba ${2}/${totalChildUnits}`,
-            areaSqFtRaw: sonShare,
-            areaSqFtRounded: 0,
-            kanal: 0,
-            marla: 0,
-            feet: 0,
-          });
-        }
-
-        for (let i = 0; i < daughtersCount; i++) {
-          rows.push({
-            relation: daughtersCount === 1 ? "Daughter" : `Daughter ${i + 1}`,
-            shareLabel: `Asaba ${1}/${totalChildUnits}`,
-            areaSqFtRaw: daughterShare,
-            areaSqFtRounded: 0,
-            kanal: 0,
-            marla: 0,
-            feet: 0,
-          });
-        }
-      }
-    } else if (daughtersCount > 0) {
-      // Scenario 2: No sons, only daughters
-      let daughtersFixedShare = 0;
-
-      if (daughtersCount === 1) {
-        daughtersFixedShare = totalSqFt / 2; // 1/2
-      } else {
-        daughtersFixedShare = (2 * totalSqFt) / 3; // 2/3
-      }
-
+    if (daughtersCount > 0 && sonsCount === 0 && !hasPredeceasedSon) {
+      let daughtersFixedShare = daughtersCount === 1 ? totalSqFt / 2 : (2 * totalSqFt) / 3;
       const perDaughterFixed = daughtersFixedShare / daughtersCount;
 
       for (let i = 0; i < daughtersCount; i++) {
         rows.push({
-          relation: daughtersCount === 1 ? "Daughter" : `Daughter ${i + 1}`,
-          shareLabel: daughtersCount === 1 ? "1/2" : `2/3 ÷ ${daughtersCount}`,
+          relation: `Daughter ${i + 1}`,
+          shareLabel: daughtersCount === 1 ? '1/2' : `2/3 ÷ ${daughtersCount}`,
           areaSqFtRaw: perDaughterFixed,
-          areaSqFtRounded: 0,
-          kanal: 0,
-          marla: 0,
-          feet: 0,
+          areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0,
         });
       }
-
-      const usedBase = spouseTotalShare + motherShare + fatherShare + daughtersFixedShare;
-      let residue = totalSqFt - usedBase;
-
-      if (residue < 0) {
-        return { rows: [], targetTotal: 0, error: "Fixed shares exceed total area. Please review inputs." };
+      
+      const newUsedBase = usedBase + daughtersFixedShare;
+      let residueAfterDaughters = totalSqFt - newUsedBase;
+      
+      if(residueAfterDaughters > 0 && fatherAlive) {
+          const fatherRowIndex = rows.findIndex(r => r.relation === "Father");
+          if(fatherRowIndex !== -1) {
+              rows[fatherRowIndex].areaSqFtRaw += residueAfterDaughters;
+              rows[fatherRowIndex].shareLabel = "1/6 + Residue";
+          }
+           residueAfterDaughters = 0;
       }
+       remainder = residueAfterDaughters;
+    }
 
-      if (fatherAlive && residue > 0) {
-        // Father takes residue in addition to his initial 1/6
-        const updatedFatherShare = fatherShare + residue;
 
-        const fatherRowIndex = rows.findIndex((r) => r.relation === "Father");
-        if (fatherRowIndex !== -1) {
-          rows[fatherRowIndex] = {
-            ...rows[fatherRowIndex],
-            shareLabel: "1/6 + residue",
-            areaSqFtRaw: updatedFatherShare,
-          };
-        } else {
-          rows.push({
-            relation: "Father",
-            shareLabel: "1/6 + residue",
-            areaSqFtRaw: updatedFatherShare,
-            areaSqFtRounded: 0,
-            kanal: 0,
-            marla: 0,
-            feet: 0,
-          });
+    if (mode === 'advanced' && !hasAnyDescendants) {
+        if (fatherAlive) {
+            const fatherRow = rows.find(r => r.relation === 'Father');
+            if (fatherRow) { // Should not happen but for safety
+                fatherRow.areaSqFtRaw += remainder;
+                fatherRow.shareLabel = "Residue (Asaba)";
+            } else {
+                 rows.push({ relation: 'Father', shareLabel: 'Residue (Asaba)', areaSqFtRaw: remainder, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0});
+            }
+            remainder = 0;
+        } else if (brothers > 0 || sisters > 0) {
+            const totalSiblingUnits = brothers * 2 + sisters;
+            const unitValue = remainder / totalSiblingUnits;
+            for(let i=0; i<brothers; i++) rows.push({relation: `Brother ${i+1}`, shareLabel: `Asaba (2/${totalSiblingUnits})`, areaSqFtRaw: unitValue*2, areaSqFtRounded:0, kanal:0, marla:0, feet:0});
+            for(let i=0; i<sisters; i++) rows.push({relation: `Sister ${i+1}`, shareLabel: `Asaba (1/${totalSiblingUnits})`, areaSqFtRaw: unitValue, areaSqFtRounded:0, kanal:0, marla:0, feet:0});
+            remainder = 0;
         }
-
-        residue = 0;
-      }
-
-      if (!fatherAlive && residue > 0) {
-        rows.push({
-          relation: "Residuary / Collaterals (Asaba)",
-          shareLabel: "Remaining balance",
-          areaSqFtRaw: residue,
-          areaSqFtRounded: 0,
-          kanal: 0,
-          marla: 0,
-          feet: 0,
-        });
-      }
+    }
+  
+    if(remainder > 1) { // Allow for tiny rounding errors
+        rows.push({relation: 'Residue / Radd', shareLabel: 'Remaining Balance', areaSqFtRaw: remainder, areaSqFtRounded:0, kanal:0, marla:0, feet:0});
     }
 
-    if (!rows.length) {
-      return {
-        rows: [],
-        targetTotal: 0,
-        error: "No distributable shares were calculated. Please review the inputs.",
-      };
-    }
-
-    return { rows, targetTotal: Math.round(totalSqFt) };
-  }
-
-  // --- Advanced mode ---
-  const sonsCount = sons;
-  const daughtersCount = daughters;
-  const brothersCount = brothers;
-  const sistersCount = sisters;
-
-  // Children present (sons or daughters) -> reuse basic children logic
-  if (sonsCount > 0 || daughtersCount > 0) {
-    const basicResult = calculateWirasatShares({
-      totalSqFt,
-      marlaSize,
-      widows,
-      husbandAlive,
-      fatherAlive,
-      motherAlive,
-      sons,
-      daughters,
-      brothers: 0,
-      sisters: 0,
-      grandsons,
-      mode: "basic",
-    });
-
-    if (basicResult.error) {
-      return basicResult;
-    }
-
-    return { ...basicResult, targetTotal: Math.round(totalSqFt) };
-  }
-
-  // No sons/daughters, but grandsons present (from sons)
-  if (grandsons > 0) {
-    // For safety, we currently do not auto-calculate exact shares for grandsons.
-    // We still show a row explaining this.
-    const usedSharers = spouseTotalShare + motherShare;
-    const residue = totalSqFt - usedSharers;
-
-    if (residue < 0) {
-      return { rows: [], targetTotal: 0, error: "Base shares exceed total area. Please review inputs." };
-    }
-
-    rows.push({
-      relation: "Grandsons (via sons)",
-      shareLabel: "Not auto-calculated – consult scholar for exact shares",
-      areaSqFtRaw: residue,
-      areaSqFtRounded: 0,
-      kanal: 0,
-      marla: 0,
-      feet: 0,
-    });
-
-    return { rows, targetTotal: Math.round(totalSqFt) };
-  }
-
-  // No children, no grandsons
-  const usedBySpouseAndMother = spouseTotalShare + motherShare;
-
-  if (fatherAlive) {
-    // Father takes entire residue after spouse + mother; siblings are blocked.
-    const residue = totalSqFt - usedBySpouseAndMother;
-    if (residue < 0) {
-      return { rows: [], targetTotal: 0, error: "Base shares exceed total area. Please review inputs." };
-    }
-
-    rows.push({
-      relation: "Father",
-      shareLabel: "Residue (Asaba)",
-      areaSqFtRaw: residue,
-      areaSqFtRounded: 0,
-      kanal: 0,
-      marla: 0,
-      feet: 0,
-    });
-
-    return { rows, targetTotal: Math.round(totalSqFt) };
-  }
-
-  // Father is dead, siblings may receive residue
-  const residueAfterSpouseAndMother = totalSqFt - usedBySpouseAndMother;
-
-  if (residueAfterSpouseAndMother < 0) {
-    return { rows: [], targetTotal: 0, error: "Base shares exceed total area. Please review inputs." };
-  }
-
-  if (brothersCount > 0 || sistersCount > 0) {
-    const totalUnits = brothersCount * 2 + sistersCount;
-    if (totalUnits <= 0) {
-      return { rows: [], targetTotal: 0, error: "Sibling count is invalid for distribution." };
-    }
-
-    const unitValue = residueAfterSpouseAndMother / totalUnits;
-    const brotherShare = unitValue * 2;
-    const sisterShare = unitValue * 1;
-
-    for (let i = 0; i < brothersCount; i++) {
-      rows.push({
-        relation: brothersCount === 1 ? "Brother" : `Brother ${i + 1}`,
-        shareLabel: `Asaba ${2}/${totalUnits}`,
-        areaSqFtRaw: brotherShare,
-        areaSqFtRounded: 0,
-        kanal: 0,
-        marla: 0,
-        feet: 0,
-      });
-    }
-
-    for (let i = 0; i < sistersCount; i++) {
-      rows.push({
-        relation: sistersCount === 1 ? "Sister" : `Sister ${i + 1}`,
-        shareLabel: `Asaba ${1}/${totalUnits}`,
-        areaSqFtRaw: sisterShare,
-        areaSqFtRounded: 0,
-        kanal: 0,
-        marla: 0,
-        feet: 0,
-      });
-    }
-
-    return { rows, targetTotal: Math.round(totalSqFt) };
-  }
-
-  // No children, no father, no siblings -> residue to generic collaterals
-  if (residueAfterSpouseAndMother > 0) {
-    rows.push({
-      relation: "Residuary / Collaterals (Asaba)",
-      shareLabel: "Remaining balance",
-      areaSqFtRaw: residueAfterSpouseAndMother,
-      areaSqFtRounded: 0,
-      kanal: 0,
-      marla: 0,
-      feet: 0,
-    });
-
-    return { rows, targetTotal: Math.round(totalSqFt) };
-  }
-
-  return {
-    rows,
-    targetTotal: Math.round(totalSqFt),
-    error: "This heir combination is not fully supported in this version. Please consult a scholar.",
-  };
+  return { rows, targetTotal: Math.round(totalSqFt) };
 };
