@@ -131,11 +131,11 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
             if (child.isAlive) {
                  rows.push({ relation: `${child.type === 'son' ? 'Son' : 'Daughter'} ${index + 1}`, shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`, areaSqFtRaw: childShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
             } else {
-                 const grandchildrenAsHeirs: ChildHeir[] = [
-                    ...Array.from({ length: child.heirs.sons }, (_, i) => ({ id: `${child.id}-son-${i}`, type: 'son', isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }})),
-                    ...Array.from({ length: child.heirs.daughters }, (_, i) => ({ id: `${child.id}-daughter-${i}`, type: 'daughter', isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}))
-                ];
-                const subResult = calculateWirasatShares({
+                 const sonsHeirs = Array.from({ length: child.heirs.sons }, (_, i) => ({ id: `${child.id}-son-${i}`, type: 'son' as const, isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}));
+                 const daughtersHeirs = Array.from({ length: child.heirs.daughters }, (_, i) => ({ id: `${child.id}-daughter-${i}`, type: 'daughter' as const, isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}));
+                 const grandchildrenAsHeirs: ChildHeir[] = [ ...sonsHeirs, ...daughtersHeirs ];
+                 
+                 const subResult = calculateWirasatShares({
                     totalSqFt: childShare, marlaSize, widows: child.heirs.widows, husbandAlive: child.heirs.husbandAlive,
                     fatherAlive: false, motherAlive: false, children: grandchildrenAsHeirs,
                     brothers: 0, sisters: 0, grandsons: 0, mode: 'basic'
@@ -159,18 +159,18 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
              rows.push({ relation: `Daughter ${childIndex + 1}`, shareLabel: livingDaughters.length === 1 ? '1/2' : `2/3 ÷ ${livingDaughters.length}`, areaSqFtRaw: individualDaughterShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
         });
         
-        remainder -= daughterFixedTotal;
-
+        let remainingForResidue = totalSqFt - (spouseTotalShare + motherShare + fatherFixedShare + daughterFixedTotal);
+        
         const predeceasedChildren = children.filter(c => !c.isAlive);
-        if(predeceasedChildren.length > 0 && remainder > 0){
+        if(predeceasedChildren.length > 0 && remainingForResidue > 0){
              const predecChildUnits = predeceasedChildren.reduce((acc, child) => acc + (child.type === 'son' ? 2 : 1), 0);
-             const unitValue = remainder / predecChildUnits;
+             const unitValue = remainingForResidue / predecChildUnits;
              predeceasedChildren.forEach((child) => {
                 const childShare = unitValue * (child.type === 'son' ? 2 : 1);
-                const grandchildrenAsHeirs: ChildHeir[] = [
-                    ...Array.from({ length: child.heirs.sons }, (_, i) => ({ id: `${child.id}-son-${i}`, type: 'son', isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }})),
-                    ...Array.from({ length: child.heirs.daughters }, (_, i) => ({ id: `${child.id}-daughter-${i}`, type: 'daughter', isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}))
-                ];
+                const sonsHeirs = Array.from({ length: child.heirs.sons }, (_, i) => ({ id: `${child.id}-son-${i}`, type: 'son' as const, isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}));
+                const daughtersHeirs = Array.from({ length: child.heirs.daughters }, (_, i) => ({ id: `${child.id}-daughter-${i}`, type: 'daughter' as const, isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}));
+                const grandchildrenAsHeirs: ChildHeir[] = [ ...sonsHeirs, ...daughtersHeirs ];
+                
                 const subResult = calculateWirasatShares({
                     totalSqFt: childShare, marlaSize, widows: child.heirs.widows, husbandAlive: child.heirs.husbandAlive,
                     fatherAlive: false, motherAlive: false, children: grandchildrenAsHeirs, 
@@ -183,37 +183,38 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
                     areaSqFtRaw: childShare, ...formattedParentShare, subRows: subResult.rows
                 });
              });
-             remainder = 0;
+             remainingForResidue = 0;
         }
 
-        if(remainder > 0 && fatherAlive) {
+        if(remainingForResidue > 0 && fatherAlive) {
              const fatherRow = rows.find(r => r.relation === 'Father');
              if(fatherRow) {
-                fatherRow.areaSqFtRaw += remainder;
+                fatherRow.areaSqFtRaw += remainingForResidue;
                 fatherRow.shareLabel = "1/6 + Residue";
              } else {
-                 rows.push({ relation: "Father", shareLabel: "1/6 + Residue", areaSqFtRaw: fatherFixedShare + remainder, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
+                 rows.push({ relation: "Father", shareLabel: "1/6 + Residue", areaSqFtRaw: fatherFixedShare + remainingForResidue, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
              }
-             remainder = 0;
+             remainingForResidue = 0;
         }
+        remainder = remainingForResidue;
+
     } else { // Only predeceased children
         const unitValue = remainder / totalChildUnits;
         children.forEach((child, index) => {
-             const childShare = unitValue * (child.type === 'son' ? 2 : 1);
-             const grandchildrenAsHeirs: ChildHeir[] = [
-                ...Array.from({ length: child.heirs.sons }, (_, i) => ({ id: `${child.id}-son-${i}`, type: 'son', isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }})),
-                ...Array.from({ length: child.heirs.daughters }, (_, i) => ({ id: `${child.id}-daughter-${i}`, type: 'daughter', isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}))
-            ];
-             const subResult = calculateWirasatShares({
+            const childShare = unitValue * (child.type === 'son' ? 2 : 1);
+            const sonsHeirs = Array.from({ length: child.heirs.sons }, (_, i) => ({ id: `${child.id}-son-${i}`, type: 'son' as const, isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}));
+            const daughtersHeirs = Array.from({ length: child.heirs.daughters }, (_, i) => ({ id: `${child.id}-daughter-${i}`, type: 'daughter' as const, isAlive: true, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }}));
+            const grandchildrenAsHeirs: ChildHeir[] = [ ...sonsHeirs, ...daughtersHeirs ];
+             
+            const subResult = calculateWirasatShares({
                 totalSqFt: childShare, marlaSize, widows: child.heirs.widows, husbandAlive: child.heirs.husbandAlive,
                 fatherAlive: false, motherAlive: false, 
                 children: grandchildrenAsHeirs,
                 brothers: 0, sisters: 0, grandsons: 0, mode: 'basic'
             });
             const formattedParentShare = fromSqFt(childShare, marlaSize);
-             const childIndex = children.findIndex(c => c.id === child.id);
             rows.push({
-                relation: `Deceased ${child.type} ${childIndex + 1}`,
+                relation: `Deceased ${child.type} ${index + 1}`,
                 shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`,
                 areaSqFtRaw: childShare, ...formattedParentShare, subRows: subResult.rows,
             });
