@@ -26,7 +26,7 @@ export default function RootLayout({
        <head>
           <title>AdiARC - Mutation & Range Calculator</title>
           <meta name="description" content="AdiARC finds missing mutation numbers and inheritance partitions quickly, directly in your browser." />
-          <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>" />
+          <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='hsl(217, 91%25, 60%25)' /><stop offset='100%25' stop-color='hsl(221, 83%25, 53%25)' /></linearGradient><mask id='a-mask'><rect width='100' height='100' fill='white'/><path d='M45 60 L55 60 L50 50 Z' fill='black' /></mask></defs><path d='M50 10 L10 90 L30 90 L40 70 L60 70 L70 90 L90 90 Z' fill='url(%23grad)' mask='url(%23a-mask)' /></svg>" />
       </head>
       <body className={cn("font-sans", inter.variable, notoNastaliqUrdu.variable)}>
         <SecretModeProvider>
