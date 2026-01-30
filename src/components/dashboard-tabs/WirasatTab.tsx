@@ -154,9 +154,9 @@ const DistributionDiagram = ({ rows, totalAreaFormatted, allHeirs }: { rows: Wir
                         <React.Fragment key={`sub-frag-${childRow.relation}`}>
                             <SvgPath d={`M ${parentNodePos.x + NODE_WIDTH / 2},${parentNodePos.y + NODE_HEIGHT} V ${subBusY}`} className="stroke-dashed" />
                             <SvgPath d={`M ${minSubX},${subBusY} H ${maxSubX}`} className="stroke-dashed" />
-                             {subRowsPos.map((srPos, subIndex) => (
-                                <SvgPath key={`sub-line-${subIndex}`} d={`M ${srPos.x + NODE_WIDTH / 2},${subBusY} V ${srPos.y}`} className="stroke-dashed" />
-                             ))}
+                            {subRowsPos.map((srPos, subIndex) => (
+                               <SvgPath key={`sub-line-${subIndex}`} d={`M ${srPos.x + NODE_WIDTH / 2},${subBusY} V ${srPos.y}`} className="stroke-dashed" />
+                            ))}
                         </React.Fragment>
                      );
                   }
@@ -251,6 +251,13 @@ const HeirCard = ({
      });
   }
 
+  const handleChildlessToggle = (checked: boolean) => {
+    onUpdate(child.id, {
+      isChildless: checked,
+      heirs: checked ? { widows: 0, husbandAlive: false, sons: 0, daughters: 0 } : child.heirs,
+    });
+  };
+
   return (
     <Card className={cn("relative p-4 animate-accordion-down border-dashed", !child.isAlive ? "border-amber-500/50 bg-amber-500/10" : "")}>
       <div className="flex items-start justify-between">
@@ -277,9 +284,13 @@ const HeirCard = ({
       </div>
 
       {!child.isAlive && (
-        <div className="mt-4 pt-4 border-t border-dashed border-border/50">
-           <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-2">Heirs of Deceased {child.type} {index + 1}</p>
-           <div className="grid grid-cols-3 gap-3">
+        <div className="mt-4 pt-4 border-t border-dashed border-border/50 space-y-4">
+           <div className="flex items-center space-x-2">
+              <Switch id={`childless-switch-${child.id}`} checked={!!child.isChildless} onCheckedChange={handleChildlessToggle} />
+              <Label htmlFor={`childless-switch-${child.id}`} className="text-xs cursor-pointer font-medium text-amber-800 dark:text-amber-300">Deceased was Childless (No Heirs)</Label>
+            </div>
+
+           <div className={cn("grid grid-cols-3 gap-3 transition-opacity", child.isChildless && "opacity-50 pointer-events-none")}>
                 {child.type === 'son' ? (
                      <div className="space-y-1">
                         <Label htmlFor={`heir-widows-${child.id}`} className="text-[11px]">His Widow(s)</Label>
@@ -314,8 +325,8 @@ export function WirasatTab() {
   const [wirasatMarlaSize, setWirasatMarlaSize] = useState<"225" | "272">("272");
 
   const [wirasatWidows, setWirasatWidows] = useState<string>("1");
-  const [wirasatFatherAlive, setWirasatFatherAlive] = useState<boolean>(true);
-  const [wirasatMotherAlive, setWirasatMotherAlive] = useState<boolean>(true);
+  const [wirasatFatherAlive, setWirasatFatherAlive] = useState<boolean>(false);
+  const [wirasatMotherAlive, setWirasatMotherAlive] = useState<boolean>(false);
   const [wirasatHusbandAlive, setWirasatHusbandAlive] = useState<boolean>(false);
   
   const [children, setChildren] = useState<ChildHeir[]>([]);
@@ -334,6 +345,7 @@ export function WirasatTab() {
             id: crypto.randomUUID(),
             type,
             isAlive: true,
+            isChildless: false,
             heirs: {
                 widows: 0,
                 husbandAlive: false,
