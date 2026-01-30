@@ -3,7 +3,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createWorker, Worker, Word } from "tesseract.js";
-import { Loader2, Search, SlidersHorizontal, Download, BrainCircuit, FolderSync } from "lucide-react";
+import { Loader2, Search, SlidersHorizontal, Download, BrainCircuit, FolderSync, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/collapsible";
 import { extractMutationNumber } from "@/lib/forensic-utils";
 import ExifReader from "exifreader";
+import { cn } from "@/lib/utils";
 
 type OcrResult = {
   mutationNumber: string;
@@ -27,6 +28,9 @@ type OcrResult = {
   confidence: number;
   bbox: { x0: number; y0: number; x1: number; y1: number };
   imageDims: { width: number; height: number };
+  // Fields for training mode
+  expectedNumber?: string | null;
+  isMatch?: boolean;
 };
 
 type OcrTrainingProfile = {
@@ -59,6 +63,10 @@ export function OcrTab() {
   const [minConfidence, setMinConfidence] = useState([60]);
   const [xRange, setXRange] = useState([0, 100]);
   const [yRange, setYRange] = useState([0, 100]);
+  
+  // This state determines if we are in "Training" view mode
+  const [isTrainingView, setIsTrainingView] = useState(false);
+
 
   // Training state
   const [isTraining, setIsTraining] = useState(false);
@@ -132,6 +140,7 @@ export function OcrTab() {
       return;
     }
 
+    setIsTrainingView(false); // Switch to normal OCR view
     setOcrResults([]);
     setIsOcrScanning(true);
     isOcrScanningRef.current = true;
@@ -204,14 +213,16 @@ export function OcrTab() {
       toast({ title: "No images found in the selected folder.", variant: "destructive" });
       return;
     }
-
+    
+    setIsTrainingView(true);
     setIsTraining(true);
+    setOcrResults([]);
     setTrainedProfile(null);
     setTrainingProgress({ current: 0, total: imageFiles.length });
-    toast({ title: "Starting Training...", description: "Initializing OCR and metadata readers. This can take some time." });
+    toast({ title: "Starting Training Scan...", description: "Initializing OCR. This may take some time." });
 
     const worker = await createWorker("eng");
-    const successfulMatches: { word: Word; pos: { x: number; y: number } }[] = [];
+    const allTrainingResults: OcrResult[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
@@ -220,62 +231,72 @@ export function OcrTab() {
       try {
         const exifTags = await ExifReader.load(file);
         const metadataFindings = extractMutationNumber(exifTags);
-        const goldenKey = metadataFindings.find(f => f.isGoldenKey)?.number;
-
-        if (!goldenKey) continue;
+        const goldenKey = metadataFindings.find(f => f.isGoldenKey)?.number || null;
 
         const { data: { words } } = await worker.recognize(file);
         const { width, height } = await getImageDims(file);
         
-        const matchedWord = words.find(word => word.text.replace(/\D/g, "") === goldenKey);
-        
-        if (matchedWord && width > 0 && height > 0) {
-          const centerX = (matchedWord.bbox.x0 + matchedWord.bbox.x1) / 2;
-          const centerY = (matchedWord.bbox.y0 + matchedWord.bbox.y1) / 2;
-          successfulMatches.push({
-            word: matchedWord,
-            pos: {
-              x: (centerX / width) * 100,
-              y: (centerY / height) * 100,
+        words.forEach(word => {
+            const isStandaloneNumber = /^\d+$/.test(word.text);
+            if (isStandaloneNumber) {
+                allTrainingResults.push({
+                    mutationNumber: word.text,
+                    fileName: file.name,
+                    confidence: word.confidence,
+                    bbox: word.bbox,
+                    imageDims: { width, height },
+                    expectedNumber: goldenKey,
+                    isMatch: goldenKey ? word.text.replace(/\D/g, "") === goldenKey : false,
+                });
             }
-          });
-        }
+        });
+
       } catch (error) {
         console.error(`Error during training on file ${file.name}:`, error);
       }
+       if (i % 10 === 0) { // Update UI periodically
+          setOcrResults([...allTrainingResults]);
+          await new Promise(r => setTimeout(r, 0));
+       }
     }
 
     await worker.terminate();
+    setOcrResults(allTrainingResults); // Final update
+    
+    const successfulMatches = allTrainingResults.filter(r => r.isMatch);
 
     if (successfulMatches.length > 0) {
         const n = successfulMatches.length;
 
-        // Positional stats
-        const sumX = successfulMatches.reduce((acc, match) => acc + match.pos.x, 0);
-        const sumY = successfulMatches.reduce((acc, match) => acc + match.pos.y, 0);
+        const posData = successfulMatches.map(r => ({
+            x: ((r.bbox.x0 + r.bbox.x1) / 2 / r.imageDims.width) * 100,
+            y: ((r.bbox.y0 + r.bbox.y1) / 2 / r.imageDims.height) * 100,
+        }));
+        const sumX = posData.reduce((acc, p) => acc + p.x, 0);
+        const sumY = posData.reduce((acc, p) => acc + p.y, 0);
         const avgX = sumX / n;
         const avgY = sumY / n;
-        const sumSqDiffX = successfulMatches.reduce((acc, match) => acc + Math.pow(match.pos.x - avgX, 2), 0);
-        const sumSqDiffY = successfulMatches.reduce((acc, match) => acc + Math.pow(match.pos.y - avgY, 2), 0);
+        const sumSqDiffX = posData.reduce((acc, p) => acc + Math.pow(p.x - avgX, 2), 0);
+        const sumSqDiffY = posData.reduce((acc, p) => acc + Math.pow(p.y - avgY, 2), 0);
         const stdDevX = Math.sqrt(sumSqDiffX / n);
         const stdDevY = Math.sqrt(sumSqDiffY / n);
 
-        // Confidence stats
-        const sumConfidence = successfulMatches.reduce((acc, match) => acc + match.word.confidence, 0);
+        const sumConfidence = successfulMatches.reduce((acc, r) => acc + r.confidence, 0);
         const avgConfidence = sumConfidence / n;
 
-        // Length stats
-        const lengths = successfulMatches.map(match => match.word.text.length);
+        const lengths = successfulMatches.map(r => r.mutationNumber.length);
         const lengthCounts = lengths.reduce((acc, len) => {
             (acc as any)[len] = ((acc as any)[len] || 0) + 1;
             return acc;
         }, {} as Record<number, number>);
-        const commonLength = parseInt(Object.entries(lengthCounts).sort((a, b) => b[1] - a[1])[0][0]);
+        const commonLength = Object.keys(lengthCounts).length > 0 
+            ? parseInt(Object.entries(lengthCounts).sort((a, b) => b[1] - a[1])[0][0])
+            : 5;
 
         setTrainedProfile({ avgX, avgY, stdDevX, stdDevY, avgConfidence, commonLength, count: n });
-        toast({ title: "Training Complete", description: `Created a profile from ${n} successfully matched images.` });
+        toast({ title: "Training Scan Complete", description: `A profile was generated from ${n} successfully matched images.` });
     } else {
-      toast({ title: "Training Failed", description: "No images with matching OCR and metadata found.", variant: "destructive" });
+      toast({ title: "Training Scan Complete", description: "No images with matching OCR and metadata were found. Review the table for OCR errors.", variant: "destructive" });
     }
 
     setIsTraining(false);
@@ -347,8 +368,16 @@ export function OcrTab() {
             return;
         }
 
-        const csvHeader = "Mutation Number,File Name,Confidence\n";
-        const csvRows = filteredOcrResults.map(r => `${r.mutationNumber},"${r.fileName}",${r.confidence?.toFixed(2) ?? ''}`);
+        let csvHeader, csvRows;
+
+        if (isTrainingView) {
+            csvHeader = "Match,OCR'd Number,Expected (XMP),Confidence,File Name\n";
+            csvRows = filteredOcrResults.map(r => `${r.isMatch ? 'YES' : 'NO'},${r.mutationNumber},${r.expectedNumber || ''},${r.confidence?.toFixed(2) ?? ''},"${r.fileName}"`);
+        } else {
+            csvHeader = "Mutation Number,File Name,Confidence\n";
+            csvRows = filteredOcrResults.map(r => `${r.mutationNumber},"${r.fileName}",${r.confidence?.toFixed(2) ?? ''}`);
+        }
+        
         const csvContent = csvHeader + csvRows.join('\n');
         
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -494,7 +523,9 @@ export function OcrTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Mutation ID</TableHead>
+                     {isTrainingView && <TableHead className="w-12">Match</TableHead>}
+                    <TableHead>OCR'd Number</TableHead>
+                    {isTrainingView && <TableHead>Expected (XMP)</TableHead>}
                     <TableHead>Source File</TableHead>
                     <TableHead className="text-right">Confidence</TableHead>
                   </TableRow>
@@ -502,14 +533,20 @@ export function OcrTab() {
                 <TableBody>
                   {filteredOcrResults.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center text-xs text-muted-foreground h-24">
-                        {isOcrScanning ? "Scanning in progress..." : ocrResults.length > 0 ? "No results match your current filters." : "Run an OCR scan to see results here."}
+                      <TableCell colSpan={isTrainingView ? 5 : 3} className="text-center text-xs text-muted-foreground h-24">
+                        {isOcrScanning || isTraining ? "Scanning in progress..." : ocrResults.length > 0 ? "No results match your current filters." : "Run an OCR or Training scan to see results here."}
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredOcrResults.map((result, index) => (
-                      <TableRow key={`${result.mutationNumber}-${index}`} className="bg-background">
+                      <TableRow key={`${result.mutationNumber}-${index}`} className={cn(isTrainingView && (result.isMatch ? "bg-green-500/10" : "bg-red-500/5"))}>
+                        {isTrainingView && (
+                           <TableCell>
+                             {result.isMatch ? <CheckCircle className="h-4 w-4 text-green-600"/> : <XCircle className="h-4 w-4 text-red-500"/>}
+                           </TableCell>
+                        )}
                         <TableCell className="font-medium">{result.mutationNumber}</TableCell>
+                        {isTrainingView && <TableCell className="text-xs text-muted-foreground">{result.expectedNumber || 'N/A'}</TableCell>}
                         <TableCell className="text-xs text-muted-foreground">{result.fileName}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
                           {result.confidence != null ? `${result.confidence.toFixed(1)}%` : 'N/A'}
