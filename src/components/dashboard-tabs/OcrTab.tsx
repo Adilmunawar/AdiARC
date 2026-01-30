@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createWorker, Worker } from "tesseract.js";
+import { createWorker, Worker, Word } from "tesseract.js";
 import { Loader2, Search, SlidersHorizontal, Download, BrainCircuit, FolderSync } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,15 @@ type OcrResult = {
   imageDims: { width: number; height: number };
 };
 
-type TrainedPosition = { x: number; y: number };
+type OcrTrainingProfile = {
+  avgX: number;
+  avgY: number;
+  stdDevX: number;
+  stdDevY: number;
+  avgConfidence: number;
+  commonLength: number;
+  count: number;
+};
 
 export function OcrTab() {
   const { toast } = useToast();
@@ -46,8 +54,8 @@ export function OcrTab() {
 
   // Filtering state
   const [filterText, setFilterText] = useState("");
-  const [minLength, setMinLength] = useState("3");
-  const [maxLength, setMaxLength] = useState("8");
+  const [minLength, setMinLength] = useState("4");
+  const [maxLength, setMaxLength] = useState("6");
   const [minConfidence, setMinConfidence] = useState([60]);
   const [xRange, setXRange] = useState([0, 100]);
   const [yRange, setYRange] = useState([0, 100]);
@@ -55,7 +63,7 @@ export function OcrTab() {
   // Training state
   const [isTraining, setIsTraining] = useState(false);
   const [trainingProgress, setTrainingProgress] = useState({ current: 0, total: 0 });
-  const [trainedProfile, setTrainedProfile] = useState<{ avgX: number; avgY: number; stdDevX: number; stdDevY: number; count: number; } | null>(null);
+  const [trainedProfile, setTrainedProfile] = useState<OcrTrainingProfile | null>(null);
   const trainingFolderInputRef = useRef<HTMLInputElement | null>(null);
 
 
@@ -149,8 +157,8 @@ export function OcrTab() {
           const { data } = await worker.recognize(file);
           
           data.words.forEach(word => {
-            const isNumber = /^\d{3,8}$/.test(word.text);
-            if (isNumber) {
+            const isStandaloneNumber = /^\d+$/.test(word.text);
+            if (isStandaloneNumber) {
                 newResults.push({
                     mutationNumber: word.text,
                     fileName: file.name,
@@ -187,7 +195,7 @@ export function OcrTab() {
     }
   };
 
-  const handleTrainingFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+ const handleTrainingFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -203,7 +211,7 @@ export function OcrTab() {
     toast({ title: "Starting Training...", description: "Initializing OCR and metadata readers. This can take some time." });
 
     const worker = await createWorker("eng");
-    const successfulMatches: TrainedPosition[] = [];
+    const successfulMatches: { word: Word; pos: { x: number; y: number } }[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
@@ -225,8 +233,11 @@ export function OcrTab() {
           const centerX = (matchedWord.bbox.x0 + matchedWord.bbox.x1) / 2;
           const centerY = (matchedWord.bbox.y0 + matchedWord.bbox.y1) / 2;
           successfulMatches.push({
-            x: (centerX / width) * 100,
-            y: (centerY / height) * 100,
+            word: matchedWord,
+            pos: {
+              x: (centerX / width) * 100,
+              y: (centerY / height) * 100,
+            }
           });
         }
       } catch (error) {
@@ -237,20 +248,32 @@ export function OcrTab() {
     await worker.terminate();
 
     if (successfulMatches.length > 0) {
-      const n = successfulMatches.length;
-      const sumX = successfulMatches.reduce((acc, pos) => acc + pos.x, 0);
-      const sumY = successfulMatches.reduce((acc, pos) => acc + pos.y, 0);
-      const avgX = sumX / n;
-      const avgY = sumY / n;
-      
-      const sumSqDiffX = successfulMatches.reduce((acc, pos) => acc + Math.pow(pos.x - avgX, 2), 0);
-      const sumSqDiffY = successfulMatches.reduce((acc, pos) => acc + Math.pow(pos.y - avgY, 2), 0);
-      
-      const stdDevX = Math.sqrt(sumSqDiffX / n);
-      const stdDevY = Math.sqrt(sumSqDiffY / n);
+        const n = successfulMatches.length;
 
-      setTrainedProfile({ avgX, avgY, stdDevX, stdDevY, count: n });
-      toast({ title: "Training Complete", description: `Created a profile from ${n} successfully matched images.` });
+        // Positional stats
+        const sumX = successfulMatches.reduce((acc, match) => acc + match.pos.x, 0);
+        const sumY = successfulMatches.reduce((acc, match) => acc + match.pos.y, 0);
+        const avgX = sumX / n;
+        const avgY = sumY / n;
+        const sumSqDiffX = successfulMatches.reduce((acc, match) => acc + Math.pow(match.pos.x - avgX, 2), 0);
+        const sumSqDiffY = successfulMatches.reduce((acc, match) => acc + Math.pow(match.pos.y - avgY, 2), 0);
+        const stdDevX = Math.sqrt(sumSqDiffX / n);
+        const stdDevY = Math.sqrt(sumSqDiffY / n);
+
+        // Confidence stats
+        const sumConfidence = successfulMatches.reduce((acc, match) => acc + match.word.confidence, 0);
+        const avgConfidence = sumConfidence / n;
+
+        // Length stats
+        const lengths = successfulMatches.map(match => match.word.text.length);
+        const lengthCounts = lengths.reduce((acc, len) => {
+            (acc as any)[len] = ((acc as any)[len] || 0) + 1;
+            return acc;
+        }, {} as Record<number, number>);
+        const commonLength = parseInt(Object.entries(lengthCounts).sort((a, b) => b[1] - a[1])[0][0]);
+
+        setTrainedProfile({ avgX, avgY, stdDevX, stdDevY, avgConfidence, commonLength, count: n });
+        toast({ title: "Training Complete", description: `Created a profile from ${n} successfully matched images.` });
     } else {
       toast({ title: "Training Failed", description: "No images with matching OCR and metadata found.", variant: "destructive" });
     }
@@ -261,19 +284,28 @@ export function OcrTab() {
   const applyTrainedProfile = () => {
     if (!trainedProfile) return;
     
+    // Position (use 2x std dev for a wider, more inclusive net)
     const newXRange = [
-      Math.max(0, Math.round(trainedProfile.avgX - 1.5 * trainedProfile.stdDevX)),
-      Math.min(100, Math.round(trainedProfile.avgX + 1.5 * trainedProfile.stdDevX)),
+      Math.max(0, Math.round(trainedProfile.avgX - 2 * trainedProfile.stdDevX)),
+      Math.min(100, Math.round(trainedProfile.avgX + 2 * trainedProfile.stdDevX)),
     ];
     const newYRange = [
-       Math.max(0, Math.round(trainedProfile.avgY - 1.5 * trainedProfile.stdDevY)),
-       Math.min(100, Math.round(trainedProfile.avgY + 1.5 * trainedProfile.stdDevY)),
+       Math.max(0, Math.round(trainedProfile.avgY - 2 * trainedProfile.stdDevY)),
+       Math.min(100, Math.round(trainedProfile.avgY + 2 * trainedProfile.stdDevY)),
     ];
-    
     setXRange(newXRange);
     setYRange(newYRange);
     
-    toast({ title: "Filters Applied", description: "Positional filters updated based on trained profile." });
+    // Confidence (set slightly below average to not be too restrictive)
+    setMinConfidence([Math.max(0, Math.floor(trainedProfile.avgConfidence - 10))]); 
+
+    // Length (set min/max to the most common length)
+    if (trainedProfile.commonLength) {
+        setMinLength(String(trainedProfile.commonLength));
+        setMaxLength(String(trainedProfile.commonLength));
+    }
+    
+    toast({ title: "Filters Applied", description: "Positional, confidence, and length filters updated based on training." });
   };
 
 
@@ -386,8 +418,8 @@ export function OcrTab() {
         </section>
         
         <section className="space-y-3 rounded-md border border-dashed border-border bg-muted/40 p-3">
-            <h3 className="text-sm font-medium flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary"/> Train the OCR Engine (Optional)</h3>
-            <p className="text-xs text-muted-foreground">Select a folder of images with reliable XMP metadata to teach the tool where mutation numbers are typically located.</p>
+            <h3 className="text-sm font-medium flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary"/> Train Filters from Metadata (Optional)</h3>
+            <p className="text-xs text-muted-foreground">Select a folder of images with reliable XMP metadata to teach the tool where mutation numbers are typically located and what they look like.</p>
             <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => trainingFolderInputRef.current?.click()} disabled={isTraining || isOcrScanning}>
                     <FolderSync className="mr-2 h-4 w-4"/>
@@ -401,7 +433,7 @@ export function OcrTab() {
             {isTraining && <Progress value={(trainingProgress.total > 0 ? (trainingProgress.current / trainingProgress.total) * 100 : 0)} className="h-1.5" />}
             {trainedProfile && (
                 <p className="text-xs text-green-600">
-                    Training complete! Profile created from {trainedProfile.count} images. Average position: X ≈ {trainedProfile.avgX.toFixed(0)}%, Y ≈ {trainedProfile.avgY.toFixed(0)}%.
+                    Training complete! Profiled {trainedProfile.count} images. Avg Pos: (X: {trainedProfile.avgX.toFixed(0)}%, Y: {trainedProfile.avgY.toFixed(0)}%), Avg Conf: {trainedProfile.avgConfidence.toFixed(0)}%, Common Length: {trainedProfile.commonLength} digits.
                 </p>
             )}
         </section>
@@ -422,11 +454,11 @@ export function OcrTab() {
                         </div>
                          <div className="space-y-1.5">
                             <Label htmlFor="ocr-min-len" className="text-xs">Min Digits</Label>
-                            <Input id="ocr-min-len" type="number" placeholder="e.g., 3" value={minLength} onChange={e => setMinLength(e.target.value)} />
+                            <Input id="ocr-min-len" type="number" placeholder="e.g., 4" value={minLength} onChange={e => setMinLength(e.target.value)} />
                         </div>
                          <div className="space-y-1.5">
                             <Label htmlFor="ocr-max-len" className="text-xs">Max Digits</Label>
-                            <Input id="ocr-max-len" type="number" placeholder="e.g., 8" value={maxLength} onChange={e => setMaxLength(e.target.value)} />
+                            <Input id="ocr-max-len" type="number" placeholder="e.g., 6" value={maxLength} onChange={e => setMaxLength(e.target.value)} />
                         </div>
                     </div>
                      <div className="grid gap-6 md:grid-cols-2 pt-4">
