@@ -22,7 +22,9 @@ import {
 type OcrResult = {
   mutationNumber: string;
   fileName: string;
-  confidence?: number;
+  confidence: number;
+  bbox: { x0: number; y0: number; x1: number; y1: number };
+  imageDims: { width: number; height: number };
 };
 
 export function OcrTab() {
@@ -40,9 +42,12 @@ export function OcrTab() {
 
   // Filtering state
   const [filterText, setFilterText] = useState("");
-  const [minLength, setMinLength] = useState("4");
-  const [maxLength, setMaxLength] = useState("6");
+  const [minLength, setMinLength] = useState("3");
+  const [maxLength, setMaxLength] = useState("8");
   const [minConfidence, setMinConfidence] = useState([60]);
+  const [xRange, setXRange] = useState([0, 100]);
+  const [yRange, setYRange] = useState([0, 100]);
+
 
   useEffect(() => {
     return () => {
@@ -108,36 +113,48 @@ export function OcrTab() {
     try {
       const worker = await createWorker("eng");
       workerRef.current = worker;
-
       const newResults: OcrResult[] = [];
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        if (!isOcrScanningRef.current) break;
+      let i = 0;
 
+      const getImageDims = (file: File): Promise<{width: number, height: number}> => new Promise((resolve, reject) => {
+          const img = new Image();
+          const objectUrl = URL.createObjectURL(file);
+          img.onload = () => {
+              resolve({ width: img.naturalWidth, height: img.naturalHeight });
+              URL.revokeObjectURL(objectUrl);
+          };
+          img.onerror = (err) => {
+              reject(err);
+              URL.revokeObjectURL(objectUrl);
+          };
+          img.src = objectUrl;
+      });
+
+      for (const file of imageFiles) {
+        if (!isOcrScanningRef.current) break;
         setOcrProgress({ current: i + 1, total: imageFiles.length, currentFileName: file.name });
         
         try {
+          const imageDims = await getImageDims(file);
           const { data } = await worker.recognize(file);
-          // Regex to find standalone numbers, allowing for some noise
-          const numberMatches = data.text.match(/\b\d{3,8}\b/g) || [];
           
-          if (numberMatches.length > 0) {
-            const uniqueNumbers = [...new Set(numberMatches)];
-            uniqueNumbers.forEach(num => {
-                // Avoid adding duplicates from different files if the number is the same
-                if (!newResults.some(r => r.mutationNumber === num)) {
-                    newResults.push({
-                      mutationNumber: num,
-                      fileName: file.name,
-                      confidence: data.confidence,
-                    });
-                }
-            });
-          }
+          data.words.forEach(word => {
+            const isNumber = /^\d{3,8}$/.test(word.text);
+            if (isNumber) {
+                newResults.push({
+                    mutationNumber: word.text,
+                    fileName: file.name,
+                    confidence: word.confidence,
+                    bbox: word.bbox,
+                    imageDims: imageDims,
+                });
+            }
+          });
+          setOcrResults([...newResults]); // Update state incrementally
         } catch (error) {
           console.error(`OCR failed for ${file.name}:`, error);
         }
-        setOcrResults([...newResults]); // Update state incrementally
+        i++;
       }
     } catch (error) {
       console.error("Failed to initialize or run OCR worker", error);
@@ -173,9 +190,24 @@ export function OcrTab() {
       if (filterText && !result.mutationNumber.includes(filterText) && !result.fileName.toLowerCase().includes(filterText.toLowerCase())) {
         return false;
       }
-      return true;
+      
+      const bbox = result.bbox;
+      const dims = result.imageDims;
+      if (!bbox || !dims || dims.width === 0 || dims.height === 0) return true;
+
+      const centerX = (bbox.x0 + bbox.x1) / 2;
+      const centerY = (bbox.y0 + bbox.y1) / 2;
+
+      const relativeX = (centerX / dims.width) * 100;
+      const relativeY = (centerY / dims.height) * 100;
+
+      const inXRange = relativeX >= xRange[0] && relativeX <= xRange[1];
+      const inYRange = relativeY >= yRange[0] && relativeY <= yRange[1];
+
+      return inXRange && inYRange;
+
     }).sort((a,b) => parseInt(a.mutationNumber) - parseInt(b.mutationNumber));
-  }, [ocrResults, filterText, minLength, maxLength, minConfidence]);
+  }, [ocrResults, filterText, minLength, maxLength, minConfidence, xRange, yRange]);
 
     const handleDownloadResults = () => {
         if (filteredOcrResults.length === 0) {
@@ -207,14 +239,14 @@ export function OcrTab() {
           Local OCR Detective
         </CardTitle>
         <CardDescription>
-          This improved tool now uses a more specific regex to find standalone numbers (3-8 digits) to better isolate potential mutation IDs. Use the filters to narrow down the results.
+          Use positional filtering to guide the OCR engine and isolate specific numbers from dense documents. The tool now analyzes word-by-word for greater precision.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-3 rounded-md border border-dashed border-border bg-muted/40 p-3">
           <p className="text-sm font-medium">Scan a local image folder with OCR</p>
           <p className="text-xs text-muted-foreground">
-            The OCR engine runs entirely in your browser. It looks for numbers that are between 3 and 8 digits long to reduce noise from other data on the page.
+            The OCR engine runs entirely in your browser. Use the sliders in the filter section to define a region of interest and find numbers more accurately.
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-2">
@@ -265,23 +297,35 @@ export function OcrTab() {
                     </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-4 space-y-4 animate-accordion-down">
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         <div className="space-y-1.5">
                             <Label htmlFor="ocr-search-text" className="text-xs">Search number or file</Label>
                             <Input id="ocr-search-text" placeholder="e.g., 19403 or DSC..." value={filterText} onChange={e => setFilterText(e.target.value)} />
                         </div>
                          <div className="space-y-1.5">
                             <Label htmlFor="ocr-min-len" className="text-xs">Min Digits</Label>
-                            <Input id="ocr-min-len" type="number" placeholder="e.g., 4" value={minLength} onChange={e => setMinLength(e.target.value)} />
+                            <Input id="ocr-min-len" type="number" placeholder="e.g., 3" value={minLength} onChange={e => setMinLength(e.target.value)} />
                         </div>
                          <div className="space-y-1.5">
                             <Label htmlFor="ocr-max-len" className="text-xs">Max Digits</Label>
-                            <Input id="ocr-max-len" type="number" placeholder="e.g., 6" value={maxLength} onChange={e => setMaxLength(e.target.value)} />
+                            <Input id="ocr-max-len" type="number" placeholder="e.g., 8" value={maxLength} onChange={e => setMaxLength(e.target.value)} />
                         </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs">Min Confidence ({minConfidence[0]}%)</Label>
-                            <Slider value={minConfidence} onValueChange={setMinConfidence} max={100} step={5} />
+                    </div>
+                     <div className="grid gap-6 md:grid-cols-2 pt-4">
+                        <div className="space-y-2">
+                            <Label className="text-xs">Horizontal Region (X-Axis)</Label>
+                             <Slider value={xRange} onValueChange={setXRange} max={100} step={1} />
+                             <div className="flex justify-between text-[10px] text-muted-foreground"><span>{xRange[0]}%</span><span>{xRange[1]}%</span></div>
                         </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs">Vertical Region (Y-Axis)</Label>
+                            <Slider value={yRange} onValueChange={setYRange} max={100} step={1} />
+                            <div className="flex justify-between text-[10px] text-muted-foreground"><span>{yRange[0]}%</span><span>{yRange[1]}%</span></div>
+                        </div>
+                    </div>
+                    <div className="space-y-2 pt-2">
+                        <Label className="text-xs">Min Confidence ({minConfidence[0]}%)</Label>
+                        <Slider value={minConfidence} onValueChange={setMinConfidence} max={100} step={5} />
                     </div>
                 </CollapsibleContent>
              </Collapsible>
@@ -313,8 +357,8 @@ export function OcrTab() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredOcrResults.map((result) => (
-                      <TableRow key={result.mutationNumber} className="bg-background">
+                    filteredOcrResults.map((result, index) => (
+                      <TableRow key={`${result.mutationNumber}-${index}`} className="bg-background">
                         <TableCell className="font-medium">{result.mutationNumber}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{result.fileName}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
