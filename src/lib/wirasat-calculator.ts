@@ -123,18 +123,16 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
     const totalChildUnits = effectiveChildren.reduce((acc, child) => acc + (child.type === 'son' ? 2 : 1), 0);
     const hasLivingSons = effectiveChildren.some(c => c.isAlive && c.type === 'son');
     
-    let sonCounter = 1;
-    let daughterCounter = 1;
-    let deceasedSonCounter = 1;
-    let deceasedDaughterCounter = 1;
-
     if (totalChildUnits === 0) {
         // All children are deceased and childless, remainder goes to other residuaries
     } else if (hasLivingSons) {
         const unitValue = remainder / totalChildUnits;
-        children.forEach((child) => {
-            if (!effectiveChildren.find(ec => ec.id === child.id)) return;
+        let sonCounter = 1;
+        let daughterCounter = 1;
+        let deceasedSonCounter = 1;
+        let deceasedDaughterCounter = 1;
 
+        effectiveChildren.forEach((child) => {
             const childShare = unitValue * (child.type === 'son' ? 2 : 1);
             let relationLabel = '';
 
@@ -175,6 +173,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
         const daughterFixedTotal = livingDaughters.length === 1 ? totalSqFt / 2 : (2 * totalSqFt) / 3;
         const individualDaughterShare = livingDaughters.length > 0 ? daughterFixedTotal / livingDaughters.length : 0;
         
+        let daughterCounter = 1;
         livingDaughters.forEach((_daughter) => {
              rows.push({ relation: `Daughter ${daughterCounter++}`, shareLabel: livingDaughters.length === 1 ? '1/2' : `2/3 ÷ ${livingDaughters.length}`, areaSqFtRaw: individualDaughterShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
         });
@@ -186,6 +185,8 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
              const predecChildUnits = predeceasedWithHeirs.reduce((acc, child) => acc + (child.type === 'son' ? 2 : 1), 0);
              if (predecChildUnits > 0) {
                 const unitValue = remainingForResidue / predecChildUnits;
+                let deceasedSonCounter = 1;
+                let deceasedDaughterCounter = 1;
                 predeceasedWithHeirs.forEach((child) => {
                     let relationLabel = '';
                      if (child.type === 'son') {
