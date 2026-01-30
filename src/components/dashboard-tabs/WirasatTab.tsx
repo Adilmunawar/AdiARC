@@ -259,23 +259,15 @@ const HeirCard = ({
   };
 
   return (
-    <Card className={cn("relative p-4 animate-accordion-down border-dashed", !child.isAlive ? "border-amber-500/50 bg-amber-500/10" : "")}>
+    <Card className={cn("relative p-4 animate-accordion-down border-dashed border-amber-500/50 bg-amber-500/10")}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className={cn("flex h-8 w-8 items-center justify-center rounded-full", child.type === 'son' ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-pink-100 dark:bg-pink-900/50')}>
-             <User className={cn("h-5 w-5", child.type === 'son' ? 'text-blue-600' : 'text-pink-600')} />
+             <UserX className={cn("h-5 w-5", child.type === 'son' ? 'text-blue-600' : 'text-pink-600')} />
           </div>
           <div>
-            <p className="font-semibold text-sm capitalize">{child.type} {index + 1}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <UserCheck className={cn("h-4 w-4 transition-colors", child.isAlive ? "text-green-600" : "text-muted-foreground/50")} />
-              <Switch
-                checked={!child.isAlive}
-                onCheckedChange={(checked) => onUpdate(child.id, { isAlive: !checked })}
-                id={`deceased-switch-${child.id}`}
-              />
-              <UserX className={cn("h-4 w-4 transition-colors", !child.isAlive ? "text-amber-600" : "text-muted-foreground/50")} />
-            </div>
+            <p className="font-semibold text-sm capitalize">Deceased {child.type} {index + 1}</p>
+            <p className="text-xs text-muted-foreground">Specify their heirs below</p>
           </div>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRemove(child.id)}>
@@ -283,8 +275,7 @@ const HeirCard = ({
         </Button>
       </div>
 
-      {!child.isAlive && (
-        <div className="mt-4 pt-4 border-t border-dashed border-border/50 space-y-4">
+      <div className="mt-4 pt-4 border-t border-dashed border-border/50 space-y-4">
            <div className="flex items-center space-x-2">
               <Switch id={`childless-switch-${child.id}`} checked={!!child.isChildless} onCheckedChange={handleChildlessToggle} />
               <Label htmlFor={`childless-switch-${child.id}`} className="text-xs cursor-pointer font-medium text-amber-800 dark:text-amber-300">Deceased was Childless (No Heirs)</Label>
@@ -312,7 +303,6 @@ const HeirCard = ({
                 </div>
            </div>
         </div>
-      )}
     </Card>
   );
 };
@@ -329,7 +319,9 @@ export function WirasatTab() {
   const [wirasatMotherAlive, setWirasatMotherAlive] = useState<boolean>(false);
   const [wirasatHusbandAlive, setWirasatHusbandAlive] = useState<boolean>(false);
   
-  const [children, setChildren] = useState<ChildHeir[]>([]);
+  const [livingSons, setLivingSons] = useState<string>("0");
+  const [livingDaughters, setLivingDaughters] = useState<string>("0");
+  const [deceasedChildren, setDeceasedChildren] = useState<ChildHeir[]>([]);
 
   const [wirasatBrothers, setWirasatBrothers] = useState<string>("0");
   const [wirasatSisters, setWirasatSisters] = useState<string>("0");
@@ -340,29 +332,29 @@ export function WirasatTab() {
   const [wirasatTotalSqFt, setWirasatTotalSqFt] = useState<number | null>(null);
   const [wirasatError, setWirasatError] = useState<string | null>(null);
   
-    const addChild = (type: 'son' | 'daughter') => {
-        const newChild: ChildHeir = {
-            id: crypto.randomUUID(),
-            type,
-            isAlive: true,
-            isChildless: false,
-            heirs: {
-                widows: 0,
-                husbandAlive: false,
-                sons: 0,
-                daughters: 0
-            }
-        };
-        setChildren(prev => [...prev, newChild]);
+  const addDeceasedChild = (type: 'son' | 'daughter') => {
+    const newChild: ChildHeir = {
+        id: crypto.randomUUID(),
+        type,
+        isAlive: false, // Always deceased in this context
+        isChildless: false,
+        heirs: {
+            widows: 0,
+            husbandAlive: false,
+            sons: 0,
+            daughters: 0
+        }
     };
+    setDeceasedChildren(prev => [...prev, newChild]);
+  };
 
-    const updateChild = (id: string, updates: Partial<ChildHeir>) => {
-        setChildren(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-    };
+  const updateDeceasedChild = (id: string, updates: Partial<ChildHeir>) => {
+      setDeceasedChildren(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
 
-    const removeChild = (id: string) => {
-        setChildren(prev => prev.filter(c => c.id !== id));
-    };
+  const removeDeceasedChild = (id: string) => {
+      setDeceasedChildren(prev => prev.filter(c => c.id !== id));
+  };
 
   const toTotalSqFt = (kanal: number, marla: number, feet: number, marlaSize: number) => {
     return kanal * 20 * marlaSize + marla * marlaSize + feet;
@@ -394,13 +386,18 @@ export function WirasatTab() {
       setWirasatError("Please choose either widows (wives) OR a husband, not both.");
       return;
     }
-
+    
+    const livingSonsCount = Math.max(0, Number(livingSons) || 0);
+    const livingDaughtersCount = Math.max(0, Number(livingDaughters) || 0);
+    
     if (
       !widowsCount &&
       !wirasatHusbandAlive &&
       !wirasatFatherAlive &&
       !wirasatMotherAlive &&
-      children.length === 0 &&
+      livingSonsCount === 0 &&
+      livingDaughtersCount === 0 &&
+      deceasedChildren.length === 0 &&
       Number(wirasatBrothers) <= 0 &&
       Number(wirasatSisters) <= 0 &&
       Number(wirasatGrandsons) <= 0
@@ -408,6 +405,12 @@ export function WirasatTab() {
       setWirasatError("Please specify at least one heir.");
       return;
     }
+    
+    const allChildren: ChildHeir[] = [
+      ...Array.from({ length: livingSonsCount }, (_, i) => ({ id: `living-son-${i}`, type: 'son' as const, isAlive: true, isChildless: false, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }})),
+      ...Array.from({ length: livingDaughtersCount }, (_, i) => ({ id: `living-daughter-${i}`, type: 'daughter' as const, isAlive: true, isChildless: false, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }})),
+      ...deceasedChildren,
+    ];
 
     const calcResult = calculateWirasatShares({
       totalSqFt,
@@ -416,7 +419,7 @@ export function WirasatTab() {
       husbandAlive: wirasatHusbandAlive,
       fatherAlive: wirasatFatherAlive,
       motherAlive: wirasatMotherAlive,
-      children: children,
+      children: allChildren,
       brothers: Number(wirasatBrothers) || 0,
       sisters: Number(wirasatSisters) || 0,
       grandsons: Number(wirasatGrandsons) || 0,
@@ -578,6 +581,17 @@ export function WirasatTab() {
                 </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="space-y-1">
+                    <Label htmlFor="wirasat-sons" className="text-[11px]">Sons (Living)</Label>
+                    <Input id="wirasat-sons" type="number" min={0} value={livingSons} onChange={(e) => setLivingSons(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor="wirasat-daughters" className="text-[11px]">Daughters (Living)</Label>
+                    <Input id="wirasat-daughters" type="number" min={0} value={livingDaughters} onChange={(e) => setLivingDaughters(e.target.value)} />
+                </div>
+            </div>
+
              {wirasatMode === "advanced" && (
                 <div className="space-y-4 pt-4 border-t border-dashed">
                     <Label className="font-semibold text-xs">Advanced Heirs (Residuaries)</Label>
@@ -601,18 +615,18 @@ export function WirasatTab() {
           </div>
           
           <div className="space-y-4">
-            <Label className="font-semibold text-sm">Children & Their Heirs</Label>
+            <Label className="font-semibold text-sm">Deceased Children & Their Heirs</Label>
             <div className="space-y-3">
-                {children.map((child, index) => (
-                    <HeirCard key={child.id} child={child} onUpdate={updateChild} onRemove={removeChild} index={index} />
+                {deceasedChildren.map((child, index) => (
+                    <HeirCard key={child.id} child={child} onUpdate={updateDeceasedChild} onRemove={removeDeceasedChild} index={index} />
                 ))}
             </div>
              <div className="flex items-center gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => addChild('son')}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Son
+                <Button variant="outline" size="sm" onClick={() => addDeceasedChild('son')}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Deceased Son
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => addChild('daughter')}>
-                     <PlusCircle className="mr-2 h-4 w-4" /> Add Daughter
+                <Button variant="outline" size="sm" onClick={() => addDeceasedChild('daughter')}>
+                     <PlusCircle className="mr-2 h-4 w-4" /> Add Deceased Daughter
                 </Button>
             </div>
           </div>
@@ -682,7 +696,11 @@ export function WirasatTab() {
                             husbandAlive: wirasatHusbandAlive,
                             fatherAlive: wirasatFatherAlive,
                             motherAlive: wirasatMotherAlive,
-                            children: children
+                            children: [
+                                ...Array.from({ length: Number(livingSons) || 0 }, () => ({ type: 'son', isAlive: true })),
+                                ...Array.from({ length: Number(livingDaughters) || 0 }, () => ({ type: 'daughter', isAlive: true })),
+                                ...deceasedChildren
+                            ]
                         }}
                     />
                 </div>
