@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -164,10 +165,11 @@ export function OcrTab() {
           const imageDims = await getImageDims(file);
           const { data } = await worker.recognize(file);
           
+          const newResultsForFile: OcrResult[] = [];
           data.words.forEach(word => {
             const isStandaloneNumber = /^\d+$/.test(word.text);
             if (isStandaloneNumber) {
-                newResults.push({
+                newResultsForFile.push({
                     mutationNumber: word.text,
                     fileName: file.name,
                     confidence: word.confidence,
@@ -176,7 +178,11 @@ export function OcrTab() {
                 });
             }
           });
-          setOcrResults([...newResults]); // Update state incrementally
+          
+          if (newResultsForFile.length > 0) {
+              setOcrResults(prev => [...prev, ...newResultsForFile]);
+          }
+
         } catch (error) {
           console.error(`OCR failed for ${file.name}:`, error);
         }
@@ -560,3 +566,5 @@ export function OcrTab() {
     </Card>
   );
 }
+
+    
