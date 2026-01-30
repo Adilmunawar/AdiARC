@@ -3,7 +3,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createWorker, Worker } from "tesseract.js";
-import { Loader2, Search, SlidersHorizontal, Download } from "lucide-react";
+import { Loader2, Search, SlidersHorizontal, Download, BrainCircuit, FolderSync } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { extractMutationNumber } from "@/lib/forensic-utils";
+import ExifReader from "exifreader";
 
 type OcrResult = {
   mutationNumber: string;
@@ -26,6 +28,8 @@ type OcrResult = {
   bbox: { x0: number; y0: number; x1: number; y1: number };
   imageDims: { width: number; height: number };
 };
+
+type TrainedPosition = { x: number; y: number };
 
 export function OcrTab() {
   const { toast } = useToast();
@@ -48,6 +52,12 @@ export function OcrTab() {
   const [xRange, setXRange] = useState([0, 100]);
   const [yRange, setYRange] = useState([0, 100]);
 
+  // Training state
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainingProgress, setTrainingProgress] = useState({ current: 0, total: 0 });
+  const [trainedProfile, setTrainedProfile] = useState<{ avgX: number; avgY: number; stdDevX: number; stdDevY: number; count: number; } | null>(null);
+  const trainingFolderInputRef = useRef<HTMLInputElement | null>(null);
+
 
   useEffect(() => {
     return () => {
@@ -58,6 +68,20 @@ export function OcrTab() {
       isOcrScanningRef.current = false;
     };
   }, []);
+
+  const getImageDims = (file: File): Promise<{width: number, height: number}> => new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        URL.revokeObjectURL(objectUrl);
+    };
+    img.onerror = (err) => {
+        reject(err);
+        URL.revokeObjectURL(objectUrl);
+    };
+    img.src = objectUrl;
+  });
 
   const handleOcrTriggerFolderSelect = () => {
     if (ocrFolderInputRef.current) {
@@ -116,20 +140,6 @@ export function OcrTab() {
       const newResults: OcrResult[] = [];
       let i = 0;
 
-      const getImageDims = (file: File): Promise<{width: number, height: number}> => new Promise((resolve, reject) => {
-          const img = new Image();
-          const objectUrl = URL.createObjectURL(file);
-          img.onload = () => {
-              resolve({ width: img.naturalWidth, height: img.naturalHeight });
-              URL.revokeObjectURL(objectUrl);
-          };
-          img.onerror = (err) => {
-              reject(err);
-              URL.revokeObjectURL(objectUrl);
-          };
-          img.src = objectUrl;
-      });
-
       for (const file of imageFiles) {
         if (!isOcrScanningRef.current) break;
         setOcrProgress({ current: i + 1, total: imageFiles.length, currentFileName: file.name });
@@ -172,10 +182,100 @@ export function OcrTab() {
       isOcrScanningRef.current = false;
       toast({
           title: "OCR Scan Finished",
-          description: `Processed ${ocrProgress.current} of ${ocrProgress.total} files.`
+          description: `Processed ${ocrProgress.current > ocrProgress.total ? ocrProgress.total : ocrProgress.current} of ${ocrProgress.total} files.`
       });
     }
   };
+
+  const handleTrainingFolderSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (!imageFiles.length) {
+      toast({ title: "No images found in the selected folder.", variant: "destructive" });
+      return;
+    }
+
+    setIsTraining(true);
+    setTrainedProfile(null);
+    setTrainingProgress({ current: 0, total: imageFiles.length });
+    toast({ title: "Starting Training...", description: "Initializing OCR and metadata readers. This can take some time." });
+
+    const worker = await createWorker("eng");
+    const successfulMatches: TrainedPosition[] = [];
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      setTrainingProgress({ current: i + 1, total: imageFiles.length });
+
+      try {
+        const exifTags = await ExifReader.load(file);
+        const metadataFindings = extractMutationNumber(exifTags);
+        const goldenKey = metadataFindings.find(f => f.isGoldenKey)?.number;
+
+        if (!goldenKey) continue;
+
+        const { data: { words } } = await worker.recognize(file);
+        const { width, height } = await getImageDims(file);
+        
+        const matchedWord = words.find(word => word.text.replace(/\D/g, "") === goldenKey);
+        
+        if (matchedWord && width > 0 && height > 0) {
+          const centerX = (matchedWord.bbox.x0 + matchedWord.bbox.x1) / 2;
+          const centerY = (matchedWord.bbox.y0 + matchedWord.bbox.y1) / 2;
+          successfulMatches.push({
+            x: (centerX / width) * 100,
+            y: (centerY / height) * 100,
+          });
+        }
+      } catch (error) {
+        console.error(`Error during training on file ${file.name}:`, error);
+      }
+    }
+
+    await worker.terminate();
+
+    if (successfulMatches.length > 0) {
+      const n = successfulMatches.length;
+      const sumX = successfulMatches.reduce((acc, pos) => acc + pos.x, 0);
+      const sumY = successfulMatches.reduce((acc, pos) => acc + pos.y, 0);
+      const avgX = sumX / n;
+      const avgY = sumY / n;
+      
+      const sumSqDiffX = successfulMatches.reduce((acc, pos) => acc + Math.pow(pos.x - avgX, 2), 0);
+      const sumSqDiffY = successfulMatches.reduce((acc, pos) => acc + Math.pow(pos.y - avgY, 2), 0);
+      
+      const stdDevX = Math.sqrt(sumSqDiffX / n);
+      const stdDevY = Math.sqrt(sumSqDiffY / n);
+
+      setTrainedProfile({ avgX, avgY, stdDevX, stdDevY, count: n });
+      toast({ title: "Training Complete", description: `Created a profile from ${n} successfully matched images.` });
+    } else {
+      toast({ title: "Training Failed", description: "No images with matching OCR and metadata found.", variant: "destructive" });
+    }
+
+    setIsTraining(false);
+  };
+  
+  const applyTrainedProfile = () => {
+    if (!trainedProfile) return;
+    
+    const newXRange = [
+      Math.max(0, Math.round(trainedProfile.avgX - 1.5 * trainedProfile.stdDevX)),
+      Math.min(100, Math.round(trainedProfile.avgX + 1.5 * trainedProfile.stdDevX)),
+    ];
+    const newYRange = [
+       Math.max(0, Math.round(trainedProfile.avgY - 1.5 * trainedProfile.stdDevY)),
+       Math.min(100, Math.round(trainedProfile.avgY + 1.5 * trainedProfile.stdDevY)),
+    ];
+    
+    setXRange(newXRange);
+    setYRange(newYRange);
+    
+    toast({ title: "Filters Applied", description: "Positional filters updated based on trained profile." });
+  };
+
 
   const filteredOcrResults = useMemo(() => {
     return ocrResults.filter((result) => {
@@ -239,22 +339,19 @@ export function OcrTab() {
           Local OCR Detective
         </CardTitle>
         <CardDescription>
-          Use positional filtering to guide the OCR engine and isolate specific numbers from dense documents. The tool now analyzes word-by-word for greater precision.
+          Use positional filtering and metadata-based training to guide the OCR engine and isolate specific numbers from dense documents.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-3 rounded-md border border-dashed border-border bg-muted/40 p-3">
           <p className="text-sm font-medium">Scan a local image folder with OCR</p>
-          <p className="text-xs text-muted-foreground">
-            The OCR engine runs entirely in your browser. Use the sliders in the filter section to define a region of interest and find numbers more accurately.
-          </p>
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 size="sm"
                 onClick={handleOcrTriggerFolderSelect}
-                disabled={isOcrScanning}
+                disabled={isOcrScanning || isTraining}
                 className="inline-flex items-center gap-2"
               >
                 {isOcrScanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
@@ -288,6 +385,27 @@ export function OcrTab() {
             />
         </section>
         
+        <section className="space-y-3 rounded-md border border-dashed border-border bg-muted/40 p-3">
+            <h3 className="text-sm font-medium flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary"/> Train the OCR Engine (Optional)</h3>
+            <p className="text-xs text-muted-foreground">Select a folder of images with reliable XMP metadata to teach the tool where mutation numbers are typically located.</p>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => trainingFolderInputRef.current?.click()} disabled={isTraining || isOcrScanning}>
+                    <FolderSync className="mr-2 h-4 w-4"/>
+                    {isTraining ? `Training... (${trainingProgress.current}/${trainingProgress.total})` : "Select Training Folder"}
+                </Button>
+                 <input ref={trainingFolderInputRef} type="file" multiple className="hidden" onChange={handleTrainingFolderSelected} webkitdirectory="" directory=""/>
+                {trainedProfile && (
+                     <Button size="sm" onClick={applyTrainedProfile} disabled={isTraining || isOcrScanning}>Apply Trained Filters</Button>
+                )}
+            </div>
+            {isTraining && <Progress value={(trainingProgress.total > 0 ? (trainingProgress.current / trainingProgress.total) * 100 : 0)} className="h-1.5" />}
+            {trainedProfile && (
+                <p className="text-xs text-green-600">
+                    Training complete! Profile created from {trainedProfile.count} images. Average position: X ≈ {trainedProfile.avgX.toFixed(0)}%, Y ≈ {trainedProfile.avgY.toFixed(0)}%.
+                </p>
+            )}
+        </section>
+
         <section className="space-y-3">
              <Collapsible>
                 <CollapsibleTrigger asChild>
@@ -376,5 +494,3 @@ export function OcrTab() {
     </Card>
   );
 }
-
-    
