@@ -121,20 +121,36 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
 
   if (effectiveChildren.length > 0) {
     const totalChildUnits = effectiveChildren.reduce((acc, child) => acc + (child.type === 'son' ? 2 : 1), 0);
-    const livingDaughters = effectiveChildren.filter(c => c.isAlive && c.type === 'daughter');
-    const livingSons = effectiveChildren.filter(c => c.isAlive && c.type === 'son');
-    const hasLivingSons = livingSons.length > 0;
+    const hasLivingSons = effectiveChildren.some(c => c.isAlive && c.type === 'son');
+    
+    let sonCounter = 1;
+    let daughterCounter = 1;
+    let deceasedSonCounter = 1;
+    let deceasedDaughterCounter = 1;
 
     if (totalChildUnits === 0) {
         // All children are deceased and childless, remainder goes to other residuaries
     } else if (hasLivingSons) {
         const unitValue = remainder / totalChildUnits;
-        effectiveChildren.forEach((child) => {
-            const originalIndex = children.findIndex(c => c.id === child.id);
+        children.forEach((child) => {
+            if (!effectiveChildren.find(ec => ec.id === child.id)) return;
+
             const childShare = unitValue * (child.type === 'son' ? 2 : 1);
+            let relationLabel = '';
+
             if (child.isAlive) {
-                 rows.push({ relation: `${child.type === 'son' ? 'Son' : 'Daughter'} ${originalIndex + 1}`, shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`, areaSqFtRaw: childShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
+                if (child.type === 'son') {
+                    relationLabel = `Son ${sonCounter++}`;
+                } else {
+                    relationLabel = `Daughter ${daughterCounter++}`;
+                }
+                 rows.push({ relation: relationLabel, shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`, areaSqFtRaw: childShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
             } else {
+                 if (child.type === 'son') {
+                    relationLabel = `Deceased son ${deceasedSonCounter++}`;
+                } else {
+                    relationLabel = `Deceased daughter ${deceasedDaughterCounter++}`;
+                }
                  const subResult = calculateWirasatShares({
                     totalSqFt: childShare, marlaSize, widows: child.heirs.widows, husbandAlive: child.heirs.husbandAlive,
                     fatherAlive: false, motherAlive: false, 
@@ -146,7 +162,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
                 });
                 const formattedParentShare = fromSqFt(childShare, marlaSize);
                 rows.push({
-                    relation: `Deceased ${child.type} ${originalIndex + 1}`,
+                    relation: relationLabel,
                     shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`,
                     areaSqFtRaw: childShare, ...formattedParentShare, subRows: subResult.rows,
                 });
@@ -154,13 +170,13 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
         });
         remainder = 0;
 
-    } else if (livingDaughters.length > 0) {
+    } else { // No living sons
+        const livingDaughters = effectiveChildren.filter(c => c.isAlive && c.type === 'daughter');
         const daughterFixedTotal = livingDaughters.length === 1 ? totalSqFt / 2 : (2 * totalSqFt) / 3;
-        const individualDaughterShare = daughterFixedTotal / livingDaughters.length;
+        const individualDaughterShare = livingDaughters.length > 0 ? daughterFixedTotal / livingDaughters.length : 0;
         
-        livingDaughters.forEach((daughter) => {
-             const childIndex = children.findIndex(c => c.id === daughter.id);
-             rows.push({ relation: `Daughter ${childIndex + 1}`, shareLabel: livingDaughters.length === 1 ? '1/2' : `2/3 ÷ ${livingDaughters.length}`, areaSqFtRaw: individualDaughterShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
+        livingDaughters.forEach((_daughter) => {
+             rows.push({ relation: `Daughter ${daughterCounter++}`, shareLabel: livingDaughters.length === 1 ? '1/2' : `2/3 ÷ ${livingDaughters.length}`, areaSqFtRaw: individualDaughterShare, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
         });
         
         let remainingForResidue = totalSqFt - (spouseTotalShare + motherShare + fatherFixedShare + daughterFixedTotal);
@@ -171,7 +187,12 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
              if (predecChildUnits > 0) {
                 const unitValue = remainingForResidue / predecChildUnits;
                 predeceasedWithHeirs.forEach((child) => {
-                    const originalIndex = children.findIndex(c => c.id === child.id);
+                    let relationLabel = '';
+                     if (child.type === 'son') {
+                        relationLabel = `Deceased son ${deceasedSonCounter++}`;
+                    } else {
+                        relationLabel = `Deceased daughter ${deceasedDaughterCounter++}`;
+                    }
                     const childShare = unitValue * (child.type === 'son' ? 2 : 1);
                     const subResult = calculateWirasatShares({
                         totalSqFt: childShare, marlaSize, widows: child.heirs.widows, husbandAlive: child.heirs.husbandAlive,
@@ -184,7 +205,7 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
                     });
                     const formattedParentShare = fromSqFt(childShare, marlaSize);
                     rows.push({
-                        relation: `Deceased ${child.type} ${originalIndex + 1}`, shareLabel: `Residue`,
+                        relation: relationLabel, shareLabel: `Residue`,
                         areaSqFtRaw: childShare, ...formattedParentShare, subRows: subResult.rows
                     });
                 });
@@ -204,36 +225,18 @@ export const calculateWirasatShares = (inputs: WirasatInputs): WirasatCalculatio
         }
         remainder = remainingForResidue;
 
-    } else { // Only predeceased children (with heirs)
-        if (totalChildUnits > 0) {
-            const unitValue = remainder / totalChildUnits;
-            effectiveChildren.forEach((child) => {
-                const originalIndex = children.findIndex(c => c.id === child.id);
-                const childShare = unitValue * (child.type === 'son' ? 2 : 1);
-                const subResult = calculateWirasatShares({
-                    totalSqFt: childShare, marlaSize, widows: child.heirs.widows, husbandAlive: child.heirs.husbandAlive,
-                    fatherAlive: false, motherAlive: false,
-                    children: [
-                        ...Array.from({ length: child.heirs.sons }, (_, i) => ({ id: `${child.id}-son-${i}`, type: 'son' as const, isAlive: true, isChildless: false, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }})),
-                        ...Array.from({ length: child.heirs.daughters }, (_, i) => ({ id: `${child.id}-daughter-${i}`, type: 'daughter' as const, isAlive: true, isChildless: false, heirs: { widows: 0, husbandAlive: false, sons: 0, daughters: 0 }})),
-                    ],
-                    brothers: 0, sisters: 0, grandsons: 0, mode: 'basic'
-                });
-                const formattedParentShare = fromSqFt(childShare, marlaSize);
-                rows.push({
-                    relation: `Deceased ${child.type} ${originalIndex + 1}`,
-                    shareLabel: `Asaba (${child.type === 'son' ? 2 : 1}/${totalChildUnits})`,
-                    areaSqFtRaw: childShare, ...formattedParentShare, subRows: subResult.rows,
-                });
-            });
-            remainder = 0;
-        }
     }
   }
   
     if (mode === 'advanced' && !hasAnyDescendants) {
         if (fatherAlive) {
-            rows.push({ relation: "Father", shareLabel: "Residue (Asaba)", areaSqFtRaw: remainder, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
+            const fatherRow = rows.find(r => r.relation === "Father");
+            if (fatherRow) {
+                fatherRow.areaSqFtRaw += remainder;
+                fatherRow.shareLabel = "Asaba (Residue)";
+            } else {
+                rows.push({ relation: "Father", shareLabel: "Residue (Asaba)", areaSqFtRaw: remainder, areaSqFtRounded: 0, kanal: 0, marla: 0, feet: 0 });
+            }
             remainder = 0;
         } else if (brothers > 0 || sisters > 0) {
             const totalSiblingUnits = brothers * 2 + sisters;
