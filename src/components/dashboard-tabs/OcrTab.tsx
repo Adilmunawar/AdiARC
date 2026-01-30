@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -58,8 +57,8 @@ export function OcrTab() {
 
   // Filtering state
   const [filterText, setFilterText] = useState("");
-  const [minLength, setMinLength] = useState("4");
-  const [maxLength, setMaxLength] = useState("6");
+  const [minId, setMinId] = useState("");
+  const [maxId, setMaxId] = useState("");
   const [minConfidence, setMinConfidence] = useState([60]);
   const [xRange, setXRange] = useState([0, 100]);
   const [yRange, setYRange] = useState([0, 100]);
@@ -319,27 +318,25 @@ export function OcrTab() {
     
     // Confidence (set slightly below average to not be too restrictive)
     setMinConfidence([Math.max(0, Math.floor(trainedProfile.avgConfidence - 10))]); 
-
-    // Length (set min/max to the most common length)
-    if (trainedProfile.commonLength) {
-        setMinLength(String(trainedProfile.commonLength));
-        setMaxLength(String(trainedProfile.commonLength));
-    }
     
-    toast({ title: "Filters Applied", description: "Positional, confidence, and length filters updated based on training." });
+    toast({ title: "Filters Applied", description: "Positional and confidence filters updated based on training." });
   };
 
 
   const filteredOcrResults = useMemo(() => {
+    const minIdNum = minId ? parseInt(minId, 10) : null;
+    const maxIdNum = maxId ? parseInt(maxId, 10) : null;
+
     return ocrResults.filter((result) => {
       if (result.confidence != null && result.confidence < minConfidence[0]) {
         return false;
       }
-      const numLength = result.mutationNumber.length;
-      const min = parseInt(minLength, 10);
-      const max = parseInt(maxLength, 10);
-      if (!isNaN(min) && numLength < min) return false;
-      if (!isNaN(max) && numLength > max) return false;
+      
+      const numValue = parseInt(result.mutationNumber, 10);
+      if (isNaN(numValue)) return false; 
+      if (minIdNum !== null && numValue < minIdNum) return false;
+      if (maxIdNum !== null && numValue > maxIdNum) return false;
+      
       if (filterText && !result.mutationNumber.includes(filterText) && !result.fileName.toLowerCase().includes(filterText.toLowerCase())) {
         return false;
       }
@@ -360,7 +357,7 @@ export function OcrTab() {
       return inXRange && inYRange;
 
     }).sort((a,b) => parseInt(a.mutationNumber) - parseInt(b.mutationNumber));
-  }, [ocrResults, filterText, minLength, maxLength, minConfidence, xRange, yRange]);
+  }, [ocrResults, filterText, minId, maxId, minConfidence, xRange, yRange]);
 
     const handleDownloadResults = () => {
         if (filteredOcrResults.length === 0) {
@@ -462,7 +459,7 @@ export function OcrTab() {
             {isTraining && <Progress value={(trainingProgress.total > 0 ? (trainingProgress.current / trainingProgress.total) * 100 : 0)} className="h-1.5" />}
             {trainedProfile && (
                 <p className="text-xs text-green-600">
-                    Training complete! Profiled {trainedProfile.count} images. Avg Pos: (X: {trainedProfile.avgX.toFixed(0)}%, Y: {trainedProfile.avgY.toFixed(0)}%), Avg Conf: {trainedProfile.avgConfidence.toFixed(0)}%, Common Length: {trainedProfile.commonLength} digits.
+                    Training complete! Profiled {trainedProfile.count} images. Avg Pos: (X: {trainedProfile.avgX.toFixed(0)}%, Y: {trainedProfile.avgY.toFixed(0)}%), Avg Conf: {trainedProfile.avgConfidence.toFixed(0)}%.
                 </p>
             )}
         </section>
@@ -482,12 +479,12 @@ export function OcrTab() {
                             <Input id="ocr-search-text" placeholder="e.g., 19403 or DSC..." value={filterText} onChange={e => setFilterText(e.target.value)} />
                         </div>
                          <div className="space-y-1.5">
-                            <Label htmlFor="ocr-min-len" className="text-xs">Min Digits</Label>
-                            <Input id="ocr-min-len" type="number" placeholder="e.g., 4" value={minLength} onChange={e => setMinLength(e.target.value)} />
+                            <Label htmlFor="ocr-min-id" className="text-xs">Min Number Value</Label>
+                            <Input id="ocr-min-id" type="number" placeholder="e.g., 5000" value={minId} onChange={e => setMinId(e.target.value)} />
                         </div>
                          <div className="space-y-1.5">
-                            <Label htmlFor="ocr-max-len" className="text-xs">Max Digits</Label>
-                            <Input id="ocr-max-len" type="number" placeholder="e.g., 6" value={maxLength} onChange={e => setMaxLength(e.target.value)} />
+                            <Label htmlFor="ocr-max-id" className="text-xs">Max Number Value</Label>
+                            <Input id="ocr-max-id" type="number" placeholder="e.g., 10000" value={maxId} onChange={e => setMaxId(e.target.value)} />
                         </div>
                     </div>
                      <div className="grid gap-6 md:grid-cols-2 pt-4">
