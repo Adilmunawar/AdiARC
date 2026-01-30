@@ -163,10 +163,10 @@ export function OcrTab() {
         
         try {
           const imageDims = await getImageDims(file);
-          const { data } = await worker.recognize(file);
+          const { data: { words } } = await worker.recognize(file);
           
           const newResultsForFile: OcrResult[] = [];
-          data.words.forEach(word => {
+          words.forEach(word => {
             const isStandaloneNumber = /^\d+$/.test(word.text);
             if (isStandaloneNumber) {
                 newResultsForFile.push({
@@ -566,5 +566,3 @@ export function OcrTab() {
     </Card>
   );
 }
-
-    
