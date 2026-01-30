@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Copy, FileKey } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -25,8 +25,8 @@ export function SqlGeneratorTab() {
   const [generatedFindUserQuery, setGeneratedFindUserQuery] = useState("");
   
   // State for Approve Intiqals
-  const [approveIntiqalNos, setApproveIntiqalNos] = useState("");
-  const [approveMauzaId, setApproveMauzaId] = useState("");
+  const [approveIntiqalIds, setApproveIntiqalIds] = useState("");
+  const [approveUserId, setApproveUserId] = useState("e3cc6444-3008-4599-bc0a-91d49c5df8fb");
   const [generatedApproveQuery, setGeneratedApproveQuery] = useState("");
 
   // State for Reverse Intiqal
@@ -114,54 +114,30 @@ CLOSE MASTER KEY;`;
   };
 
   const handleGenerateApproveQuery = () => {
-    const tokens = approveIntiqalNos.split(/[\s,;\n]+/).map(id => id.trim()).filter(id => id);
-    if (tokens.length === 0) {
-      toast({ title: "No Intiqal Numbers", description: "Please enter at least one Intiqal number or range.", variant: "destructive" });
+    const ids = approveIntiqalIds.split(/[\s,;\n]+/).map(id => id.trim()).filter(id => id);
+
+    if (ids.length === 0) {
+      toast({ title: "No Intiqal IDs", description: "Please enter at least one Intiqal ID.", variant: "destructive" });
       return;
     }
-    if (!approveMauzaId.trim()) {
-      toast({ title: "Missing Mauza ID", description: "Please provide the Mauza ID.", variant: "destructive" });
+    if (!approveUserId.trim()) {
+      toast({ title: "Missing User ID", description: "Please provide the User ID to assign for the approval.", variant: "destructive" });
       return;
     }
-
-    const numbers = new Set<number>();
-    for (const token of tokens) {
-      const rangeMatch = token.match(/^(\d+)-(\d+)$/);
-      if (rangeMatch) {
-        const start = parseInt(rangeMatch[1], 10);
-        const end = parseInt(rangeMatch[2], 10);
-        if (!isNaN(start) && !isNaN(end) && end >= start) {
-          for (let i = start; i <= end; i++) {
-            numbers.add(i);
-          }
-        }
-      } else {
-        const num = parseInt(token, 10);
-        if (!isNaN(num)) {
-          numbers.add(num);
-        }
-      }
-    }
-
-    if (numbers.size === 0) {
-        toast({ title: "No valid numbers found", description: "Please check your input for valid numbers or ranges.", variant: "destructive" });
-        return;
-    }
-
-    const sortedNumbers = Array.from(numbers).sort((a,b) => a - b);
-    const formattedNos = sortedNumbers.map(n => `'${n}'`).join(",\n    ");
+    
+    const formattedIds = ids.map(id => `'${id}'`).join(",\n    ");
 
     const query = `BEGIN TRAN;
 
 UPDATE transactions.Intiqal
 SET 
-    is_approved = 1,
     intiqal_status = 6,
+    is_approved = 1,
+    user_id = '${approveUserId.trim()}',
     intiqal_aprove_date = GETDATE()
 WHERE 
-    mauza_id = '${approveMauzaId.trim()}' AND
-    LTRIM(RTRIM(CAST(intiqal_no AS NVARCHAR(50)))) IN (
-        ${formattedNos}
+    intiqal_id IN (
+        ${formattedIds}
     );
 
 COMMIT TRAN;`;
@@ -169,7 +145,7 @@ COMMIT TRAN;`;
     setGeneratedApproveQuery(query);
     toast({
       title: "Query Generated",
-      description: `Approval script for ${sortedNumbers.length} intiqals has been created.`
+      description: `Approval script for ${ids.length} intiqal(s) has been created.`
     });
   };
 
@@ -359,21 +335,21 @@ COMMIT TRAN;`;
              <div className="grid lg:grid-cols-2 lg:gap-8 items-start">
               <div className="flex flex-col gap-4">
                 <section className="space-y-2">
-                  <Label htmlFor="approve-mauza-id">1. Mauza ID</Label>
+                  <Label htmlFor="approve-user-id">1. User ID to Assign</Label>
                   <Input
-                    id="approve-mauza-id"
-                    value={approveMauzaId}
-                    onChange={(e) => setApproveMauzaId(e.target.value)}
-                    placeholder="e.g., 41402c3e-57ff-4435-9d79-183f6d6a90cb"
+                    id="approve-user-id"
+                    value={approveUserId}
+                    onChange={(e) => setApproveUserId(e.target.value)}
+                    placeholder="e.g., e3cc6444-3008-4599-bc0a-91d49c5df8fb"
                   />
                 </section>
                 <section className="space-y-2">
-                  <Label htmlFor="approve-intiqal-nos">2. Intiqal Numbers to Approve</Label>
+                  <Label htmlFor="approve-intiqal-ids">2. Intiqal IDs to Approve</Label>
                   <Textarea
-                    id="approve-intiqal-nos"
-                    value={approveIntiqalNos}
-                    onChange={(e) => setApproveIntiqalNos(e.target.value)}
-                    placeholder="Paste your list of Intiqal numbers here. Ranges like 5001-5100 are supported."
+                    id="approve-intiqal-ids"
+                    value={approveIntiqalIds}
+                    onChange={(e) => setApproveIntiqalIds(e.target.value)}
+                    placeholder="Paste your list of Intiqal IDs here, separated by new lines, commas, or spaces."
                     className="h-72 font-mono text-xs"
                   />
                 </section>
@@ -444,4 +420,3 @@ COMMIT TRAN;`;
     </Card>
   );
 }
-
