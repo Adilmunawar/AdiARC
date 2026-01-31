@@ -5,7 +5,7 @@ import { diagnoseAndRepairImage, ImageHealthReport } from '@/lib/image-forensics
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, AlertTriangle, XCircle, Download, UploadCloud, HeartPulse, FileQuestion, Sparkles, Wand2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Download, UploadCloud, HeartPulse, FileQuestion, Sparkles, Wand2, Skull } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,6 @@ export function ImageDoctorTab() {
       const file = e.target.files[0];
       setFileName(file.name);
 
-      // Create a URL for preview, but handle potential errors if the browser can't render it
       try {
         const objectUrl = URL.createObjectURL(file);
         setOriginalImagePreview(objectUrl);
@@ -44,7 +43,6 @@ export function ImageDoctorTab() {
       const url = URL.createObjectURL(report.repairedFile);
       const a = document.createElement('a');
       const originalName = fileName?.split('.').slice(0, -1).join('.') || 'repaired_image';
-      // Use the detected format for the new extension
       a.download = `${originalName}_repaired.${report.detectedFormat}`;
       document.body.appendChild(a);
       a.click();
@@ -64,6 +62,8 @@ export function ImageDoctorTab() {
             return { icon: AlertTriangle, color: 'text-amber-500', title: 'Mislabeled' };
         case 'CORRUPT':
             return { icon: report.fixable ? Wand2 : XCircle, color: report.fixable ? 'text-blue-500' : 'text-red-600', title: report.fixable ? 'Recoverable' : 'Corrupt' };
+        case 'DESTROYED':
+            return { icon: Skull, color: 'text-gray-500', title: 'Destroyed' };
         default:
             return { icon: FileQuestion, color: 'text-muted-foreground', title: 'Unknown' };
     }
@@ -79,7 +79,7 @@ export function ImageDoctorTab() {
                 Forensic Image Doctor
             </CardTitle>
             <CardDescription>
-                Diagnose and repair corrupt images by analyzing their binary signature (magic bytes). Ideal for fixing mislabeled or header-damaged files from scanners.
+                Diagnose and repair corrupt images by analyzing their binary signature (magic bytes) and information density (entropy).
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -94,11 +94,11 @@ export function ImageDoctorTab() {
                     {/* Left: Preview */}
                     <div className="space-y-3">
                         <Label>Original File Preview</Label>
-                        <div className="relative w-full aspect-video rounded-lg border bg-muted/30 flex items-center justify-center text-muted-foreground text-sm">
-                             {originalImagePreview ? 
+                        <div className="relative w-full aspect-video rounded-lg border bg-muted/30 flex items-center justify-center text-muted-foreground text-sm p-2">
+                             {originalImagePreview && report.status !== 'DESTROYED' ? 
                                 <Image src={originalImagePreview} alt="Original Upload" fill objectFit="contain" className="rounded-lg" onError={() => setOriginalImagePreview(null)} unoptimized />
                                 :
-                                <span>Preview not available (corrupt header)</span>
+                                <span className="text-center">Preview not available (corrupt header or empty file)</span>
                             }
                         </div>
                     </div>
@@ -119,6 +119,9 @@ export function ImageDoctorTab() {
                             <div className="text-sm space-y-1 text-muted-foreground">
                                 <p><strong>Detected Format (DNA):</strong> <span className="font-semibold text-foreground">{report.detectedFormat.toUpperCase()}</span></p>
                                 <p><strong>Original Extension:</strong> <span className="font-semibold text-foreground">{report.originalFormat.toUpperCase()}</span></p>
+                                {report.entropy !== undefined && (
+                                    <p><strong>Information Density (Entropy):</strong> <span className={cn("font-semibold", report.entropy < 1.0 ? "text-gray-500" : "text-foreground")}>{report.entropy.toFixed(2)} / 8.00</span></p>
+                                )}
                             </div>
                             
                             <Alert className="mt-4">

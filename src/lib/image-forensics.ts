@@ -1,12 +1,13 @@
 // src/lib/image-forensics.ts
 
 export type ImageHealthReport = {
-  status: 'HEALTHY' | 'CORRUPT' | 'MISLABELED';
+  status: 'HEALTHY' | 'CORRUPT' | 'MISLABELED' | 'DESTROYED';
   detectedFormat: string;
   originalFormat: string;
   fixable: boolean;
   suggestedAction: string;
-  repairedFile?: Blob; // The fixed file
+  entropy?: number;
+  repairedFile?: Blob;
 };
 
 const MAGIC_BYTES: Record<string, { ext: string; mime: string }> = {
@@ -20,148 +21,145 @@ const MAGIC_BYTES: Record<string, { ext: string; mime: string }> = {
   '52494646': { ext: 'webp', mime: 'image/webp' }
 };
 
-// Helper function to find a signature within a byte array
+/**
+ * Calculates the Shannon Entropy of a byte array.
+ * Returns 0-8. 
+ * - Close to 0: File is all zeros or repeated text (Unrecoverable).
+ * - Close to 8: File is encrypted or compressed data (Recoverable).
+ */
+function calculateEntropy(bytes: Uint8Array): number {
+  if (bytes.length === 0) return 0;
+  const frequencies = new Array(256).fill(0);
+  for (let i = 0; i < bytes.length; i++) {
+    frequencies[bytes[i]]++;
+  }
+  
+  return frequencies.reduce((sum, freq) => {
+    if (freq === 0) return sum;
+    const p = freq / bytes.length;
+    return sum - (p * Math.log2(p));
+  }, 0);
+}
+
+
 const findSignatureOffset = (bytes: Uint8Array): { signature: string, offset: number } | null => {
-    const hexString = Array.from(bytes.slice(0, Math.min(bytes.length, 4096))) // Scan first 4KB for performance
+    const hexString = Array.from(bytes.slice(0, Math.min(bytes.length, 4096)))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
     for (const [signature, _] of Object.entries(MAGIC_BYTES)) {
         const index = hexString.indexOf(signature);
-        if (index !== -1 && index % 2 === 0) { // Ensure it's on a byte boundary
+        if (index !== -1 && index % 2 === 0) {
             return { signature, offset: index / 2 };
         }
     }
     return null;
 };
 
-
 export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthReport> {
-  // 1. Safety Check: Is the file literally empty (0 bytes)?
-  if (file.size === 0) {
-    return {
-      status: 'CORRUPT',
-      detectedFormat: 'EMPTY_FILE',
-      originalFormat: file.name.split('.').pop()?.toLowerCase() || '',
-      fixable: false,
-      suggestedAction: 'This file is 0 bytes. The data was never written to disk. Impossible to recover.'
-    };
-  }
-  
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
+  
+  // Calculate entropy on the first 16KB for performance.
+  const entropy = calculateEntropy(bytes.slice(0, 16384));
+  const entropyValue = Number(entropy.toFixed(2));
+  const originalFormat = file.name.split('.').pop()?.toLowerCase() || '';
 
-  // 2. "The Zero-Fill Check" (New Feature)
-  // Checks if the file has size but is filled with only zeros (0x00 0x00...)
-  const isAllZeros = bytes.slice(0, 100).every(b => b === 0); // Check first 100 bytes
-  if (isAllZeros) {
+  // THE DEATH CERTIFICATE: Entropy < 1.0 means no meaningful data.
+  if (entropy < 1.0) {
     return {
-      status: 'CORRUPT',
-      detectedFormat: 'NULL_BYTES',
-      originalFormat: file.name.split('.').pop()?.toLowerCase() || '',
+      status: 'DESTROYED',
+      detectedFormat: 'NULL_DATA',
+      originalFormat: originalFormat,
+      entropy: entropyValue,
       fixable: false,
-      suggestedAction: 'File contains only blank space (Null Bytes). Upload likely failed midway. Unrecoverable.'
+      suggestedAction: `File is ${Math.round(file.size / 1024)}KB of empty space (Entropy: ${entropyValue}). The data was never written. RE-SCAN OR RE-UPLOAD IS REQUIRED.`
     };
   }
-
-  const currentExt = file.name.split('.').pop()?.toLowerCase() || '';
 
   const signatureInfo = findSignatureOffset(bytes);
 
   if (!signatureInfo) {
+    const suggestedAction = entropy > 7.0 
+      ? `File contains dense data (Entropy: ${entropyValue}) but has no known header. It might be a raw camera stream or encrypted file.`
+      : `File header is destroyed and no known signature was found. Recovery is not possible with this tool.`;
     return {
       status: 'CORRUPT',
-      detectedFormat: 'Unknown/Garbage',
-      originalFormat: currentExt,
+      detectedFormat: entropy > 7.0 ? 'RAW_DATA' : 'Unknown/Garbage',
+      originalFormat,
       fixable: false,
-      suggestedAction: 'File header is completely destroyed and no known signature was found. Recovery is not possible with this tool.'
+      entropy: entropyValue,
+      suggestedAction,
     };
   }
-  
+
   const { signature, offset } = signatureInfo;
   const detectedInfo = MAGIC_BYTES[signature];
-  const isJpg = detectedInfo.ext === 'jpg';
-
+  
+  let dataToProcess = bytes.slice(offset);
   let isTruncated = false;
-  let dataToProcess = bytes;
 
-  if (offset > 0) {
-    // Garbage header detected. We will work with the sliced data.
-    dataToProcess = bytes.slice(offset);
-  }
-
-  // Check for JPEG truncation *on the relevant data part*
-  if (isJpg) {
-    const eoiMarker = new Uint8Array([0xFF, 0xD9]);
+  if (detectedInfo.ext === 'jpg') {
     let eoiFound = false;
-    // Search for EOI in the last few bytes for performance
-    for (let i = dataToProcess.length - 2; i > dataToProcess.length - 1024 && i >= 0; i--) {
-        if (dataToProcess[i] === eoiMarker[0] && dataToProcess[i+1] === eoiMarker[1]) {
+    // Search for EOI in the last few KB for performance
+    for (let i = dataToProcess.length - 2; i >= 0 && i > dataToProcess.length - 4096; i--) {
+        if (dataToProcess[i] === 0xFF && dataToProcess[i+1] === 0xD9) {
             eoiFound = true;
             break;
         }
     }
-    if (!eoiFound) {
-      isTruncated = true;
-    }
+    if (!eoiFound) isTruncated = true;
+  }
+  
+  let repairedBuffer = dataToProcess;
+  let action = "";
+  let isFixable = false;
+
+  if (offset > 0) { // Garbage header
+      isFixable = true;
+      action = `Found a valid ${detectedInfo.ext.toUpperCase()} signature after ${offset} bytes of garbage data. Carving out the valid data.`;
+  }
+  if (isTruncated) {
+      isFixable = true;
+      const tempBuffer = new Uint8Array(repairedBuffer.length + 2);
+      tempBuffer.set(repairedBuffer);
+      tempBuffer.set([0xFF, 0xD9], repairedBuffer.length);
+      repairedBuffer = tempBuffer;
+      action = action 
+          ? action + ' Additionally, the carved JPEG data was truncated; a footer has been appended.'
+          : 'JPEG is truncated (missing end-of-file marker). Appending a valid footer.';
   }
 
-  // Build the report based on our findings.
-  if (offset === 0) { // Signature is at the start
-    if (isTruncated) {
-      const repairedBuffer = new Uint8Array(dataToProcess.length + 2);
-      repairedBuffer.set(dataToProcess);
-      repairedBuffer.set([0xFF, 0xD9], dataToProcess.length);
-      const repairedBlob = new Blob([repairedBuffer], { type: detectedInfo.mime });
+  if (isFixable) {
       return {
-        status: 'CORRUPT',
-        detectedFormat: 'jpg',
-        originalFormat: currentExt,
-        fixable: true,
-        suggestedAction: `JPEG is truncated (missing end-of-file marker). Attempting to repair by appending a valid footer.`,
-        repairedFile: repairedBlob,
+          status: 'CORRUPT',
+          detectedFormat: detectedInfo.ext,
+          originalFormat,
+          fixable: true,
+          suggestedAction: action,
+          entropy: entropyValue,
+          repairedFile: new Blob([repairedBuffer], { type: detectedInfo.mime }),
       };
-    }
-    if (detectedInfo.ext === currentExt) {
-      return {
-        status: 'HEALTHY',
-        detectedFormat: detectedInfo.ext,
-        originalFormat: currentExt,
-        fixable: false,
-        suggestedAction: 'No issues found.'
-      };
-    } else {
-      const repairedBlob = new Blob([dataToProcess], { type: detectedInfo.mime });
-      return {
+  }
+  
+  if (detectedInfo.ext !== originalFormat) {
+    return {
         status: 'MISLABELED',
         detectedFormat: detectedInfo.ext,
-        originalFormat: currentExt,
+        originalFormat,
         fixable: true,
-        suggestedAction: `File has a .${currentExt.toUpperCase()} extension but is actually a ${detectedInfo.ext.toUpperCase()}. Repairing the file type.`,
-        repairedFile: repairedBlob
-      };
-    }
-  } else { // Signature is inside the file (offset > 0)
-    let repairedBuffer = dataToProcess;
-    let action = `Found a valid ${detectedInfo.ext.toUpperCase()} signature after ${offset} bytes of garbage data. Carving out the valid data.`;
-    
-    if (isTruncated) {
-      // Append EOI marker to the carved data.
-      const tempBuffer = new Uint8Array(dataToProcess.length + 2);
-      tempBuffer.set(dataToProcess);
-      tempBuffer.set([0xFF, 0xD9], dataToProcess.length);
-      repairedBuffer = tempBuffer;
-      action += ' The carved data also appears to be a truncated JPEG, so a footer has been appended.'
-    }
-    
-    const repairedBlob = new Blob([repairedBuffer], { type: detectedInfo.mime });
-    return {
-      status: 'CORRUPT',
-      detectedFormat: detectedInfo.ext,
-      originalFormat: currentExt,
-      fixable: true,
-      suggestedAction: action,
-      repairedFile: repairedBlob,
+        suggestedAction: `File has a .${originalFormat.toUpperCase()} extension but is actually a ${detectedInfo.ext.toUpperCase()}. Repairing the file type.`,
+        entropy: entropyValue,
+        repairedFile: new Blob([bytes], { type: detectedInfo.mime }),
     };
   }
+
+  return {
+    status: 'HEALTHY',
+    detectedFormat: detectedInfo.ext,
+    originalFormat,
+    fixable: false,
+    suggestedAction: 'No issues found. File appears to be healthy.',
+    entropy: entropyValue,
+  };
 }
