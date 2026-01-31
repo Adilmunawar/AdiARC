@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -116,11 +115,6 @@ export function WirasatTab() {
   const [livingDaughters, setLivingDaughters] = useState<string>("0");
   const [deceasedChildren, setDeceasedChildren] = useState<ChildHeir[]>([]);
 
-  const [wirasatBrothers, setWirasatBrothers] = useState<string>("0");
-  const [wirasatSisters, setWirasatSisters] = useState<string>("0");
-  const [wirasatGrandsons, setWirasatGrandsons] = useState<string>("0");
-  const [wirasatMode, setWirasatMode] = useState<WirasatMode>("basic");
-
   const [wirasatRows, setWirasatRows] = useState<WirasatRow[]>([]);
   const [wirasatTotalSqFt, setWirasatTotalSqFt] = useState<number | null>(null);
   const [wirasatError, setWirasatError] = useState<string | null>(null);
@@ -190,10 +184,7 @@ export function WirasatTab() {
       !wirasatMotherAlive &&
       livingSonsCount === 0 &&
       livingDaughtersCount === 0 &&
-      deceasedChildren.length === 0 &&
-      Number(wirasatBrothers) <= 0 &&
-      Number(wirasatSisters) <= 0 &&
-      Number(wirasatGrandsons) <= 0
+      deceasedChildren.length === 0
     ) {
       setWirasatError("Please specify at least one heir.");
       return;
@@ -213,10 +204,10 @@ export function WirasatTab() {
       fatherAlive: wirasatFatherAlive,
       motherAlive: wirasatMotherAlive,
       children: allChildren,
-      brothers: Number(wirasatBrothers) || 0,
-      sisters: Number(wirasatSisters) || 0,
-      grandsons: Number(wirasatGrandsons) || 0,
-      mode: wirasatMode,
+      brothers: 0,
+      sisters: 0,
+      grandsons: 0,
+      mode: 'basic',
     });
 
     if (calcResult.error) {
@@ -293,32 +284,10 @@ export function WirasatTab() {
       <CardHeader>
         <CardTitle className="text-base font-semibold">Partitions (Wirasat Zabani)</CardTitle>
         <CardDescription>
-          Calculate proposed oral inheritance mutation (Wirasat Zabani) based on Islamic inheritance rules.
+          Calculate proposed oral inheritance mutation (Wirasat Zabani) based on Islamic inheritance rules. This calculator is for educational and draft-mutation purposes only. Always confirm with a qualified scholar or official instructions.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <section className="space-y-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2 text-[11px]">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-0.5">
-              <p className="font-medium">Wirasat mode</p>
-              <p className="text-muted-foreground">
-                Basic covers spouse, parents, and children. Advanced (beta) adds more complex scenarios.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Basic</span>
-              <Switch
-                id="wirasat-mode"
-                checked={wirasatMode === "advanced"}
-                onCheckedChange={(checked) => setWirasatMode(checked ? "advanced" : "basic")}
-              />
-              <span className="text-[11px] font-medium text-foreground">Advanced (beta)</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            This calculator is for educational and draft-mutation purposes only. Always confirm with a qualified scholar or official instructions.
-          </p>
-        </section>
 
         <section className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
@@ -381,26 +350,6 @@ export function WirasatTab() {
                 </div>
             </div>
 
-             {wirasatMode === "advanced" && (
-                <div className="space-y-4 pt-4 border-t border-dashed">
-                    <Label className="font-semibold text-xs">Advanced Heirs (Residuaries)</Label>
-                     <div className="grid grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                            <Label htmlFor="wirasat-brothers" className="text-[11px]">Full Brothers</Label>
-                            <Input id="wirasat-brothers" type="number" min={0} value={wirasatBrothers} onChange={(e) => setWirasatBrothers(e.target.value)} />
-                        </div>
-                        <div className="space-y-1">
-                            <Label htmlFor="wirasat-sisters" className="text-[11px]">Full Sisters</Label>
-                            <Input id="wirasat-sisters" type="number" min={0} value={wirasatSisters} onChange={(e) => setWirasatSisters(e.target.value)} />
-                        </div>
-                         <div className="space-y-1">
-                            <Label htmlFor="wirasat-grandsons" className="text-[11px]">Grandsons</Label>
-                            <Input id="wirasat-grandsons" type="number" min={0} value={wirasatGrandsons} onChange={(e) => setWirasatGrandsons(e.target.value)} />
-                        </div>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">These heirs typically inherit only if no direct male descendants (sons) exist.</p>
-                </div>
-            )}
           </div>
           
           <div className="space-y-4">
@@ -499,5 +448,3 @@ export function WirasatTab() {
     </Card>
   );
 }
-
-    
