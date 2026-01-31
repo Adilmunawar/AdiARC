@@ -37,8 +37,33 @@ const findSignatureOffset = (bytes: Uint8Array): { signature: string, offset: nu
 
 
 export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthReport> {
+  // 1. Safety Check: Is the file literally empty (0 bytes)?
+  if (file.size === 0) {
+    return {
+      status: 'CORRUPT',
+      detectedFormat: 'EMPTY_FILE',
+      originalFormat: file.name.split('.').pop()?.toLowerCase() || '',
+      fixable: false,
+      suggestedAction: 'This file is 0 bytes. The data was never written to disk. Impossible to recover.'
+    };
+  }
+  
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
+
+  // 2. "The Zero-Fill Check" (New Feature)
+  // Checks if the file has size but is filled with only zeros (0x00 0x00...)
+  const isAllZeros = bytes.slice(0, 100).every(b => b === 0); // Check first 100 bytes
+  if (isAllZeros) {
+    return {
+      status: 'CORRUPT',
+      detectedFormat: 'NULL_BYTES',
+      originalFormat: file.name.split('.').pop()?.toLowerCase() || '',
+      fixable: false,
+      suggestedAction: 'File contains only blank space (Null Bytes). Upload likely failed midway. Unrecoverable.'
+    };
+  }
+
   const currentExt = file.name.split('.').pop()?.toLowerCase() || '';
 
   const signatureInfo = findSignatureOffset(bytes);
@@ -103,7 +128,7 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
         detectedFormat: detectedInfo.ext,
         originalFormat: currentExt,
         fixable: false,
-        suggestedAction: 'File appears healthy. No repair needed.'
+        suggestedAction: 'No issues found.'
       };
     } else {
       const repairedBlob = new Blob([dataToProcess], { type: detectedInfo.mime });
