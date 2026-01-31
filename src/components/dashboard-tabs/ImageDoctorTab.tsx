@@ -9,6 +9,7 @@ import { CheckCircle, AlertTriangle, XCircle, Download, UploadCloud, HeartPulse,
 import { Badge } from '../ui/badge';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { Label } from '../ui/label';
 
 export function ImageDoctorTab() {
   const [report, setReport] = useState<ImageHealthReport | null>(null);
