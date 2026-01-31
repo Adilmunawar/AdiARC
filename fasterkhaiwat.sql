@@ -1,7 +1,7 @@
 OPEN MASTER KEY DECRYPTION BY PASSWORD = 'youwilllose';
 OPEN SYMMETRIC KEY UserKey DECRYPTION BY CERTIFICATE Usercert;
 
--- STEP 1: BULK DECRYPTION (Filtered by Active Status)
+-- STEP 1: BULK DECRYPTION (Filtered by Active & Updated)
 IF OBJECT_ID('tempdb..#KhewatStage') IS NOT NULL DROP TABLE #KhewatStage;
 
 CREATE TABLE #KhewatStage (
@@ -20,13 +20,14 @@ SELECT
     AS INT)
 FROM rhz.Khewat K WITH (NOLOCK)
 WHERE K.khewat_no IS NOT NULL
-  AND K.is_active = 1 -- <--- NEW FILTER: Only grab currently active records
+  AND K.is_active = 1    -- Condition 1: Must be Active
+  AND K.is_updated = 1   -- Condition 2: Must be Updated (Amal Daramad)
 OPTION (MAXDOP 0); 
 
 -- STEP 2: INSTANT INDEXING
 CREATE CLUSTERED INDEX IX_Stage_Mauza_Khewat ON #KhewatStage(mauza_id, Khewat_No) WITH (FILLFACTOR = 100);
 
--- STEP 3: CALCULATE RANGES
+-- STEP 3: CALCULATE RANGES (Gaps)
 WITH OrderedKhewats AS (
     SELECT 
         mauza_id,
@@ -49,7 +50,7 @@ SELECT
     ISNULL(T.district_name, '-') AS [District],
     ISNULL(T.tehsil_name, '-') AS [Tehsil],
     
-    -- Range Format
+    -- Range Format (Fastest Display)
     CAST(G.Missing_Start AS VARCHAR) + ' - ' + CAST(G.Missing_End AS VARCHAR) AS [Missing_Range],
     
     G.Gap_Size AS [Total_Missing_Count]
