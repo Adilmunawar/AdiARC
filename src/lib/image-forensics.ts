@@ -39,7 +39,6 @@ const findSignatureOffset = (bytes: Uint8Array): { signature: string, offset: nu
 export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthReport> {
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
-  
   const currentExt = file.name.split('.').pop()?.toLowerCase() || '';
 
   const signatureInfo = findSignatureOffset(bytes);
@@ -53,57 +52,91 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
       suggestedAction: 'File header is completely destroyed and no known signature was found. Recovery is not possible with this tool.'
     };
   }
-
+  
   const { signature, offset } = signatureInfo;
   const detectedInfo = MAGIC_BYTES[signature];
+  const isJpg = detectedInfo.ext === 'jpg';
 
-  if (offset === 0) {
-    // The signature is at the start of the file, it's either HEALTHY or MISLABELED
-    if (detectedInfo.ext === currentExt) {
-       // Optional: Advanced check for truncation etc.
-        if (detectedInfo.ext === 'jpg') {
-            const lastBytesHex = Array.from(bytes.slice(-2)).map(b => b.toString(16).padStart(2, '0')).join('');
-            if (lastBytesHex !== 'ffd9') {
-                return {
-                    status: 'CORRUPT',
-                    detectedFormat: 'jpg',
-                    originalFormat: 'jpg',
-                    fixable: false,
-                    suggestedAction: 'Image is truncated (incomplete download). The end of the file is missing.'
-                };
-            }
+  let isTruncated = false;
+  let dataToProcess = bytes;
+
+  if (offset > 0) {
+    // Garbage header detected. We will work with the sliced data.
+    dataToProcess = bytes.slice(offset);
+  }
+
+  // Check for JPEG truncation *on the relevant data part*
+  if (isJpg) {
+    const eoiMarker = new Uint8Array([0xFF, 0xD9]);
+    let eoiFound = false;
+    // Search for EOI in the last few bytes for performance
+    for (let i = dataToProcess.length - 2; i > dataToProcess.length - 1024 && i >= 0; i--) {
+        if (dataToProcess[i] === eoiMarker[0] && dataToProcess[i+1] === eoiMarker[1]) {
+            eoiFound = true;
+            break;
         }
-       return {
-            status: 'HEALTHY',
-            detectedFormat: detectedInfo.ext,
-            originalFormat: currentExt,
-            fixable: false,
-            suggestedAction: 'File appears healthy. No repair needed.'
-        };
-    } else {
-        // MISLABELED CASE
-        const repairedBlob = new Blob([buffer], { type: detectedInfo.mime });
-        return {
-            status: 'MISLABELED',
-            detectedFormat: detectedInfo.ext,
-            originalFormat: currentExt,
-            fixable: true,
-            suggestedAction: `File has a .${currentExt.toUpperCase()} extension but is actually a ${detectedInfo.ext.toUpperCase()}.`,
-            repairedFile: repairedBlob
-        };
     }
-  } else {
-    // The signature was found inside the file. This is the GARBAGE HEADER / RECOVERY case.
-    const recoveredBuffer = buffer.slice(offset);
-    const repairedBlob = new Blob([recoveredBuffer], { type: detectedInfo.mime });
+    if (!eoiFound) {
+      isTruncated = true;
+    }
+  }
 
-    return {
+  // Build the report based on our findings.
+  if (offset === 0) { // Signature is at the start
+    if (isTruncated) {
+      const repairedBuffer = new Uint8Array(dataToProcess.length + 2);
+      repairedBuffer.set(dataToProcess);
+      repairedBuffer.set([0xFF, 0xD9], dataToProcess.length);
+      const repairedBlob = new Blob([repairedBuffer], { type: detectedInfo.mime });
+      return {
         status: 'CORRUPT',
+        detectedFormat: 'jpg',
+        originalFormat: currentExt,
+        fixable: true,
+        suggestedAction: `JPEG is truncated (missing end-of-file marker). Attempting to repair by appending a valid footer.`,
+        repairedFile: repairedBlob,
+      };
+    }
+    if (detectedInfo.ext === currentExt) {
+      return {
+        status: 'HEALTHY',
+        detectedFormat: detectedInfo.ext,
+        originalFormat: currentExt,
+        fixable: false,
+        suggestedAction: 'File appears healthy. No repair needed.'
+      };
+    } else {
+      const repairedBlob = new Blob([dataToProcess], { type: detectedInfo.mime });
+      return {
+        status: 'MISLABELED',
         detectedFormat: detectedInfo.ext,
         originalFormat: currentExt,
         fixable: true,
-        suggestedAction: `Found a valid ${detectedInfo.ext.toUpperCase()} signature after ${offset} bytes of garbage data. We can attempt a full recovery.`,
+        suggestedAction: `File has a .${currentExt.toUpperCase()} extension but is actually a ${detectedInfo.ext.toUpperCase()}. Repairing the file type.`,
         repairedFile: repairedBlob
+      };
+    }
+  } else { // Signature is inside the file (offset > 0)
+    let repairedBuffer = dataToProcess;
+    let action = `Found a valid ${detectedInfo.ext.toUpperCase()} signature after ${offset} bytes of garbage data. Carving out the valid data.`;
+    
+    if (isTruncated) {
+      // Append EOI marker to the carved data.
+      const tempBuffer = new Uint8Array(dataToProcess.length + 2);
+      tempBuffer.set(dataToProcess);
+      tempBuffer.set([0xFF, 0xD9], dataToProcess.length);
+      repairedBuffer = tempBuffer;
+      action += ' The carved data also appears to be a truncated JPEG, so a footer has been appended.'
+    }
+    
+    const repairedBlob = new Blob([repairedBuffer], { type: detectedInfo.mime });
+    return {
+      status: 'CORRUPT',
+      detectedFormat: detectedInfo.ext,
+      originalFormat: currentExt,
+      fixable: true,
+      suggestedAction: action,
+      repairedFile: repairedBlob,
     };
   }
 }
