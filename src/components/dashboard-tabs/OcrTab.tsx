@@ -163,7 +163,8 @@ export function OcrTab() {
         
         try {
           const imageDims = await getImageDims(file);
-          const { data: { words } } = await worker.recognize(file);
+          const { data } = await worker.recognize(file);
+          const { words } = data;
           
           const newResultsForFile: OcrResult[] = [];
           words.forEach(word => {
@@ -238,7 +239,8 @@ export function OcrTab() {
         const metadataFindings = extractMutationNumber(exifTags);
         const goldenKey = metadataFindings.find(f => f.isGoldenKey)?.number || null;
 
-        const { data: { words } } = await worker.recognize(file);
+        const { data } = await worker.recognize(file);
+        const { words } = data;
         const { width, height } = await getImageDims(file);
         
         words.forEach(word => {
