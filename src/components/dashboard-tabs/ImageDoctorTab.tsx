@@ -5,7 +5,7 @@ import { diagnoseAndRepairImage, ImageHealthReport } from '@/lib/image-forensics
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, AlertTriangle, XCircle, Download, UploadCloud, HeartPulse, FileQuestion, Sparkles } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Download, UploadCloud, HeartPulse, FileQuestion, Sparkles, Wand2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,15 @@ export function ImageDoctorTab() {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
       setFileName(file.name);
-      setOriginalImagePreview(URL.createObjectURL(file));
+
+      // Create a URL for preview, but handle potential errors if the browser can't render it
+      try {
+        const objectUrl = URL.createObjectURL(file);
+        setOriginalImagePreview(objectUrl);
+      } catch (error) {
+        setOriginalImagePreview(null);
+      }
+      
       const result = await diagnoseAndRepairImage(file);
       setReport(result);
     }
@@ -36,8 +44,8 @@ export function ImageDoctorTab() {
       const url = URL.createObjectURL(report.repairedFile);
       const a = document.createElement('a');
       const originalName = fileName?.split('.').slice(0, -1).join('.') || 'repaired_image';
-      a.href = url;
-      a.download = `${originalName}.${report.detectedFormat}`;
+      // Use the detected format for the new extension
+      a.download = `${originalName}_repaired.${report.detectedFormat}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -46,20 +54,22 @@ export function ImageDoctorTab() {
   };
   
   const getStatusInfo = () => {
-    switch (report?.status) {
+    if (!report) {
+       return { icon: FileQuestion, color: 'text-muted-foreground', title: 'Awaiting File' };
+    }
+    switch (report.status) {
         case 'HEALTHY':
             return { icon: CheckCircle, color: 'text-green-600', title: 'Healthy' };
         case 'MISLABELED':
             return { icon: AlertTriangle, color: 'text-amber-500', title: 'Mislabeled' };
         case 'CORRUPT':
-            return { icon: XCircle, color: 'text-red-600', title: 'Corrupt' };
+            return { icon: report.fixable ? Wand2 : XCircle, color: report.fixable ? 'text-blue-500' : 'text-red-600', title: report.fixable ? 'Recoverable' : 'Corrupt' };
         default:
-            return { icon: FileQuestion, color: 'text-muted-foreground', title: 'Awaiting File' };
+            return { icon: FileQuestion, color: 'text-muted-foreground', title: 'Unknown' };
     }
   }
   
   const StatusIcon = getStatusInfo().icon;
-
 
   return (
     <Card className="max-w-4xl mx-auto border-border/70 bg-card/80 shadow-md animate-enter">
@@ -69,23 +79,27 @@ export function ImageDoctorTab() {
                 Forensic Image Doctor
             </CardTitle>
             <CardDescription>
-                Diagnose and repair corrupt images by analyzing their binary signature (magic bytes). Ideal for fixing mislabeled files from scanners (e.g., a TIFF saved as a JPG).
+                Diagnose and repair corrupt images by analyzing their binary signature (magic bytes). Ideal for fixing mislabeled or header-damaged files from scanners.
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-            <input type="file" ref={inputRef} onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.tiff"/>
+            <input type="file" ref={inputRef} onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.tiff,.jpg,.jpeg,.png,.gif,.bmp,.webp"/>
             <Button onClick={handleButtonClick} variant="outline" size="lg" className="w-full">
                 <UploadCloud className="mr-2 h-5 w-5" />
                 Select an Image or Document to Diagnose
             </Button>
             
-            {report && originalImagePreview && (
+            {report && (
                 <div className="grid gap-6 md:grid-cols-2 pt-6 border-t border-dashed animate-fade-in-up">
                     {/* Left: Preview */}
                     <div className="space-y-3">
                         <Label>Original File Preview</Label>
-                        <div className="relative w-full aspect-video rounded-lg border bg-muted/30 flex items-center justify-center">
-                             <Image src={originalImagePreview} alt="Original Upload" layout="fill" objectFit="contain" className="rounded-lg"/>
+                        <div className="relative w-full aspect-video rounded-lg border bg-muted/30 flex items-center justify-center text-muted-foreground text-sm">
+                             {originalImagePreview ? 
+                                <Image src={originalImagePreview} alt="Original Upload" fill objectFit="contain" className="rounded-lg" onError={() => setOriginalImagePreview(null)} unoptimized />
+                                :
+                                <span>Preview not available (corrupt header)</span>
+                            }
                         </div>
                     </div>
                     {/* Right: Report */}
@@ -115,7 +129,7 @@ export function ImageDoctorTab() {
                             {report.fixable && (
                                 <Button onClick={downloadRepaired} className="mt-4 w-full bg-green-600 hover:bg-green-700">
                                 <Download className="mr-2 h-4 w-4"/>
-                                Download Repaired File
+                                {report.status === 'MISLABELED' ? 'Download Corrected File' : 'Attempt Full Recovery'}
                                 </Button>
                             )}
                         </Card>
