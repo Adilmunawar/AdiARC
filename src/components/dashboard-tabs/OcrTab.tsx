@@ -165,8 +165,14 @@ export function OcrTab() {
           const imageDims = await getImageDims(file);
           const { data } = await worker.recognize(file);
           const words: Word[] = [];
-          data.lines.forEach(line => words.push(...line.words));
-          
+          if (data && data.paragraphs) {
+            for (const p of data.paragraphs) {
+                for (const l of p.lines) {
+                    words.push(...l.words);
+                }
+            }
+          }
+
           const newResultsForFile: OcrResult[] = [];
           words.forEach(word => {
             const isStandaloneNumber = /^\d+$/.test(word.text);
@@ -242,7 +248,13 @@ export function OcrTab() {
 
         const { data } = await worker.recognize(file);
         const words: Word[] = [];
-        data.lines.forEach(line => words.push(...line.words));
+        if (data && data.paragraphs) {
+            for (const p of data.paragraphs) {
+                for (const l of p.lines) {
+                    words.push(...l.words);
+                }
+            }
+        }
         const { width, height } = await getImageDims(file);
         
         words.forEach(word => {
