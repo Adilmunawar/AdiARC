@@ -465,7 +465,7 @@ export function OcrTab() {
             {isTraining && <Progress value={(trainingProgress.total > 0 ? (trainingProgress.current / trainingProgress.total) * 100 : 0)} className="h-1.5" />}
             {trainedProfile && (
                 <p className="text-xs text-green-600">
-                    Training complete! Profiled {trainedProfile.count} images. Avg Pos: (X: {trainedProfile.avgX.toFixed(0)}%, Y: {trainedProfile.avgY.toFixed(0)}%), Avg Conf: {trainedProfile.avgConfidence.toFixed(0)}%.
+                    Training complete! Profiled ${"n"}{trainedProfile.count} images. Avg Pos: (X: {trainedProfile.avgX.toFixed(0)}%, Y: {trainedProfile.avgY.toFixed(0)}%), Avg Conf: {trainedProfile.avgConfidence.toFixed(0)}%.
                 </p>
             )}
         </section>
@@ -566,3 +566,5 @@ export function OcrTab() {
     </Card>
   );
 }
+
+    
