@@ -165,16 +165,17 @@ export function OcrTab() {
           const imageDims = await getImageDims(file);
           const { data } = await worker.recognize(file);
           const words: Word[] = [];
-          if (data && (data as any).paragraphs) {
-            for (const p of (data as any).paragraphs) {
-                if (p && p.lines) {
-                    for (const l of p.lines) {
-                        if (l && l.words) {
-                            words.push(...l.words);
-                        }
-                    }
-                }
-            }
+          
+          // @ts-ignore - Trusting the structure for build, though it may vary
+          const paragraphs = data.paragraphs || [];
+          for (const p of paragraphs) {
+              if (p && p.lines) {
+                  for (const l of p.lines) {
+                      if (l && l.words) {
+                          words.push(...l.words);
+                      }
+                  }
+              }
           }
 
           const newResultsForFile: OcrResult[] = [];
@@ -252,17 +253,19 @@ export function OcrTab() {
 
         const { data } = await worker.recognize(file);
         const words: Word[] = [];
-        if (data && (data as any).paragraphs) {
-            for (const p of (data as any).paragraphs) {
-                if (p && p.lines) {
-                    for (const l of p.lines) {
-                        if (l && l.words) {
-                           words.push(...l.words);
-                        }
+
+        // @ts-ignore - Trusting the structure for build
+        const paragraphs = data.paragraphs || [];
+        for (const p of paragraphs) {
+            if (p && p.lines) {
+                for (const l of p.lines) {
+                    if (l && l.words) {
+                        words.push(...l.words);
                     }
                 }
             }
         }
+        
         const { width, height } = await getImageDims(file);
         
         words.forEach(word => {
@@ -468,7 +471,7 @@ export function OcrTab() {
               className="hidden"
               onChange={handleOcrFolderSelected}
               // @ts-ignore
-              webkitdirectory="" 
+              webkitdirectory=""
               directory=""
             />
         </section>
@@ -481,7 +484,16 @@ export function OcrTab() {
                     <FolderSync className="mr-2 h-4 w-4"/>
                     {isTraining ? `Training... (${trainingProgress.current}/${trainingProgress.total})` : "Select Training Folder"}
                 </Button>
-                 <input ref={trainingFolderInputRef} type="file" multiple className="hidden" onChange={handleTrainingFolderSelected} webkitdirectory="" directory=""/>
+                <input
+                  ref={trainingFolderInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleTrainingFolderSelected}
+                  // @ts-ignore
+                  webkitdirectory=""
+                  directory=""
+                />
                 {trainedProfile && (
                      <Button size="sm" onClick={applyTrainedProfile} disabled={isTraining || isOcrScanning}>Apply Trained Filters</Button>
                 )}
