@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, FileCode, Database, Search, Download } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
+import { cn } from '@/lib/utils';
 
 export function BakInspectorTab() {
   const [isScanning, setIsScanning] = useState(false);
@@ -26,7 +27,13 @@ export function BakInspectorTab() {
       } else if (type === 'complete') {
         setResults(payload);
         setIsScanning(false);
-        toast({ title: `Scan Complete! Found ${payload.length} code objects.`});
+        if (payload.some((p: any) => p.id === 'DIAGNOSIS')) {
+            toast({ title: `Scan Complete!`, description: "A diagnostic report was generated.", variant: "default" });
+            const diagnostic = payload.find((p: any) => p.id === 'DIAGNOSIS');
+            if(diagnostic) setSelectedCode(diagnostic.fullCode);
+        } else {
+            toast({ title: `Scan Complete! Found ${payload.length} potential code objects.`});
+        }
       } else if (type === 'error') {
         setIsScanning(false);
         toast({ title: `Error: ${payload}`, variant: "destructive" });
@@ -54,12 +61,13 @@ export function BakInspectorTab() {
   };
 
   const downloadAll = () => {
-    if(results.length === 0) {
-        toast({title: "No data to export", variant: "destructive"});
+    const codeObjects = results.filter(r => r.id !== 'DIAGNOSIS' && r.id !== 'HEADER_ANALYSIS');
+    if(codeObjects.length === 0) {
+        toast({title: "No extractable code found to export", variant: "destructive"});
         return;
     }
     const element = document.createElement("a");
-    const fileContent = results.map(r => `-- Object: ${r.type} (ID: ${r.id})\n${r.fullCode}\nGO\n\n`).join('');
+    const fileContent = codeObjects.map(r => `-- Object: ${r.type} (Offset: ${r.offset})\n${r.fullCode}\nGO\n\n`).join('');
     const file = new Blob([fileContent], {type: 'text/plain;charset=utf-8'});
     element.href = URL.createObjectURL(file);
     element.download = "recovered_source_code.sql";
@@ -74,7 +82,7 @@ export function BakInspectorTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-primary"/> .BAK Inspector (No DB Required)</CardTitle>
           <CardDescription>
-            Forensic scan of SQL Server backup files to extract stored procedures, views, and other code directly in your browser. This tool is ideal for serverless environments like Vercel.
+            Forensic scan of SQL Server backup files to extract stored procedures, views, and other code directly in your browser. Also diagnoses compressed backups.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -110,8 +118,8 @@ export function BakInspectorTab() {
             <CardTitle className="text-sm font-medium flex items-center">
               <Search className="mr-2 h-4 w-4" /> Found Objects ({results.length})
             </CardTitle>
-             <Button onClick={downloadAll} disabled={results.length === 0} variant="ghost" size="sm">
-                <Download className="mr-2 h-4 w-4" /> Export All
+             <Button onClick={downloadAll} disabled={results.filter(r => r.id !== 'DIAGNOSIS' && r.id !== 'HEADER_ANALYSIS').length === 0} variant="ghost" size="sm">
+                <Download className="mr-2 h-4 w-4" /> Export SQL
             </Button>
           </CardHeader>
           <CardContent className="flex-1 p-0">
@@ -121,15 +129,17 @@ export function BakInspectorTab() {
                   <button
                     key={item.id}
                     onClick={() => setSelectedCode(item.fullCode)}
-                    className={`text-left p-3 border-b text-sm hover:bg-muted transition-colors
-                      ${selectedCode === item.fullCode ? 'bg-muted' : ''}`}
+                    className={cn(`text-left p-3 border-b text-sm hover:bg-muted transition-colors`,
+                      selectedCode === item.fullCode ? 'bg-muted' : '',
+                      item.id === 'DIAGNOSIS' && 'bg-yellow-500/10 hover:bg-yellow-500/20'
+                    )}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <Badge variant="outline" className="text-[10px]">{item.type}</Badge>
+                      <Badge variant={item.id === 'DIAGNOSIS' ? 'destructive' : 'outline'} className="text-[10px]">{item.type}</Badge>
                       <span className="text-[10px] text-muted-foreground">Offset: {item.offset}</span>
                     </div>
                     <div className="font-mono text-xs truncate text-muted-foreground">
-                      {item.preview.substring(0, 40)}...
+                      {item.preview.replace(/\n/g, ' ')}
                     </div>
                   </button>
                 ))}
@@ -157,7 +167,7 @@ export function BakInspectorTab() {
           <CardContent className="flex-1 bg-background p-4 overflow-hidden rounded-b-lg border">
             <ScrollArea className="h-full bg-muted/30 rounded-md p-2">
               {selectedCode ? (
-                <pre className="text-xs font-mono text-foreground whitespace-pre-wrap break-all">
+                <pre className={cn("text-xs font-mono text-foreground whitespace-pre-wrap break-all", selectedCode.startsWith('FORENSIC') && 'text-yellow-400')}>
                   {selectedCode}
                 </pre>
               ) : (
