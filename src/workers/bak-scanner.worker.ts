@@ -32,6 +32,7 @@ self.onmessage = async (event: MessageEvent) => {
   results.push({
     id: 'HEADER_ANALYSIS',
     type: 'FILE_HEADER',
+    name: 'File Header',
     offset: 0,
     preview: `Scanned file header for metadata...`,
     fullCode: `File Header Raw Preview (ASCII):\n=================================\n${headerAsciiPreview}`
@@ -66,29 +67,29 @@ self.onmessage = async (event: MessageEvent) => {
         for (let i = 0; i < bytes.length; i++) rawString += String.fromCharCode(bytes[i]);
         
         const patterns = [
-          { type: 'PROC_ASCII', regex: /CREATE\s+PROC(?:EDURE)?\s+(?:\[?dbo\]?\.\[?)?(\w+)/gi },
-          { type: 'VIEW_ASCII', regex: /CREATE\s+VIEW\s+(?:\[?dbo\]?\.\[?)?(\w+)/gi },
-          { type: 'PROC_UTF16', regex: /C\x00R\x00E\x00A\x00T\x00E\x00\s+\x00P\x00R\x00O\x00C/g },
-          { type: 'POSSIBLE_OBJECT', regex: /(?:\[dbo\]\.)?\[(\w{5,50})\]/g }
+          { type: 'PROC', regex: /CREATE\s+PROC(?:EDURE)?\s+\[dbo\]\.\[([^\]]+)\]/gi },
+          { type: 'VIEW', regex: /CREATE\s+VIEW\s+\[dbo\]\.\[([^\]]+)\]/gi },
+          { type: 'PROC_UTF16', regex: /C\x00R\x00E\x00A\x00T\x00E\x00\s\x00P\x00R\x00O\x00C(?:EDURE)?\s\x00\[\x00d\x00b\x00o\x00\]\x00\.\[\x00([^\]\x00]+)/g },
         ];
 
         for (const pattern of patterns) {
             let match;
             while ((match = pattern.regex.exec(rawString)) !== null) {
-              if (foundCount > 500) break;
-              let extracted = rawString.substring(match.index, match.index + 2000).replace(/\x00/g, '');
-              const cutoff = extracted.search(/(\r\nGO)|(\nGO)|(CREATE\s+)/i);
-              if (cutoff > 20) extracted = extracted.substring(0, cutoff);
+              if (foundCount > 1000) break; // Increased limit
+              const objectName = match[1] ? match[1].replace(/\x00/g, '') : `Unnamed_${foundCount}`;
+
+              let extracted = rawString.substring(match.index, match.index + 8000).replace(/\x00/g, '');
+              const cutoff = extracted.substring(10).search(/(\n\s*GO\s*\n)|(CREATE\s+(PROC|VIEW|FUNCTION|TABLE))/i);
+              if (cutoff > 0) extracted = extracted.substring(0, cutoff + 10);
               
-              if (extracted.includes('CREATE') || extracted.includes('dbo')) {
-                 results.push({
-                  id: foundCount++,
-                  type: pattern.type,
-                  offset: offset + match.index,
-                  preview: extracted.substring(0, 100).replace(/[^\x20-\x7E]/g, '.'),
-                  fullCode: extracted
-                });
-              }
+              results.push({
+                id: foundCount++,
+                type: pattern.type.replace('_UTF16', ''),
+                name: objectName,
+                offset: offset + match.index,
+                preview: extracted.substring(0, 150).replace(/[^\x20-\x7E\r\n]/g, '.'),
+                fullCode: extracted
+              });
             }
         }
       }
@@ -103,6 +104,7 @@ self.onmessage = async (event: MessageEvent) => {
        results.unshift({
         id: 'DIAGNOSIS',
         type: 'DIAGNOSTIC_REPORT',
+        name: 'Compressed Backup Detected',
         offset: 0,
         preview: `COMPRESSED BACKUP (Entropy: ${finalAvgEntropy.toFixed(2)}/8.0).`,
         fullCode: `FORENSIC ANALYSIS REPORT
