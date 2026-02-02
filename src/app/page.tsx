@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, HeartPulse } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, HeartPulse, Search } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
@@ -100,6 +100,13 @@ const allTools = [
         description: "Diagnose and repair corrupt images by analyzing their binary signature.",
         icon: HeartPulse,
         path: "/image-doctor"
+    },
+    {
+        name: "BAK Inspector",
+        description: "Forensically scan .bak files for SQL code without a server.",
+        icon: Search,
+        path: "/bak-inspector",
+        isPremium: true,
     },
     {
         name: "SQL Generator",

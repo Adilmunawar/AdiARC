@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse, Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -109,14 +109,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     useEffect(() => {
-        // This check runs on the client-side after hydration
-        if (isUnlocked === false && localStorage.getItem('adiarc_unlocked') !== 'true') {
+        if (isUnlocked === false && typeof window !== 'undefined' && localStorage.getItem('adiarc_unlocked') !== 'true') {
             router.replace('/');
         }
     }, [isUnlocked, router]);
 
     if (!isUnlocked) {
-        // Render a loading state or null while we wait for the client-side check
         return null;
     }
 
@@ -157,6 +155,7 @@ const allNavItems = [
   { name: "Image Doctor", icon: HeartPulse, path: "/image-doctor" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
+  { name: "BAK Inspector", icon: Search, path: "/bak-inspector", isPremium: true },
   { name: "SQL Generator", icon: FileKey, path: "/sql-generator", isPremium: true },
   { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress", isPremium: true },
   { name: "PowerShell Queries", icon: PowerShellIcon, path: "/powershell-queries", isPremium: true },
