@@ -165,10 +165,14 @@ export function OcrTab() {
           const imageDims = await getImageDims(file);
           const { data } = await worker.recognize(file);
           const words: Word[] = [];
-          if (data && data.paragraphs) {
-            for (const p of data.paragraphs) {
-                for (const l of p.lines) {
-                    words.push(...l.words);
+          if (data && (data as any).paragraphs) {
+            for (const p of (data as any).paragraphs) {
+                if (p && p.lines) {
+                    for (const l of p.lines) {
+                        if (l && l.words) {
+                            words.push(...l.words);
+                        }
+                    }
                 }
             }
           }
@@ -248,10 +252,14 @@ export function OcrTab() {
 
         const { data } = await worker.recognize(file);
         const words: Word[] = [];
-        if (data && data.paragraphs) {
-            for (const p of data.paragraphs) {
-                for (const l of p.lines) {
-                    words.push(...l.words);
+        if (data && (data as any).paragraphs) {
+            for (const p of (data as any).paragraphs) {
+                if (p && p.lines) {
+                    for (const l of p.lines) {
+                        if (l && l.words) {
+                           words.push(...l.words);
+                        }
+                    }
                 }
             }
         }
