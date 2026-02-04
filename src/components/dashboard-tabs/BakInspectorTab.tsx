@@ -1,9 +1,10 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, FileCode, Database, Search, Download, UploadCloud, Info } from "lucide-react";
+import { Loader2, FileCode, Database, Search, Download, UploadCloud, Info, DatabaseBackup } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from '@/lib/utils';
@@ -110,7 +111,7 @@ export function BakInspectorTab() {
     <div className="space-y-6 animate-enter">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-primary"/> .BAK Inspector (No DB Required)</CardTitle>
+          <CardTitle className="flex items-center gap-2"><DatabaseBackup className="h-5 w-5 text-primary"/> SQL Recovery (.bak)</CardTitle>
           <CardDescription>
             Forensic scan of uncompressed SQL Server backup files to extract stored procedures, views, and other code directly in your browser. It also diagnoses compressed backups.
           </CardDescription>
