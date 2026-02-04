@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse, Search
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse, Search, Terminal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 // --- START: SECRET MODE CONTEXT & PROVIDER ---
 interface SecretModeContextType {
@@ -168,28 +170,6 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
   const { isUnlocked, requestUnlock, lock } = useSecretMode();
-  const clickTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const clickCountRef = React.useRef(0);
-
-  const handleLogoClick = () => {
-    clickCountRef.current += 1;
-
-    if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current);
-    }
-    
-    clickTimeoutRef.current = setTimeout(() => {
-      clickCountRef.current = 0;
-    }, 1500); // Reset after 1.5 seconds
-
-    if (clickCountRef.current >= 5) {
-      requestUnlock();
-      clickCountRef.current = 0;
-      if (clickTimeoutRef.current) {
-        clearTimeout(clickTimeoutRef.current);
-      }
-    }
-  };
   
   const navItems = allNavItems.filter(item => !item.isPremium || isUnlocked);
 
@@ -207,7 +187,7 @@ export function Sidebar() {
       )}
     >
       <div className={cn("flex h-16 items-center border-b px-4 transition-all duration-300", isOpen ? "justify-start" : "justify-center")}>
-         <div onClick={handleLogoClick} className="flex items-center gap-2 group cursor-pointer" title="Unlock secret features...">
+         <div className="flex items-center gap-2 group cursor-pointer">
             <Globe className="h-7 w-7 text-primary transition-transform duration-300 group-hover:scale-110" />
             {isOpen && <span className="font-bold text-lg transition-opacity duration-300">AdiARC</span>}
         </div>
@@ -233,13 +213,35 @@ export function Sidebar() {
         </nav>
       </ScrollArea>
 
-       <div className="mt-auto p-2 border-t">
-          {isUnlocked && isOpen && (
-            <Button variant="ghost" className="w-full justify-start gap-3 mb-1" onClick={lock}>
-              <Lock className="h-5 w-5 text-muted-foreground" />
-              <span>Lock Features</span>
-            </Button>
-          )}
+       <div className="mt-auto p-2 border-t space-y-1">
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button 
+                        variant="ghost" 
+                        className="w-full h-12 flex items-center justify-center gap-3 group"
+                        onDoubleClick={isUnlocked ? lock : requestUnlock}
+                    >
+                        {isUnlocked ? 
+                            <Unlock className="h-5 w-5 text-primary transition-transform duration-200 group-hover:scale-110"/> : 
+                            <Lock className="h-5 w-5 text-muted-foreground transition-transform duration-200 group-hover:scale-110"/>
+                        }
+                        {isOpen && (
+                            <span className={cn(
+                                "text-sm font-semibold transition-colors", 
+                                isUnlocked ? "text-primary" : "text-muted-foreground"
+                            )}>
+                                {isUnlocked ? "Unlocked" : "Locked"}
+                            </span>
+                        )}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                    <p className="text-xs">{isUnlocked ? "Double-click to lock premium features" : "Double-click to unlock premium features"}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+
           <Button
             variant="ghost"
             className="w-full justify-center"
