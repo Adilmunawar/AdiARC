@@ -33,14 +33,18 @@ self.onmessage = async (event: MessageEvent) => {
     
     // 2. LOAD DATA (The "Restore" Phase)
     if (type === 'load_dump') {
+      db = new db.constructor(new Uint8Array(0)); // Reset the database
       db.run(payload); 
+      
+      // Get list of tables created
       const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
       self.postMessage({ type: 'loaded', payload: tables[0]?.values.flat() || [] });
     }
 
     // 3. EXECUTE QUERY (The "Runner" Phase)
     if (type === 'query') {
-      const result = db.exec(payload);
+      const result = db.exec(payload); // payload is "SELECT * FROM..."
+      
       if (result.length === 0) {
         self.postMessage({ type: 'result', payload: { columns: [], values: [] } });
       } else {

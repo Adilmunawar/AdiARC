@@ -46,10 +46,11 @@ export function DatabaseEngineTab() {
   const [query, setQuery] = useState("SELECT name FROM sqlite_master WHERE type='table';");
   const [queryResults, setQueryResults] = useState<{columns: string[], values: any[][]} | null>(null);
   const sqlWorkerRef = useRef<Worker | null>(null);
+  const sqlFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // === BAK Inspector Worker Logic ===
   useEffect(() => {
-    bakWorkerRef.current = new Worker(new URL('../../workers/bak-scanner.worker.ts', import.meta.url), { type: 'module' });
+    bakWorkerRef.current = new Worker(new URL('../../workers/bak-scanner.worker.ts', import.meta.url));
     
     bakWorkerRef.current.onmessage = (e) => {
       const { type, payload } = e.data;
@@ -79,7 +80,7 @@ export function DatabaseEngineTab() {
 
   // === SQL Playground Worker Logic ===
    useEffect(() => {
-    sqlWorkerRef.current = new Worker(new URL('../../workers/sql-engine.worker.ts', import.meta.url), { type: 'module' });
+    sqlWorkerRef.current = new Worker(new URL('../../workers/sql-engine.worker.ts', import.meta.url));
     
     sqlWorkerRef.current.onmessage = (e) => {
       const { type, payload } = e.data;
@@ -155,6 +156,8 @@ export function DatabaseEngineTab() {
     if (!file) return;
 
     setPlaygroundStatus("Restoring...");
+    setQueryResults(null);
+    setTables([]);
     const text = await file.text();
     sqlWorkerRef.current?.postMessage({ type: 'load_dump', payload: text });
   };
@@ -180,7 +183,7 @@ export function DatabaseEngineTab() {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="inspector">
               <DatabaseBackup className="mr-2 h-4 w-4" />
-              .bak Inspector
+              SQL Recovery (.bak)
             </TabsTrigger>
             <TabsTrigger value="playground">
               <Activity className="mr-2 h-4 w-4" />
@@ -336,8 +339,8 @@ export function DatabaseEngineTab() {
                   <div className="mb-4">
                     <label className="text-xs font-semibold mb-2 block">Restore from .sql dump</label>
                     <div className="relative">
-                      <input type="file" accept=".sql,.txt" onChange={handleSqlDumpUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                      <Button variant="outline" size="sm" className="w-full">
+                      <input type="file" accept=".sql,.txt" ref={sqlFileInputRef} onChange={handleSqlDumpUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      <Button variant="outline" size="sm" className="w-full" onClick={() => sqlFileInputRef.current?.click()}>
                         <Upload className="mr-2 h-3 w-3" /> Upload Dump File
                       </Button>
                     </div>
