@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse, Search, Terminal, DatabaseBackup
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse, Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -156,8 +156,7 @@ const allNavItems = [
   { name: "Image Doctor", icon: HeartPulse, path: "/image-doctor" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
-  { name: "SQL Recovery", icon: DatabaseBackup, path: "/bak-inspector", isPremium: true },
-  { name: "SQL Playground", icon: Terminal, path: "/sql-playground", isPremium: true },
+  { name: "Database Engine", icon: Database, path: "/database-engine", isPremium: true },
   { name: "SQL Generator", icon: FileKey, path: "/sql-generator", isPremium: true },
   { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress", isPremium: true },
   { name: "PowerShell Queries", icon: PowerShellIcon, path: "/powershell-queries", isPremium: true },

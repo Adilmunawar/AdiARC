@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, HeartPulse, Search, Terminal, DatabaseBackup } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, HeartPulse, Search } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
@@ -102,10 +102,10 @@ const allTools = [
         path: "/image-doctor"
     },
     {
-        name: "SQL Recovery",
-        description: "Forensically scan .bak files for SQL code without a server.",
-        icon: DatabaseBackup,
-        path: "/bak-inspector",
+        name: "Database Engine",
+        description: "Inspect .bak files or run live SQL queries in an in-browser database.",
+        icon: Database,
+        path: "/database-engine",
         isPremium: true,
     },
     {
@@ -133,13 +133,6 @@ const allTools = [
         description: "Generate PowerShell scripts to query the database directly.",
         icon: PowerShellIcon,
         path: "/powershell-queries",
-        isPremium: true,
-    },
-    {
-        name: "SQL Playground",
-        description: "Run SQL queries on a virtual database in your browser.",
-        icon: Terminal,
-        path: "/sql-playground",
         isPremium: true,
     }
 ];
