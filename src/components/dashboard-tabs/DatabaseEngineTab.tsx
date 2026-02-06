@@ -41,7 +41,7 @@ export function DatabaseEngineTab() {
   const bakFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // === State from SqlPlaygroundTab ===
-  const [playgroundStatus, setPlaygroundStatus] = useState("Offline");
+  const [playgroundStatus, setPlaygroundStatus] = useState<"Offline" | "Starting..." | "Online (InMemory)" | "Online (Restored)" | "Restoring...">("Offline");
   const [tables, setTables] = useState<string[]>([]);
   const [query, setQuery] = useState("SELECT name FROM sqlite_master WHERE type='table';");
   const [queryResults, setQueryResults] = useState<{columns: string[], values: any[][]} | null>(null);
@@ -78,11 +78,27 @@ export function DatabaseEngineTab() {
     return () => bakWorkerRef.current?.terminate();
   }, [toast]);
 
-  // === SQL Playground Worker Logic ===
+  // === SQL Playground Worker Logic (Lifecycle Management) ===
    useEffect(() => {
-    sqlWorkerRef.current = new Worker(new URL('../../workers/sql-engine.worker.ts', import.meta.url));
+    // This effect only handles the cleanup of the worker when the component unmounts.
+    // The worker is now created on-demand by handleStartEngine.
+    return () => {
+        if (sqlWorkerRef.current) {
+            sqlWorkerRef.current.terminate();
+            sqlWorkerRef.current = null;
+        }
+    };
+  }, []);
+
+  const handleStartEngine = () => {
+    if (playgroundStatus !== "Offline" || sqlWorkerRef.current) return;
+
+    setPlaygroundStatus("Starting...");
     
-    sqlWorkerRef.current.onmessage = (e) => {
+    const worker = new Worker(new URL('../../workers/sql-engine.worker.ts', import.meta.url));
+    sqlWorkerRef.current = worker;
+    
+    worker.onmessage = (e) => {
       const { type, payload } = e.data;
       if (type === 'ready') {
         setPlaygroundStatus("Online (InMemory)");
@@ -98,10 +114,18 @@ export function DatabaseEngineTab() {
       }
     };
 
-    sqlWorkerRef.current.postMessage({ type: 'init' });
+    worker.onerror = (e) => {
+        setPlaygroundStatus("Offline");
+        sonnerToast.error("SQL Worker failed to start.", { description: e.message });
+        if (sqlWorkerRef.current) {
+            sqlWorkerRef.current.terminate();
+            sqlWorkerRef.current = null;
+        }
+    };
 
-    return () => sqlWorkerRef.current?.terminate();
-  }, []);
+    worker.postMessage({ type: 'init' });
+  };
+
 
   // === BAK Inspector Handlers ===
   const handleBakFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -324,107 +348,126 @@ export function DatabaseEngineTab() {
           </TabsContent>
 
           <TabsContent value="playground" className="mt-6">
-            <div className="grid grid-cols-4 gap-6 h-[800px]">
-              <Card className="col-span-1 flex flex-col bg-slate-50 dark:bg-slate-900">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Database className="mr-2 h-4 w-4" /> Virtual Instance
-                  </CardTitle>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className={`h-2 w-2 rounded-full ${playgroundStatus.includes('Online') ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                    <span className="text-xs text-muted-foreground">{playgroundStatus}</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-hidden">
-                  <div className="mb-4">
-                    <label className="text-xs font-semibold mb-2 block">Restore from .sql dump</label>
-                    <div className="relative">
-                      <input type="file" accept=".sql,.txt" ref={sqlFileInputRef} onChange={handleSqlDumpUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                      <Button variant="outline" size="sm" className="w-full" onClick={() => sqlFileInputRef.current?.click()}>
-                        <Upload className="mr-2 h-3 w-3" /> Upload Dump File
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="text-xs font-semibold mb-2 text-muted-foreground">TABLES</div>
-                  <ScrollArea className="h-[600px]">
-                    {tables.length === 0 ? (
-                      <div className="text-xs text-center text-slate-400 py-4">No tables found</div>
-                    ) : (
-                      tables.map(t => (
-                        <div key={t} 
-                          onClick={() => setQuery(`SELECT * FROM \`${t}\` LIMIT 10`)}
-                          className="flex items-center gap-2 p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors"
-                        >
-                          <TableIcon className="h-3 w-3 text-blue-500" />
-                          <span className="text-xs font-mono">{t}</span>
-                        </div>
-                      ))
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-
-              <div className="col-span-3 flex flex-col gap-4">
-                <Card className="flex-shrink-0">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                    <CardTitle className="text-sm font-medium flex items-center">
-                      <Terminal className="mr-2 h-4 w-4" /> Query Editor
-                    </CardTitle>
-                    <Button size="sm" onClick={runQuery} className="bg-green-600 hover:bg-green-700">
-                      <Play className="mr-2 h-3 w-3" /> Run
+            {playgroundStatus === 'Offline' || playgroundStatus === 'Starting...' ? (
+                 <div className="flex flex-col items-center justify-center h-[800px] text-center p-8 border-2 border-dashed rounded-lg bg-muted/50">
+                    <Database className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">Virtual Database Engine is Offline</h3>
+                    <p className="max-w-md text-muted-foreground mb-6">
+                        To run live SQL queries, you need to start the in-browser virtual database instance. This will load the engine into memory.
+                    </p>
+                    <Button onClick={handleStartEngine} disabled={playgroundStatus === 'Starting...'}>
+                        {playgroundStatus === 'Starting...' ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Play className="mr-2 h-4 w-4" />
+                        )}
+                        {playgroundStatus === 'Starting...' ? 'Starting Engine...' : 'Start Virtual Database'}
                     </Button>
-                  </CardHeader>
-                  <CardContent>
-                    <Textarea 
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      className="font-mono text-sm bg-slate-950 text-slate-100 min-h-[150px]"
-                      placeholder="SELECT * FROM your_table..."
-                    />
-                  </CardContent>
+                 </div>
+            ) : (
+                <div className="grid grid-cols-4 gap-6 h-[800px]">
+                <Card className="col-span-1 flex flex-col bg-slate-50 dark:bg-slate-900">
+                    <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center">
+                        <Database className="mr-2 h-4 w-4" /> Virtual Instance
+                    </CardTitle>
+                    <div className="flex items-center gap-2 mt-2">
+                        <div className={`h-2 w-2 rounded-full ${playgroundStatus.includes('Online') ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                        <span className="text-xs text-muted-foreground">{playgroundStatus}</span>
+                    </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-hidden">
+                    <div className="mb-4">
+                        <label className="text-xs font-semibold mb-2 block">Restore from .sql dump</label>
+                        <div className="relative">
+                        <input type="file" accept=".sql,.txt" ref={sqlFileInputRef} onChange={handleSqlDumpUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        <Button variant="outline" size="sm" className="w-full" onClick={() => sqlFileInputRef.current?.click()}>
+                            <Upload className="mr-2 h-3 w-3" /> Upload Dump File
+                        </Button>
+                        </div>
+                    </div>
+                    
+                    <div className="text-xs font-semibold mb-2 text-muted-foreground">TABLES</div>
+                    <ScrollArea className="h-[600px]">
+                        {tables.length === 0 ? (
+                        <div className="text-xs text-center text-slate-400 py-4">No tables found</div>
+                        ) : (
+                        tables.map(t => (
+                            <div key={t} 
+                            onClick={() => setQuery(`SELECT * FROM \`${t}\` LIMIT 10`)}
+                            className="flex items-center gap-2 p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors"
+                            >
+                            <TableIcon className="h-3 w-3 text-blue-500" />
+                            <span className="text-xs font-mono">{t}</span>
+                            </div>
+                        ))
+                        )}
+                    </ScrollArea>
+                    </CardContent>
                 </Card>
 
-                <Card className="flex-1 flex flex-col overflow-hidden">
-                  <CardHeader className="py-3 border-b bg-muted/50">
-                    <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Results {queryResults && `(${queryResults.values.length} rows)`}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0 flex-1 overflow-auto bg-white dark:bg-slate-950">
-                    {!queryResults ? (
-                      <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                        Run a query to see results
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {queryResults.columns.map((col, i) => (
-                              <TableHead key={i} className="text-xs font-bold">{col}</TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {queryResults.values.map((row, i) => (
-                            <TableRow key={i}>
-                              {row.map((cell, j) => (
-                                <TableCell key={j} className="text-xs font-mono whitespace-nowrap">
-                                  {String(cell)}
-                                </TableCell>
-                              ))}
+                <div className="col-span-3 flex flex-col gap-4">
+                    <Card className="flex-shrink-0">
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-sm font-medium flex items-center">
+                        <Terminal className="mr-2 h-4 w-4" /> Query Editor
+                        </CardTitle>
+                        <Button size="sm" onClick={runQuery} className="bg-green-600 hover:bg-green-700">
+                        <Play className="mr-2 h-3 w-3" /> Run
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea 
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        className="font-mono text-sm bg-slate-950 text-slate-100 min-h-[150px]"
+                        placeholder="SELECT * FROM your_table..."
+                        />
+                    </CardContent>
+                    </Card>
+
+                    <Card className="flex-1 flex flex-col overflow-hidden">
+                    <CardHeader className="py-3 border-b bg-muted/50">
+                        <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Results {queryResults && `(${queryResults.values.length} rows)`}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 flex-1 overflow-auto bg-white dark:bg-slate-950">
+                        {!queryResults ? (
+                        <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                            Run a query to see results
+                        </div>
+                        ) : (
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                {queryResults.columns.map((col, i) => (
+                                <TableHead key={i} className="text-xs font-bold">{col}</TableHead>
+                                ))}
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                            </TableHeader>
+                            <TableBody>
+                            {queryResults.values.map((row, i) => (
+                                <TableRow key={i}>
+                                {row.map((cell, j) => (
+                                    <TableCell key={j} className="text-xs font-mono whitespace-nowrap">
+                                    {String(cell)}
+                                    </TableCell>
+                                ))}
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                        )}
+                    </CardContent>
+                    </Card>
+                </div>
+                </div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
   );
 }
+
