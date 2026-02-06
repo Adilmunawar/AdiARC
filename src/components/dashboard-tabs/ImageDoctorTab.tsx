@@ -5,7 +5,7 @@ import { diagnoseAndRepairImage, ImageHealthReport } from '@/lib/image-forensics
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, AlertTriangle, XCircle, Download, UploadCloud, HeartPulse, FileQuestion, Sparkles, Wand2, Skull } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Download, UploadCloud, FileScan, FileQuestion, Sparkles, Wand2, Skull } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -87,8 +87,8 @@ export function ImageDoctorTab() {
     <Card className="max-w-4xl mx-auto border-border/70 bg-card/80 shadow-md animate-enter">
         <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <HeartPulse className="h-5 w-5 text-primary"/>
-                Forensic Image Doctor
+                <FileScan className="h-5 w-5 text-primary"/>
+                Image Doctor
             </CardTitle>
             <CardDescription>
                 Diagnose and repair corrupt images by analyzing their binary signature (magic bytes) and information density (entropy).
