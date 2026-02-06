@@ -101,13 +101,6 @@ const allTools = [
         path: "/image-doctor"
     },
     {
-        name: "Database Engine",
-        description: "Inspect .bak files or run live SQL queries in an in-browser database.",
-        icon: Database,
-        path: "/database-engine",
-        isPremium: true,
-    },
-    {
         name: "SQL Generator",
         description: "Generate a SQL script to delete multiple Intiqal records.",
         icon: FileKey,

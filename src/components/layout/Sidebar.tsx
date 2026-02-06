@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -158,7 +157,6 @@ const allNavItems = [
   { name: "Image Doctor", icon: FileScan, path: "/image-doctor" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
-  { name: "Database Engine", icon: Database, path: "/database-engine", isPremium: true },
   { name: "SQL Generator", icon: FileKey, path: "/sql-generator", isPremium: true },
   { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress", isPremium: true },
   { name: "PowerShell Queries", icon: PowerShellIcon, path: "/powershell-queries", isPremium: true },
