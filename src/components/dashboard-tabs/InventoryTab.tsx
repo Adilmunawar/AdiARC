@@ -615,181 +615,81 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
           </section>
 
           {/* DATA TABLE CONTROLS */}
-          <section className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">Inventory results</p>
-                {inventoryItems.length > 0 && (
-                  <span className="text-[11px] text-muted-foreground">{inventoryItems.length} files scanned</span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2 text-[11px] items-end">
-                <Input
-                  placeholder="Search by ID, file name, or source..."
-                  value={inventorySearch}
-                  onChange={(e) => setInventorySearch(e.target.value)}
-                  className="h-8 w-52 text-xs"
-                />
-                <Select
-                  value={inventoryStatusFilter}
-                  onValueChange={(value) =>
-                    setInventoryStatusFilter(value as "all" | "valid" | "no-match" | "stripped")
-                  }
-                >
-                  <SelectTrigger className="h-8 w-32 text-xs">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="valid">Valid</SelectItem>
-                    <SelectItem value="no-match">No Tag</SelectItem>
-                    <SelectItem value="stripped">Stripped</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={inventoryFolderFilter} onValueChange={(value) => setInventoryFolderFilter(value)}>
-                  <SelectTrigger className="h-8 w-40 text-xs">
-                    <SelectValue placeholder="Folder" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All folders</SelectItem>
-                    {inventoryFolders.map((folder) => (
-                      <SelectItem key={folder} value={folder}>
-                        {folder}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex items-end gap-1 text-[10px]">
-                  <div className="space-y-1">
-                    <Label htmlFor="inventory-id-min" className="text-[10px]">
-                      ID from
-                    </Label>
-                    <Input
-                      id="inventory-id-min"
-                      type="number"
-                      value={inventoryIdMin}
-                      onChange={(e) => setInventoryIdMin(e.target.value)}
-                      className="h-8 w-24 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="inventory-id-max" className="text-[10px]">
-                      to
-                    </Label>
-                    <Input
-                      id="inventory-id-max"
-                      type="number"
-                      value={inventoryIdMax}
-                      onChange={(e) => setInventoryIdMax(e.target.value)}
-                      className="h-8 w-24 text-xs"
-                    />
-                  </div>
+          <section className="space-y-4 rounded-md border border-border/70 bg-card p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="flex-shrink-0">
+                    <h3 className="text-sm font-semibold">Inventory Results</h3>
+                    {inventoryItems.length > 0 && <p className="text-xs text-muted-foreground">{filteredInventoryItems.length} of {inventoryItems.length} rows showing</p>}
                 </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={activeInventoryPresetId ?? "__none__"}
-                  onValueChange={(value) => {
-                    if (value === "__none__") {
-                      setActiveInventoryPresetId(null);
-                      return;
-                    }
-                    const preset = presets.find((p) => p.id === value);
-                    if (!preset) return;
-                    setActiveInventoryPresetId(preset.id);
-                    setInventorySearch(preset.search);
-                    setInventoryStatusFilter(preset.status);
-                    setInventoryFolderFilter(preset.folder);
-                    setInventoryIdMin(preset.idMin);
-                    setInventoryIdMax(preset.idMax);
-                  }}
-                >
-                  <SelectTrigger className="h-8 w-40 text-xs">
-                    <SelectValue placeholder="Filter presets" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">No preset</SelectItem>
-                    {presets.map((preset) => (
-                      <SelectItem key={preset.id} value={preset.id}>
-                        {preset.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3"
-                  onClick={() => {
-                    const name = window.prompt("Preset name", "My filters");
-                    if (!name) return;
-                    const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
-                    const preset: InventoryFilterPreset = {
-                      id,
-                      name,
-                      search: inventorySearch,
-                      status: inventoryStatusFilter,
-                      folder: inventoryFolderFilter,
-                      idMin: inventoryIdMin,
-                      idMax: inventoryIdMax,
-                    };
-                    setPresets(prev => [...prev, preset]);
-                    setActiveInventoryPresetId(id);
-                  }}
-                >
-                  Save preset
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-3 text-[11px]"
-                  onClick={() => {
-                    setInventorySearch("");
-                    setInventoryStatusFilter("all");
-                    setInventoryFolderFilter("all");
-                    setInventoryIdMin("");
-                    setInventoryIdMax("");
-                    setActiveInventoryPresetId(null);
-                  }}
-                >
-                  Clear all filters
-                </Button>
-                <div className="flex items-center gap-1 text-[10px]">
-                  <span className="text-muted-foreground">Sort by</span>
-                  <Select
-                    value={inventorySortBy}
-                    onValueChange={(value) => setInventorySortBy(value as "id" | "file" | "status" | "folder")}
-                  >
-                    <SelectTrigger className="h-8 w-28 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="id">ID</SelectItem>
-                      <SelectItem value="file">File</SelectItem>
-                      <SelectItem value="folder">Folder</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={inventorySortDir} onValueChange={(value) => setInventorySortDir(value as "asc" | "desc")}>
-                    <SelectTrigger className="h-8 w-24 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="asc">Asc</SelectItem>
-                      <SelectItem value="desc">Desc</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-1 flex-col gap-3 min-w-0 md:pl-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <Input
+                            placeholder="Search by ID, file name..."
+                            value={inventorySearch}
+                            onChange={(e) => setInventorySearch(e.target.value)}
+                            className="h-9 text-xs sm:col-span-2 md:col-span-1"
+                        />
+                        <Select value={inventoryStatusFilter} onValueChange={(value) => setInventoryStatusFilter(value as "all" | "valid" | "no-match" | "stripped")}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+                            <SelectContent><SelectItem value="all">All Statuses</SelectItem><SelectItem value="valid">Valid</SelectItem><SelectItem value="no-match">No Tag</SelectItem><SelectItem value="stripped">Stripped</SelectItem></SelectContent>
+                        </Select>
+                        <Select value={inventoryFolderFilter} onValueChange={(value) => setInventoryFolderFilter(value)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Folder" /></SelectTrigger>
+                            <SelectContent><SelectItem value="all">All Folders</SelectItem>{inventoryFolders.map((folder) => (<SelectItem key={folder} value={folder}>{folder}</SelectItem>))}</SelectContent>
+                        </Select>
+                    </div>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                         <div className="space-y-1.5">
+                            <Label htmlFor="inventory-id-min" className="text-xs">ID Range</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="inventory-id-min" type="number" placeholder="Min" value={inventoryIdMin} onChange={(e) => setInventoryIdMin(e.target.value)} className="h-9 text-xs" />
+                                <span className="text-muted-foreground">-</span>
+                                <Input id="inventory-id-max" type="number" placeholder="Max" value={inventoryIdMax} onChange={(e) => setInventoryIdMax(e.target.value)} className="h-9 text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Sort By</Label>
+                            <div className="flex items-center gap-2">
+                                <Select value={inventorySortBy} onValueChange={(value) => setInventorySortBy(value as "id" | "file" | "status" | "folder")}>
+                                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent><SelectItem value="id">ID</SelectItem><SelectItem value="file">File</SelectItem><SelectItem value="folder">Folder</SelectItem><SelectItem value="status">Status</SelectItem></SelectContent>
+                                </Select>
+                                <Select value={inventorySortDir} onValueChange={(value) => setInventorySortDir(value as "asc" | "desc")}>
+                                    <SelectTrigger className="h-9 text-xs w-[80px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent><SelectItem value="asc">Asc</SelectItem><SelectItem value="desc">Desc</SelectItem></SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-dashed">
+                        <div className="flex items-center gap-2">
+                            <Select value={activeInventoryPresetId ?? "__none__"} onValueChange={(value) => {
+                                if (value === "__none__") {setActiveInventoryPresetId(null); return;}
+                                const preset = presets.find((p) => p.id === value);
+                                if (!preset) return;
+                                setActiveInventoryPresetId(preset.id); setInventorySearch(preset.search); setInventoryStatusFilter(preset.status); setInventoryFolderFilter(preset.folder); setInventoryIdMin(preset.idMin); setInventoryIdMax(preset.idMax);
+                            }}>
+                                <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Filter presets" /></SelectTrigger>
+                                <SelectContent><SelectItem value="__none__">No preset</SelectItem>{presets.map((preset) => (<SelectItem key={preset.id} value={preset.id}>{preset.name}</SelectItem>))}</SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => {
+                                const name = window.prompt("Preset name", "My filters");
+                                if (!name) return;
+                                const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
+                                const preset: InventoryFilterPreset = { id, name, search: inventorySearch, status: inventoryStatusFilter, folder: inventoryFolderFilter, idMin: inventoryIdMin, idMax: inventoryIdMax };
+                                setPresets(prev => [...prev, preset]);
+                                setActiveInventoryPresetId(id);
+                            }}>Save Preset</Button>
+                        </div>
+                         <Button type="button" variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={() => {
+                            setInventorySearch(""); setInventoryStatusFilter("all"); setInventoryFolderFilter("all"); setInventoryIdMin(""); setInventoryIdMax(""); setActiveInventoryPresetId(null);
+                        }}>Clear All Filters</Button>
+                    </div>
                 </div>
-              </div>
             </div>
+          </section>
 
-            <div className="rounded-md border border-border bg-card/70">
+          <div className="rounded-md border border-border bg-card/70">
               <ScrollArea className="h-80 w-full rounded-md">
                 <Table>
                   <TableHeader>
@@ -841,8 +741,6 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                 </Table>
               </ScrollArea>
             </div>
-          </section>
-
           {/* GOLDEN KEY SUMMARY */}
           <section className="space-y-3 pt-4 border-t border-dashed border-border/70">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -948,67 +846,65 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
                 />
               </div>
 
-              {comparisonResult && (
-                <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-dashed text-xs">
-                    {/* Matched Column */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="matched-results" className="font-medium">
-                                Found in XMP <span className="text-muted-foreground">({comparisonResult.matched.length})</span>
-                            </Label>
-                             <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowCompressedMatched(p => !p)} title={showCompressedMatched ? "Show Full List" : "Show Compressed Ranges"}>
-                                    {showCompressedMatched ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy("Matched IDs", showCompressedMatched ? compressRanges(comparisonResult.matched.map(Number)) : comparisonResult.matched.join('\n'))} title="Copy">
-                                    <Copy className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadList('matched_in_xmp.txt', comparisonResult.matched)} title="Download">
-                                    <Download className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                        <Textarea
-                            id="matched-results"
-                            readOnly
-                            className="h-32 font-mono text-xs bg-green-500/10 border-green-500/30 focus-visible:ring-green-500/50"
-                            value={comparisonResult.matched.length > 0
-                                ? (showCompressedMatched ? compressRanges(comparisonResult.matched.map(Number)) : comparisonResult.matched.join('\n'))
-                                : "None"
-                            }
-                        />
-                    </div>
-
-                    {/* Still Missing Column */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="still-missing-results" className="font-medium">
-                                Still Missing <span className="text-muted-foreground">({comparisonResult.stillMissing.length})</span>
-                            </Label>
+             <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-dashed text-xs">
+                {/* Matched Column */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="matched-results" className="font-medium">
+                            Found in XMP <span className="text-muted-foreground">({comparisonResult?.matched.length ?? 0})</span>
+                        </Label>
                             <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowCompressedStillMissing(p => !p)} title={showCompressedStillMissing ? "Show Full List" : "Show Compressed Ranges"}>
-                                    {showCompressedStillMissing ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy("Missing IDs", showCompressedStillMissing ? compressRanges(comparisonResult.stillMissing.map(Number)) : comparisonResult.stillMissing.join('\n'))} title="Copy">
-                                    <Copy className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadList('still_missing.txt', comparisonResult.stillMissing)} title="Download">
-                                    <Download className="h-4 w-4" />
-                                </Button>
-                            </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowCompressedMatched(p => !p)} title={showCompressedMatched ? "Show Full List" : "Show Compressed Ranges"}>
+                                {showCompressedMatched ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy("Matched IDs", showCompressedMatched && comparisonResult ? compressRanges(comparisonResult.matched.map(Number)) : comparisonResult?.matched.join('\n') ?? '')} title="Copy">
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadList('matched_in_xmp.txt', comparisonResult?.matched ?? [])} title="Download">
+                                <Download className="h-4 w-4" />
+                            </Button>
                         </div>
-                        <Textarea
-                            id="still-missing-results"
-                            readOnly
-                            className="h-32 font-mono text-xs bg-red-500/5 border-red-500/20 focus-visible:ring-red-500/50"
-                            value={comparisonResult.stillMissing.length > 0
-                                ? (showCompressedStillMissing ? compressRanges(comparisonResult.stillMissing.map(Number)) : comparisonResult.stillMissing.join('\n'))
-                                : "None"
-                            }
-                        />
                     </div>
+                    <Textarea
+                        id="matched-results"
+                        readOnly
+                        className="h-32 font-mono text-xs bg-green-500/10 border-green-500/30 focus-visible:ring-green-500/50"
+                        value={comparisonResult?.matched?.length ?? 0 > 0
+                            ? (showCompressedMatched ? compressRanges(comparisonResult!.matched.map(Number)) : comparisonResult!.matched.join('\n'))
+                            : "None"
+                        }
+                    />
                 </div>
-              )}
+
+                {/* Still Missing Column */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="still-missing-results" className="font-medium">
+                            Still Missing <span className="text-muted-foreground">({comparisonResult?.stillMissing.length ?? 0})</span>
+                        </Label>
+                        <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowCompressedStillMissing(p => !p)} title={showCompressedStillMissing ? "Show Full List" : "Show Compressed Ranges"}>
+                                {showCompressedStillMissing ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy("Missing IDs", showCompressedStillMissing && comparisonResult ? compressRanges(comparisonResult.stillMissing.map(Number)) : comparisonResult?.stillMissing.join('\n') ?? '')} title="Copy">
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadList('still_missing.txt', comparisonResult?.stillMissing ?? [])} title="Download">
+                                <Download className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                    <Textarea
+                        id="still-missing-results"
+                        readOnly
+                        className="h-32 font-mono text-xs bg-red-500/5 border-red-500/20 focus-visible:ring-red-500/50"
+                        value={comparisonResult?.stillMissing?.length ?? 0 > 0
+                            ? (showCompressedStillMissing ? compressRanges(comparisonResult!.stillMissing.map(Number)) : comparisonResult!.stillMissing.join('\n'))
+                            : "None"
+                        }
+                    />
+                </div>
+            </div>
             </div>
           </section>
         </CardContent>
