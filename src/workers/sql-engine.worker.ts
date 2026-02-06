@@ -18,7 +18,7 @@ self.onmessage = async (event: MessageEvent) => {
       if (!db) {
         const SQL = await initSqlJs({
           // Point to the WASM file in the same CDN directory
-          locateFile: file => `https://sql.js.org/dist/${file}` 
+          locateFile: (file: string) => `https://sql.js.org/dist/${file}`
         });
         db = new SQL.Database();
       }
