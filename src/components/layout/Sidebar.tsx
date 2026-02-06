@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -170,6 +170,35 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
   const { isUnlocked, requestUnlock, lock } = useSecretMode();
+  const [unlockClickCount, setUnlockClickCount] = useState(0);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLockClick = () => {
+    if (isUnlocked) {
+      lock(); // Single click to lock
+      setUnlockClickCount(0);
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+    } else {
+      // Multi-click to unlock
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+
+      const newClickCount = unlockClickCount + 1;
+      setUnlockClickCount(newClickCount);
+
+      if (newClickCount >= 5) {
+        requestUnlock();
+        setUnlockClickCount(0);
+      } else {
+        clickTimeoutRef.current = setTimeout(() => {
+          setUnlockClickCount(0); // Reset after a short delay
+        }, 800); // 800ms window for 5 clicks
+      }
+    }
+  };
   
   const navItems = allNavItems.filter(item => !item.isPremium || isUnlocked);
 
@@ -220,7 +249,7 @@ export function Sidebar() {
                     <Button 
                         variant="ghost" 
                         className="w-full h-12 flex items-center justify-center gap-3 group"
-                        onDoubleClick={isUnlocked ? lock : requestUnlock}
+                        onClick={handleLockClick}
                     >
                         {isUnlocked ? 
                             <Unlock className="h-5 w-5 text-primary transition-transform duration-200 group-hover:scale-110"/> : 
@@ -237,7 +266,7 @@ export function Sidebar() {
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={10}>
-                    <p className="text-xs">{isUnlocked ? "Double-click to lock premium features" : "Double-click to unlock premium features"}</p>
+                    <p className="text-xs">{isUnlocked ? "Click once to lock premium features" : "Click 5 times to unlock"}</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
