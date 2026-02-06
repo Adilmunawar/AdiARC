@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
 import type React from "react";
-import { Loader2, Pause, Play } from "lucide-react";
+import { Copy, Download, Loader2, Pause, Play, ToggleLeft, ToggleRight } from "lucide-react";
 import JSZip from "jszip";
 import ExifReader from "exifreader";
 
@@ -80,10 +81,51 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
     matched: string[];
     stillMissing: string[];
   } | null>(null);
-  const [showCompressedStillMissing, setShowCompressedStillMissing] = useState<boolean>(false);
+  const [showCompressedMatched, setShowCompressedMatched] = useState<boolean>(true);
+  const [showCompressedStillMissing, setShowCompressedStillMissing] = useState<boolean>(true);
   const [isCloning, setIsCloning] = useState<boolean>(false);
   const [cloneProgress, setCloneProgress] = useState<number>(0);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState<boolean>(false);
+
+  const handleCopy = async (label: string, value: string) => {
+    if (!value || value === "None") {
+      toast({
+        title: `Nothing to copy for ${label}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({
+        title: `${label} copied to clipboard.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleDownloadList = (filename: string, list: (string|number)[]) => {
+    if (!list || list.length === 0) {
+        toast({ title: "No data to download.", variant: 'destructive' });
+        return;
+    }
+    const content = list.join('\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Download started", description: `Saved as ${filename}` });
+  };
 
 
   const handleCopyGoldenKeyIds = async (goldenKeySummary: { id: string; count: number; files: string[] }[]) => {
@@ -864,88 +906,107 @@ export function InventoryTab({ setInventoryItems: setAppInventoryItems }: Invent
             )}
 
             {/* Missing list comparison */}
-            <div className="space-y-2 rounded-md border border-dashed border-border bg-muted/20 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-medium">Compare with your missing mutation list</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCompareMissingWithGolden(goldenKeySummary)}
-                    disabled={goldenKeySummary.length === 0 || isCloning}
-                  >
-                    Run comparison
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="default"
-                    onClick={handleCloneMatchedImages}
-                    disabled={!comparisonResult || comparisonResult.matched.length === 0 || isCloning}
-                  >
-                    {isCloning ? (
-                       <span className="inline-flex items-center gap-2">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          <span>Preparing ZIP...</span>
-                      </span>
-                    ) : "Clone them" }
-                  </Button>
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Paste the mutation numbers you believe are missing (you can mix single IDs and ranges like
-                <code className="mx-1">5501-5505</code>) separated by spaces, commas, or new lines. We'll highlight which of
-                them actually exist in the official XMP list.
-              </p>
-              <Textarea
-                rows={3}
-                placeholder="e.g. 5501 5502 5503 7108 8001..."
-                value={missingListInput}
-                onChange={(e) => setMissingListInput(e.target.value)}
-                className="h-20 text-xs"
-              />
-              {comparisonResult && (
-                <div className="grid gap-3 border-t border-dashed border-border pt-2 text-[11px]">
-                  <div>
-                    <p className="font-medium">Found in XMP:DocumentNo ({comparisonResult.matched.length})</p>
-                    {comparisonResult.matched.length === 0 ? (
-                      <p className="text-muted-foreground">None of the pasted numbers exist in the XMP list.</p>
-                    ) : (
-                      <p className="break-words text-muted-foreground">{comparisonResult.matched.join(", ")}</p>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium">Still missing ({comparisonResult.stillMissing.length})</p>
-                      {comparisonResult.stillMissing.length > 0 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-[10px]"
-                          onClick={() => setShowCompressedStillMissing((prev) => !prev)}
-                        >
-                          {showCompressedStillMissing ? "Show full list" : "Show compressed ranges"}
-                        </Button>
-                      )}
+            <div className="space-y-4 rounded-md border border-dashed border-border bg-muted/20 p-4">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-medium">Compare with your missing mutation list</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCompareMissingWithGolden(goldenKeySummary)}
+                        disabled={goldenKeySummary.length === 0 || isCloning}
+                    >
+                        Run comparison
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="default"
+                        onClick={handleCloneMatchedImages}
+                        disabled={!comparisonResult || comparisonResult.matched.length === 0 || isCloning}
+                    >
+                        {isCloning ? (
+                        <span className="inline-flex items-center gap-2">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span>Preparing ZIP...</span>
+                        </span>
+                        ) : "Clone Found Images" }
+                    </Button>
                     </div>
-                    {comparisonResult.stillMissing.length === 0 ? (
-                      <p className="text-muted-foreground">All pasted numbers exist in the XMP list.</p>
-                    ) : (
-                      <p className="break-words text-muted-foreground">
-                        {showCompressedStillMissing
-                          ? (() => {
-                              const numeric = comparisonResult.stillMissing
-                                .map((id) => Number(id))
-                                .filter((n) => Number.isFinite(n));
-                              if (!numeric.length) return comparisonResult.stillMissing.join(", ");
-                              return compressRanges(numeric);
-                            })()
-                          : comparisonResult.stillMissing.join(", ")}
-                      </p>
-                    )}
-                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                    Paste the mutation numbers you believe are missing to see which ones exist in the XMP list.
+                </p>
+                <Textarea
+                    rows={3}
+                    placeholder="e.g. 5501 5502 5503 7108 8001..."
+                    value={missingListInput}
+                    onChange={(e) => setMissingListInput(e.target.value)}
+                    className="h-20 text-xs"
+                />
+              </div>
+
+              {comparisonResult && (
+                <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-dashed text-xs">
+                    {/* Matched Column */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="matched-results" className="font-medium">
+                                Found in XMP <span className="text-muted-foreground">({comparisonResult.matched.length})</span>
+                            </Label>
+                             <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowCompressedMatched(p => !p)} title={showCompressedMatched ? "Show Full List" : "Show Compressed Ranges"}>
+                                    {showCompressedMatched ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy("Matched IDs", showCompressedMatched ? compressRanges(comparisonResult.matched.map(Number)) : comparisonResult.matched.join('\n'))} title="Copy">
+                                    <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadList('matched_in_xmp.txt', comparisonResult.matched)} title="Download">
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                        <Textarea
+                            id="matched-results"
+                            readOnly
+                            className="h-32 font-mono text-xs bg-green-500/10 border-green-500/30 focus-visible:ring-green-500/50"
+                            value={comparisonResult.matched.length > 0
+                                ? (showCompressedMatched ? compressRanges(comparisonResult.matched.map(Number)) : comparisonResult.matched.join('\n'))
+                                : "None"
+                            }
+                        />
+                    </div>
+
+                    {/* Still Missing Column */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="still-missing-results" className="font-medium">
+                                Still Missing <span className="text-muted-foreground">({comparisonResult.stillMissing.length})</span>
+                            </Label>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowCompressedStillMissing(p => !p)} title={showCompressedStillMissing ? "Show Full List" : "Show Compressed Ranges"}>
+                                    {showCompressedStillMissing ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy("Missing IDs", showCompressedStillMissing ? compressRanges(comparisonResult.stillMissing.map(Number)) : comparisonResult.stillMissing.join('\n'))} title="Copy">
+                                    <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadList('still_missing.txt', comparisonResult.stillMissing)} title="Download">
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                        <Textarea
+                            id="still-missing-results"
+                            readOnly
+                            className="h-32 font-mono text-xs bg-red-500/5 border-red-500/20 focus-visible:ring-red-500/50"
+                            value={comparisonResult.stillMissing.length > 0
+                                ? (showCompressedStillMissing ? compressRanges(comparisonResult.stillMissing.map(Number)) : comparisonResult.stillMissing.join('\n'))
+                                : "None"
+                            }
+                        />
+                    </div>
                 </div>
               )}
             </div>
