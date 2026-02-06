@@ -96,7 +96,7 @@ const allTools = [
         path: "/binary-converter"
     },
     {
-        name: "Image Doctor",
+        name: "Forensic Image Doctor",
         description: "Diagnose and repair corrupt images by analyzing their binary signature.",
         icon: HeartPulse,
         path: "/image-doctor"

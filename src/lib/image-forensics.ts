@@ -8,6 +8,10 @@ export type ImageHealthReport = {
   suggestedAction: string;
   entropy?: number;
   repairedFile?: Blob;
+  offset?: number;
+  isTruncated?: boolean;
+  headerHex?: string;
+  footerHex?: string;
 };
 
 const MAGIC_BYTES: Record<string, { ext: string; mime: string }> = {
@@ -64,6 +68,9 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
   const entropy = calculateEntropy(bytes.slice(0, 16384));
   const entropyValue = Number(entropy.toFixed(2));
   const originalFormat = file.name.split('.').pop()?.toLowerCase() || '';
+  const headerHex = Array.from(bytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+  const footerHex = bytes.length > 2 ? Array.from(bytes.slice(-2)).map(b => b.toString(16).padStart(2, '0')).join(' ') : '';
+
 
   // THE DEATH CERTIFICATE: Entropy < 1.0 means no meaningful data.
   if (entropy < 1.0) {
@@ -73,7 +80,9 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
       originalFormat: originalFormat,
       entropy: entropyValue,
       fixable: false,
-      suggestedAction: `File is ${Math.round(file.size / 1024)}KB of empty space (Entropy: ${entropyValue}). The data was never written. RE-SCAN OR RE-UPLOAD IS REQUIRED.`
+      suggestedAction: `File is ${Math.round(file.size / 1024)}KB of empty space (Entropy: ${entropyValue}). The data was never written. RE-SCAN OR RE-UPLOAD IS REQUIRED.`,
+      headerHex,
+      footerHex
     };
   }
 
@@ -90,6 +99,8 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
       fixable: false,
       entropy: entropyValue,
       suggestedAction,
+      headerHex,
+      footerHex
     };
   }
 
@@ -139,6 +150,10 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
           suggestedAction: action,
           entropy: entropyValue,
           repairedFile: new Blob([repairedBuffer], { type: detectedInfo.mime }),
+          offset,
+          isTruncated,
+          headerHex,
+          footerHex
       };
   }
   
@@ -151,6 +166,10 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
         suggestedAction: `File has a .${originalFormat.toUpperCase()} extension but is actually a ${detectedInfo.ext.toUpperCase()}. Repairing the file type.`,
         entropy: entropyValue,
         repairedFile: new Blob([bytes], { type: detectedInfo.mime }),
+        offset,
+        isTruncated,
+        headerHex,
+        footerHex
     };
   }
 
@@ -161,5 +180,9 @@ export async function diagnoseAndRepairImage(file: File): Promise<ImageHealthRep
     fixable: false,
     suggestedAction: 'No issues found. File appears to be healthy.',
     entropy: entropyValue,
+    offset,
+    isTruncated,
+    headerHex,
+    footerHex
   };
 }

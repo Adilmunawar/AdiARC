@@ -155,7 +155,7 @@ const allNavItems = [
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
   { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
   { name: "Mutation Print Layout", icon: Printer, path: "/print-layout" },
-  { name: "Image Doctor", icon: HeartPulse, path: "/image-doctor" },
+  { name: "Forensic Image Doctor", icon: HeartPulse, path: "/image-doctor" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
   { name: "XMP Territory", icon: FileText, path: "/xmp-inventory" },
@@ -256,5 +256,3 @@ export function Sidebar() {
     </aside>
   );
 }
-
-    
