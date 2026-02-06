@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse, Search, Terminal
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, HeartPulse, Search, Terminal, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ function PasswordDialog({ open, onOpenChange, onUnlockSuccess }: { open: boolean
     const { toast } = useToast();
 
     const handleUnlockAttempt = () => {
-        if (password === 'python360') {
+        if (password === 'plra') {
             onUnlockSuccess();
             toast({ title: "Access Granted", description: "Premium features unlocked." });
         } else {
@@ -158,6 +158,9 @@ const allNavItems = [
   { name: "Image Doctor", icon: HeartPulse, path: "/image-doctor" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
+  { name: "XMP Territory", icon: FileText, path: "/xmp-inventory" },
+  { name: "SQL Recovery", icon: Database, path: "/sql-recovery", isPremium: true },
+  { name: "SQL Playground", icon: Terminal, path: "/sql-playground", isPremium: true },
   { name: "Database Engine", icon: Database, path: "/database-engine", isPremium: true },
   { name: "SQL Generator", icon: FileKey, path: "/sql-generator", isPremium: true },
   { name: "Daily Progress Report", icon: FileSpreadsheet, path: "/daily-progress", isPremium: true },
@@ -253,3 +256,5 @@ export function Sidebar() {
     </aside>
   );
 }
+
+    
