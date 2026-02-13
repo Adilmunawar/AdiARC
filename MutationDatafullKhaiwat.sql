@@ -1,4 +1,4 @@
-OPEN MASTER KEY DECRYPTION BY PASSWORD = 'key';
+OPEN MASTER KEY DECRYPTION BY PASSWORD = 'youwilllose';
 OPEN SYMMETRIC KEY UserKey DECRYPTION BY CERTIFICATE Usercert;
 
 WITH RawData AS (
@@ -27,10 +27,10 @@ WITH RawData AS (
     
     WHERE 
       -- 1. Filter by your Mauza (Using ID from previous context)
-      K.mauza_id = 'e5cc68e1-47fd-4ad8-aaa6-f3db2a4d91c5' 
+      K.mauza_id = 'c01936bb-8c59-4f61-9c15-bedfbc7fa5d1' 
       
       -- 2. Filter by Khewat '346'
-      AND REPLACE(CAST(decryptbykeyautocert(cert_id('Usercert'), NULL, K.khewat_no) AS VARCHAR(100)), CHAR(0), '') = '346'
+      AND REPLACE(CAST(decryptbykeyautocert(cert_id('Usercert'), NULL, K.khewat_no) AS VARCHAR(100)), CHAR(0), '') = '2'
       
       -- 3. Only Show Implemented (Approved) Mutations
       AND I.is_approved = 1
