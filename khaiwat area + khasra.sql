@@ -1,9 +1,7 @@
 OPEN MASTER KEY DECRYPTION BY PASSWORD = 'key';
 OPEN SYMMETRIC KEY UserKey DECRYPTION BY CERTIFICATE Usercert;
-
 -- ⚠️ REPLACE with your specific Mauza ID
 DECLARE @MauzaID UNIQUEIDENTIFIER = 'c01936bb-8c59-4f61-9c15-bedfbc7fa5d1'; 
-
 WITH KhasraCalc AS (
     SELECT 
         Kh.khewat_id,
@@ -28,7 +26,6 @@ FormattedKhasra AS (
         Total_SqFt,
         -- Calculate Kanals: Total / 5445
         FLOOR(Total_SqFt / 5445) AS Kanals,
-
         -- Calculate Remaining SqFt for Marlas
         Total_SqFt - (FLOOR(Total_SqFt / 5445) * 5445) AS Rem_For_Marlas
     FROM KhasraCalc
@@ -55,7 +52,7 @@ FROM rhz.Khewat Kh
 LEFT JOIN FormattedKhasra FK ON Kh.khewat_id = FK.khewat_id
 WHERE Kh.mauza_id = @MauzaID
   AND Kh.is_active = 1
+  AND Kh.is_active = 1
 ORDER BY [Khewat_Number];
-
 CLOSE SYMMETRIC KEY UserKey;
 CLOSE MASTER KEY;
