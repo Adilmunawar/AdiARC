@@ -1,4 +1,4 @@
-DECLARE @TargetIntiqalID UNIQUEIDENTIFIER = 'e7236559-659f-4cc4-a366-8f43026b802c';
+DECLARE @TargetIntiqalID UNIQUEIDENTIFIER = '9c59a3f2-f2be-4fac-a51d-8a204ec46ea3';
 BEGIN TRAN;
 UPDATE rhz.Ownership 
 SET is_active = 1 

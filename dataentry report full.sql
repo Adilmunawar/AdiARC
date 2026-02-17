@@ -1,4 +1,4 @@
-DECLARE @ReportDate DATE = '2026-02-06'; -- <== CHANGE THIS DATE AS NEEDED
+DECLARE @ReportDate DATE = '2026-02-17'; -- <== CHANGE THIS DATE AS NEEDED
 WITH 
 ShajraCounts AS (
     SELECT user_id, COUNT(familytree_id) as cnt 
