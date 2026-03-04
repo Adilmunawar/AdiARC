@@ -1,7 +1,7 @@
-OPEN MASTER KEY DECRYPTION BY PASSWORD = 'key';
+OPEN MASTER KEY DECRYPTION BY PASSWORD = 'youwilllose';
 OPEN SYMMETRIC KEY UserKey DECRYPTION BY CERTIFICATE Usercert;
 -- ⚠️ REPLACE with your specific Mauza ID
-DECLARE @MauzaID UNIQUEIDENTIFIER = 'c01936bb-8c59-4f61-9c15-bedfbc7fa5d1'; 
+DECLARE @MauzaID UNIQUEIDENTIFIER = '59096882-2361-4690-ab5f-6078bc48a10b'; 
 WITH KhasraCalc AS (
     SELECT 
         Kh.khewat_id,
@@ -52,7 +52,7 @@ FROM rhz.Khewat Kh
 LEFT JOIN FormattedKhasra FK ON Kh.khewat_id = FK.khewat_id
 WHERE Kh.mauza_id = @MauzaID
   AND Kh.is_active = 1
-  AND Kh.is_active = 1
+  AND Kh.is_updated = 1
 ORDER BY [Khewat_Number];
 CLOSE SYMMETRIC KEY UserKey;
 CLOSE MASTER KEY;
