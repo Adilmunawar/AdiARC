@@ -1,9 +1,9 @@
+
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Search, Terminal, FileScan, Minimize2 } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Minimize2, FileScan } from "lucide-react";
 import Link from "next/link";
-import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { useSecretMode } from "@/components/layout/Sidebar";
 

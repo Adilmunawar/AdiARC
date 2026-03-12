@@ -5,7 +5,7 @@ import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { FolderUp, Loader2, Download, Minimize2, Trash2, FileImage, Settings2, CheckCircle, Zap, Image as ImageIcon } from 'lucide-react';
+import { FolderUp, Loader2, Download, Minimize2, Trash2, FileImage, Settings2, CheckCircle, Zap, Image as ImageIcon, FileArchive } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
@@ -148,7 +148,7 @@ export function ImageCompressorTab() {
       if (result) {
         results.push(result);
       }
-      // UI Yield
+      // UI Yield to prevent freezing
       if (i % 3 === 0) await new Promise(res => setTimeout(res, 0));
     }
 
@@ -157,6 +157,19 @@ export function ImageCompressorTab() {
     toast({
       title: 'Optimization Complete',
       description: `Successfully compressed ${results.length} images.`,
+    });
+  };
+
+  const handleDownloadImage = (image: CompressedImage) => {
+    const link = document.createElement("a");
+    link.href = image.dataUrl;
+    link.download = image.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({
+      title: 'Download Started',
+      description: `Downloading ${image.name}`,
     });
   };
 
@@ -364,6 +377,7 @@ export function ImageCompressorTab() {
                       <TableHead className="text-right">Original</TableHead>
                       <TableHead className="text-right font-bold text-primary">Optimized</TableHead>
                       <TableHead className="text-right">Saved</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -384,6 +398,11 @@ export function ImageCompressorTab() {
                               <TableCell className="text-right text-[11px] font-bold text-primary tabular-nums">{formatBytes(image.compressedSize)}</TableCell>
                               <TableCell className="text-right text-[11px] text-green-600 font-medium tabular-nums">
                                   -{reductionPercent.toFixed(0)}%
+                              </TableCell>
+                              <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadImage(image)}>
+                                      <Download className="h-3.5 w-3.5" />
+                                  </Button>
                               </TableCell>
                           </TableRow>
                       )
