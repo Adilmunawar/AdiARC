@@ -5,7 +5,7 @@ import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { FolderUp, Loader2, Download, Minimize2, Trash2, FileImage, Settings2, CheckCircle, Zap, Image as ImageIcon, FileArchive } from 'lucide-react';
+import { FolderUp, Loader2, Download, Minimize2, Trash2, CheckCircle, Zap, Image as ImageIcon, FileArchive, Settings2, RefreshCcw } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
@@ -93,7 +93,7 @@ export function ImageCompressorTab() {
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Quality only applies to JPEG and WebP
+          // Use image/jpeg for both .jpg and .jpeg targets
           const finalFormat = outputFormat;
           const dataUrl = canvas.toDataURL(finalFormat, finalFormat === 'image/png' ? undefined : quality[0]);
           
@@ -101,7 +101,14 @@ export function ImageCompressorTab() {
           const base64Str = dataUrl.split(',')[1];
           const compressedSize = Math.floor(base64Str.length * 0.75);
 
-          const ext = finalFormat.split('/')[1];
+          // Map mime type to common short extensions
+          const extensionMap: Record<string, string> = {
+            'image/jpeg': 'jpg',
+            'image/webp': 'webp',
+            'image/png': 'png'
+          };
+          const ext = extensionMap[finalFormat] || 'bin';
+
           resolve({
             name: file.name.replace(/\.[^/.]+$/, "") + `_optimized.${ext}`,
             originalSize: file.size,
@@ -205,6 +212,13 @@ export function ImageCompressorTab() {
     }
   };
   
+  const resetSettings = () => {
+      setQuality([0.75]);
+      setMaxWidth("2000");
+      setOutputFormat("image/jpeg");
+      toast({ title: "Settings Reset", description: "Compression parameters returned to defaults." });
+  };
+
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -233,14 +247,19 @@ export function ImageCompressorTab() {
       </Dialog>
 
       <Card className="border-border/70 bg-card/80 shadow-md animate-enter">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Minimize2 className="h-5 w-5 text-primary" />
-            Advanced Image Compressor
-          </CardTitle>
-          <CardDescription>
-            Optimized for large 8MB+ photos. Shrink files to ~1MB targets while maintaining professional visual fidelity. All processing is 100% local.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <Minimize2 className="h-5 w-5 text-primary" />
+              Advanced Image Compressor
+            </CardTitle>
+            <CardDescription>
+              Optimized for large photos. Shrink files to ~1MB targets while maintaining visual fidelity. All processing is 100% local.
+            </CardDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={resetSettings} title="Reset Settings">
+              <RefreshCcw className="h-4 w-4 text-muted-foreground" />
+          </Button>
         </CardHeader>
         <CardContent className="space-y-6">
           
@@ -291,7 +310,7 @@ export function ImageCompressorTab() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="image/jpeg">JPEG (Recommended)</SelectItem>
+                                    <SelectItem value="image/jpeg">JPG / JPEG (Recommended)</SelectItem>
                                     <SelectItem value="image/webp">WebP (Best Compression)</SelectItem>
                                     <SelectItem value="image/png">PNG (Lossless)</SelectItem>
                                 </SelectContent>
@@ -319,7 +338,7 @@ export function ImageCompressorTab() {
                 </div>
                 <div className="text-center">
                     <p className="text-sm font-semibold">Drop images or click</p>
-                    <p className="text-[10px] text-muted-foreground">Supports JPEG, PNG, WebP</p>
+                    <p className="text-[10px] text-muted-foreground">Supports JPEG, JPG, PNG, WebP</p>
                 </div>
                 <Button
                     variant="secondary"
@@ -336,7 +355,7 @@ export function ImageCompressorTab() {
                     multiple
                     className="hidden"
                     onChange={handleStartProcessing}
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
                 />
             </div>
           </div>
