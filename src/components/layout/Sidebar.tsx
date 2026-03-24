@@ -1,9 +1,10 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan, Minimize2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -154,6 +155,7 @@ const allNavItems = [
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
   { name: "Auditor", icon: ClipboardCheck, path: "/auditor" },
   { name: "Mutation Print Layout", icon: Printer, path: "/print-layout" },
+  { name: "Image Compressor", icon: Minimize2, path: "/compressor" },
   { name: "Image Doctor", icon: FileScan, path: "/image-doctor" },
   { name: "Binary Converter", icon: ImageIcon, path: "/binary-converter" },
   { name: "Meta Tag Remover", icon: FileMinus, path: "/meta-remover" },
