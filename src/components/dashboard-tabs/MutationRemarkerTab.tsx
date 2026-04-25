@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle } from 'lucide-react';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle, Clipboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type RemarkItem = {
@@ -39,8 +40,9 @@ export function MutationRemarkerTab() {
     ];
 
     const detectedNumbers = useMemo(() => {
-        // Separator-agnostic parsing: spaces, commas, semicolons, and new lines
-        return numbersString.split(/[\s,;]+/).filter(n => n.trim() !== "");
+        // Robust Regex Parser: Splits by space, comma, semicolon, or newline
+        // Preserves complex IDs like 6332/1 and ranges like 1754-1758
+        return numbersString.split(/[\s,;]+/).map(n => n.trim()).filter(n => n !== "");
     }, [numbersString]);
 
     const processedData = useMemo(() => {
@@ -49,7 +51,6 @@ export function MutationRemarkerTab() {
         return detectedNumbers.map((num, index) => {
             let remark = "";
             if (mode === 'random') {
-                // 50/50 split based on index
                 const pick = index % PHRASES.length;
                 remark = PHRASES[pick];
             } else if (mode === 'reference') {
@@ -69,7 +70,7 @@ export function MutationRemarkerTab() {
             toast({ 
                 variant: "destructive", 
                 title: "Reference Required", 
-                description: "Please enter a reference number before copying.",
+                description: "Please enter a reference number.",
                 icon: <AlertCircle className="h-4 w-4" />
             });
             return;
@@ -78,7 +79,22 @@ export function MutationRemarkerTab() {
         const text = processedData.map(d => d.remark).join('\n');
         try {
             await navigator.clipboard.writeText(text);
-            toast({ title: "Remarks Copied", description: `${processedData.length} remarks copied to clipboard.` });
+            toast({ title: "Remarks Copied", description: "All generated Urdu text copied to clipboard." });
+        } catch (err) {
+            toast({ title: "Copy Failed", variant: "destructive" });
+        }
+    };
+
+    const handleCopyTable = async () => {
+        if (processedData.length === 0) return;
+        
+        // Formats as TSV for direct paste into Excel
+        const header = "Mutation ID\tRemark (Urdu)\n";
+        const rows = processedData.map(d => `${d.number}\t${d.remark}`).join('\n');
+        
+        try {
+            await navigator.clipboard.writeText(header + rows);
+            toast({ title: "Table Copied", description: "Data formatted for Excel paste." });
         } catch (err) {
             toast({ title: "Copy Failed", variant: "destructive" });
         }
@@ -88,28 +104,23 @@ export function MutationRemarkerTab() {
         if (processedData.length === 0) return;
 
         if (mode === 'reference' && !referenceId.trim()) {
-            toast({ 
-                variant: "destructive", 
-                title: "Reference Required", 
-                description: "Please enter a reference number before exporting.",
-                icon: <AlertCircle className="h-4 w-4" />
-            });
+            toast({ variant: "destructive", title: "Reference Required" });
             return;
         }
         
         const worksheet = XLSX.utils.json_to_sheet(processedData.map(item => ({
-            "Mutation Number": item.number,
+            "Mutation ID": item.number,
             "Remark (Urdu)": item.remark
         })));
         
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Generated Remarks");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Mutation Remarks");
         
         // Adjust column widths
-        worksheet['!cols'] = [{ wch: 20 }, { wch: 60 }];
+        worksheet['!cols'] = [{ wch: 15 }, { wch: 60 }];
 
         XLSX.writeFile(workbook, `mutation_remarks_${Date.now()}.xlsx`);
-        toast({ title: "Excel Exported", description: "Your file is downloading." });
+        toast({ title: "Excel Exported", description: "Downloading .xlsx file." });
     };
 
     const handleClear = () => {
@@ -128,13 +139,13 @@ export function MutationRemarkerTab() {
                             Mutation Remarker
                         </CardTitle>
                         <CardDescription className="text-base">
-                            Smart Urdu status generator for bulk mutation processing.
+                            Professional Urdu status generator with robust multi-format parsing.
                         </CardDescription>
                     </div>
                     {detectedNumbers.length > 0 && (
                         <Badge variant="secondary" className="h-8 px-4 text-sm font-semibold bg-primary/10 text-primary border-primary/20 animate-in fade-in zoom-in">
                             <Hash className="h-3.5 w-3.5 mr-1" />
-                            {detectedNumbers.length} Numbers Detected
+                            {detectedNumbers.length} IDs Detected
                         </Badge>
                     )}
                 </div>
@@ -146,26 +157,22 @@ export function MutationRemarkerTab() {
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="numbers-input" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                                    1. Bulk Input
+                                    1. Bulk Input Area
                                 </Label>
                                 <Button variant="ghost" size="sm" className="h-7 text-[10px] hover:bg-destructive/10 hover:text-destructive" onClick={handleClear} disabled={!numbersString}>
                                     <Trash2 className="h-3 w-3 mr-1" /> Clear
                                 </Button>
                             </div>
-                            <div className="relative group">
-                                <Textarea
-                                    id="numbers-input"
-                                    value={numbersString}
-                                    onChange={(e) => setNumbersString(e.target.value)}
-                                    placeholder="Paste numbers here... (separators: space, comma, semicolon, newline)"
-                                    className="h-[300px] font-mono text-sm bg-background/40 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all resize-none shadow-inner"
-                                />
-                                <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                        Ctrl+V
-                                    </kbd>
-                                </div>
-                            </div>
+                            <Textarea
+                                id="numbers-input"
+                                value={numbersString}
+                                onChange={(e) => setNumbersString(e.target.value)}
+                                placeholder="Paste numbers here... (Supports space, comma, semicolon, newline)"
+                                className="h-[280px] font-mono text-sm bg-background/40 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all resize-none shadow-inner"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                IDs like <code className="text-primary">6332/1</code> and ranges like <code className="text-primary">101-105</code> are supported.
+                            </p>
                         </div>
                     </div>
 
@@ -173,16 +180,16 @@ export function MutationRemarkerTab() {
                     <div className="lg:col-span-3 space-y-6">
                         <div className="space-y-4">
                             <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                                2. Configuration & Strategy
+                                2. Remark Generation Logic
                             </Label>
                             <Tabs defaultValue="random" value={mode} onValueChange={(v) => setMode(v as Mode)} className="w-full">
                                 <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl">
-                                    <TabsTrigger value="random" className="rounded-lg data-[state=active]:shadow-md">Random Status</TabsTrigger>
-                                    <TabsTrigger value="reference" className="rounded-lg data-[state=active]:shadow-md">Reference (بحوالہ)</TabsTrigger>
-                                    <TabsTrigger value="custom" className="rounded-lg data-[state=active]:shadow-md">Custom Template</TabsTrigger>
+                                    <TabsTrigger value="random" className="rounded-lg">Random Status</TabsTrigger>
+                                    <TabsTrigger value="reference" className="rounded-lg">Bulk Reference</TabsTrigger>
+                                    <TabsTrigger value="custom" className="rounded-lg">Custom Template</TabsTrigger>
                                 </TabsList>
                                 
-                                <TabsContent value="random" className="p-6 rounded-xl border border-dashed border-border/60 bg-muted/20 mt-4 space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <TabsContent value="random" className="p-6 rounded-xl border border-dashed border-border/60 bg-muted/10 mt-4 space-y-2">
                                     <p className="text-sm text-foreground/80 leading-relaxed font-urdu text-right" dir="rtl">
                                         یہ موڈ خود بخود درج ذیل دو سٹیٹس کو آپ کی لسٹ پر 50/50 کی بنیاد پر تقسیم کرے گا:
                                     </p>
@@ -192,54 +199,37 @@ export function MutationRemarkerTab() {
                                     </ul>
                                 </TabsContent>
                                 
-                                <TabsContent value="reference" className="space-y-4 p-6 rounded-xl border border-dashed border-border/60 bg-muted/20 mt-4 animate-in fade-in slide-in-from-top-2">
+                                <TabsContent value="reference" className="space-y-4 p-6 rounded-xl border border-dashed border-border/60 bg-muted/10 mt-4">
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-semibold">Master Reference Mutation ID</Label>
-                                        <div className="relative">
-                                            <Input 
-                                                placeholder="e.g. 61168" 
-                                                value={referenceId} 
-                                                onChange={(e) => setReferenceId(e.target.value)}
-                                                className={cn("h-11 bg-background/60", mode === 'reference' && !referenceId && "border-destructive/50")}
-                                            />
-                                            {mode === 'reference' && !referenceId && (
-                                                <span className="absolute -bottom-5 left-0 text-[10px] text-destructive flex items-center gap-1">
-                                                    <AlertCircle className="h-3 w-3" /> This ID is required for reference mode
-                                                </span>
-                                            )}
-                                        </div>
+                                        <Label className="text-xs font-semibold">Master Reference Mutation Number</Label>
+                                        <Input 
+                                            placeholder="e.g. 61168" 
+                                            value={referenceId} 
+                                            onChange={(e) => setReferenceId(e.target.value)}
+                                            className="h-11 bg-background/60"
+                                        />
                                     </div>
                                     <div className="pt-2">
-                                        <p className="text-xs text-muted-foreground mb-1">Preview Remark:</p>
+                                        <p className="text-xs text-muted-foreground mb-1">Preview Logic:</p>
                                         <div className="p-3 bg-background/80 rounded-lg border text-right font-urdu text-sm" dir="rtl">
                                             بحوالہ انتقال نمبر <span className="text-primary font-bold">{referenceId || '____'}</span> کی وجہ سے انتقال کا عمل بقایا ہے۔
                                         </div>
                                     </div>
                                 </TabsContent>
                                 
-                                <TabsContent value="custom" className="space-y-4 p-6 rounded-xl border border-dashed border-border/60 bg-muted/20 mt-4 animate-in fade-in slide-in-from-top-2">
+                                <TabsContent value="custom" className="space-y-4 p-6 rounded-xl border border-dashed border-border/60 bg-muted/10 mt-4">
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-semibold text-muted-foreground">Urdu Prefix</Label>
-                                            <Input 
-                                                value={customPrefix} 
-                                                onChange={(e) => setCustomPrefix(e.target.value)}
-                                                className="h-10 font-urdu text-right bg-background/60"
-                                                dir="rtl"
-                                            />
+                                            <Label className="text-xs font-semibold">Urdu Prefix</Label>
+                                            <Input value={customPrefix} onChange={(e) => setCustomPrefix(e.target.value)} className="h-10 font-urdu text-right bg-background/60" dir="rtl" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-semibold text-muted-foreground">Urdu Suffix</Label>
-                                            <Input 
-                                                value={customSuffix} 
-                                                onChange={(e) => setCustomSuffix(e.target.value)}
-                                                className="h-10 font-urdu text-right bg-background/60"
-                                                dir="rtl"
-                                            />
+                                            <Label className="text-xs font-semibold">Urdu Suffix</Label>
+                                            <Input value={customSuffix} onChange={(e) => setCustomSuffix(e.target.value)} className="h-10 font-urdu text-right bg-background/60" dir="rtl" />
                                         </div>
                                     </div>
                                     <div className="pt-2">
-                                        <p className="text-xs text-muted-foreground mb-1">Example Result:</p>
+                                        <p className="text-xs text-muted-foreground mb-1">Custom Preview:</p>
                                         <div className="p-3 bg-background/80 rounded-lg border text-right font-urdu text-sm text-primary" dir="rtl">
                                             {customPrefix} <span className="text-foreground font-mono">12345</span> {customSuffix}
                                         </div>
@@ -250,22 +240,17 @@ export function MutationRemarkerTab() {
 
                         {/* Actions Toolbar */}
                         <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-border/40">
-                             <Button 
-                                onClick={handleCopyRemarks} 
-                                variant="secondary" 
-                                disabled={processedData.length === 0}
-                                className="flex-1 h-12 shadow-sm"
-                            >
-                                <Copy className="mr-2 h-4 w-4" />
+                             <Button onClick={handleCopyRemarks} variant="secondary" disabled={processedData.length === 0} className="flex-1 h-12 shadow-sm">
+                                <Clipboard className="mr-2 h-4 w-4" />
                                 Copy Remarks Column
                             </Button>
-                            <Button 
-                                onClick={handleExportExcel} 
-                                className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/10"
-                                disabled={processedData.length === 0}
-                            >
+                            <Button onClick={handleCopyTable} variant="outline" disabled={processedData.length === 0} className="flex-1 h-12 shadow-sm">
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy Full Table
+                            </Button>
+                            <Button onClick={handleExportExcel} className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white shadow-lg" disabled={processedData.length === 0}>
                                 <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                Download Full Excel
+                                Export .xlsx
                             </Button>
                         </div>
                     </div>
@@ -276,52 +261,48 @@ export function MutationRemarkerTab() {
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                             <Sparkles className="h-4 w-4 text-primary" />
-                            Live Generation Table
+                            Live Preview ({processedData.length} entries)
                         </h3>
                     </div>
 
-                    {processedData.length > 0 ? (
-                        <div className="rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md overflow-hidden shadow-xl animate-in slide-in-from-bottom-4 duration-500">
-                            <div className="max-h-[500px] overflow-y-auto">
+                    <div className="rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md overflow-hidden shadow-xl">
+                        <ScrollArea className="w-full">
+                            <div className="max-h-[500px]">
                                 <Table>
                                     <TableHeader className="bg-muted/80 sticky top-0 z-10 backdrop-blur-md">
                                         <TableRow className="border-border/40">
                                             <TableHead className="w-[180px] font-bold text-foreground">Mutation ID</TableHead>
-                                            <TableHead className="text-right pr-8 font-bold text-foreground">Generated Remark (Urdu)</TableHead>
+                                            <TableHead className="text-right pr-8 font-bold text-foreground">Generated Status / Remark (Urdu)</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {processedData.slice(0, 100).map((item, i) => (
-                                            <TableRow key={i} className="hover:bg-primary/5 transition-colors border-border/30 group animate-in fade-in-0 duration-300 slide-in-from-left-2" style={{ animationDelay: `${i * 10}ms` }}>
-                                                <TableCell className="font-mono text-sm font-medium">{item.number}</TableCell>
-                                                <TableCell className="text-right font-urdu text-base group-hover:text-primary transition-colors" dir="rtl">{item.remark}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {processedData.length > 100 && (
+                                        {processedData.length > 0 ? (
+                                            processedData.map((item, i) => (
+                                                <TableRow key={i} className="hover:bg-primary/5 transition-colors border-border/30 group">
+                                                    <TableCell className="font-mono text-sm font-medium">{item.number}</TableCell>
+                                                    <TableCell 
+                                                        className="text-right font-urdu text-base py-4 min-w-[400px]" 
+                                                        dir="rtl"
+                                                    >
+                                                        {item.remark}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
                                             <TableRow>
-                                                <TableCell colSpan={2} className="text-center text-xs text-muted-foreground py-6 bg-muted/20">
-                                                    Showing first 100 entries. Use 'Download Excel' to see all {processedData.length} generated remarks.
+                                                <TableCell colSpan={2} className="h-32 text-center text-muted-foreground italic">
+                                                    Results will appear here after you paste numbers above.
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/10 border-border/40 animate-pulse">
-                            <div className="p-4 bg-background/60 rounded-full shadow-inner mb-4">
-                                <MessageSquareQuote className="h-12 w-12 text-muted-foreground/40" />
-                            </div>
-                            <h4 className="text-lg font-semibold text-muted-foreground">Waiting for input data...</h4>
-                            <p className="text-sm text-muted-foreground/60 max-w-xs text-center mt-1">
-                                Paste your mutation numbers into the input area above to start generating professional remarks.
-                            </p>
-                        </div>
-                    )}
+                            <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                    </div>
                 </section>
             </CardContent>
         </Card>
     );
 }
-
