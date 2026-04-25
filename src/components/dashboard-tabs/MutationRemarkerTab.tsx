@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle, Clipboard, CheckCircle2 } from 'lucide-react';
+import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle, Clipboard, CheckCircle2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type RemarkItem = {
@@ -27,6 +27,7 @@ export function MutationRemarkerTab() {
     const { toast } = useToast();
     const [numbersString, setNumbersString] = useState("");
     const [mode, setMode] = useState<Mode>('random');
+    const [refreshKey, setRefreshKey] = useState(0);
     
     // Mode-specific states for Custom template
     const [customPrefix, setCustomPrefix] = useState("انتقال نمبر");
@@ -48,7 +49,8 @@ export function MutationRemarkerTab() {
                     `کھیوٹ نمبر ${num} میں مالک موجود نہیں ہے`,
                     `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لیئے درکار رقبہ موجود نہیں ہے`
                 ];
-                const pick = index % phrases.length;
+                // Truly random selection
+                const pick = Math.floor(Math.random() * phrases.length);
                 remark = phrases[pick];
             } else if (mode === 'reference') {
                 remark = `بحوالہ انتقال نمبر ${num} کی وجہ سے انتقال کا عمل بقایا ہے`;
@@ -57,7 +59,8 @@ export function MutationRemarkerTab() {
             }
             return { number: num, remark };
         });
-    }, [detectedNumbers, mode, customPrefix, customSuffix]);
+        // refreshKey added to force re-generation of random remarks
+    }, [detectedNumbers, mode, customPrefix, customSuffix, refreshKey]);
 
     const handleCopyRemarks = async () => {
         if (processedData.length === 0) return;
@@ -109,6 +112,11 @@ export function MutationRemarkerTab() {
         toast({ title: "Input Cleared" });
     };
 
+    const handleShuffle = () => {
+        setRefreshKey(prev => prev + 1);
+        toast({ title: "Remarks Shuffled", description: "Random selection re-generated." });
+    };
+
     return (
         <Card className="max-w-6xl mx-auto border-border/40 bg-card/60 backdrop-blur-xl shadow-2xl animate-enter">
             <CardHeader className="border-b border-border/40 pb-6">
@@ -123,10 +131,18 @@ export function MutationRemarkerTab() {
                         </CardDescription>
                     </div>
                     {detectedNumbers.length > 0 && (
-                        <Badge variant="secondary" className="h-8 px-4 text-sm font-semibold bg-primary/10 text-primary border-primary/20 animate-in fade-in zoom-in">
-                            <Hash className="h-3.5 w-3.5 mr-1" />
-                            {detectedNumbers.length} IDs Detected
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                            {mode === 'random' && (
+                                <Button variant="outline" size="sm" className="h-8 px-3" onClick={handleShuffle}>
+                                    <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                                    Shuffle
+                                </Button>
+                            )}
+                            <Badge variant="secondary" className="h-8 px-4 text-sm font-semibold bg-primary/10 text-primary border-primary/20 animate-in fade-in zoom-in">
+                                <Hash className="h-3.5 w-3.5 mr-1" />
+                                {detectedNumbers.length} IDs Detected
+                            </Badge>
+                        </div>
                     )}
                 </div>
             </CardHeader>
@@ -172,10 +188,10 @@ export function MutationRemarkerTab() {
                                 <TabsContent value="random" className="p-6 rounded-xl border border-dashed border-primary/20 bg-primary/5 mt-4 space-y-3">
                                     <div className="flex items-center gap-2 text-primary">
                                         <CheckCircle2 className="h-4 w-4" />
-                                        <p className="text-xs font-bold uppercase tracking-wider">Correct Phrasing Active</p>
+                                        <p className="text-xs font-bold uppercase tracking-wider">Truly Random Active</p>
                                     </div>
                                     <p className="text-sm text-foreground/80 leading-relaxed font-urdu text-right" dir="rtl">
-                                        یہ موڈ خود بخود درج ذیل دو سٹیٹس کو باری باری استعمال کرے گا:
+                                        یہ موڈ ہر نمبر کے لیے درج ذیل دو سٹیٹس میں سے ایک کا بے ترتیب انتخاب کرے گا:
                                     </p>
                                     <ul className="text-sm space-y-2 text-primary font-urdu text-right list-none" dir="rtl">
                                         <li>کھیوٹ نمبر <span className="text-foreground font-mono">[نمبر]</span> میں مالک موجود نہیں ہے</li>
@@ -186,7 +202,7 @@ export function MutationRemarkerTab() {
                                 <TabsContent value="reference" className="p-6 rounded-xl border border-dashed border-blue-500/20 bg-blue-500/5 mt-4 space-y-3">
                                      <div className="flex items-center gap-2 text-blue-500">
                                         <CheckCircle2 className="h-4 w-4" />
-                                        <p className="text-xs font-bold uppercase tracking-wider">Auto-Reference Mode</p>
+                                        <p className="text-xs font-bold uppercase tracking-wider">Bulk Reference Mode</p>
                                     </div>
                                     <p className="text-sm text-foreground/80 leading-relaxed font-urdu text-right" dir="rtl">
                                         تمام نمبرز کے لیے درج ذیل ریفرنس ریمارکس بنائے جائیں گے:
@@ -257,7 +273,7 @@ export function MutationRemarkerTab() {
                                     <TableBody>
                                         {processedData.length > 0 ? (
                                             processedData.map((item, i) => (
-                                                <TableRow key={i} className="hover:bg-primary/5 transition-colors border-border/30 group">
+                                                <TableRow key={`${i}-${refreshKey}`} className="hover:bg-primary/5 transition-colors border-border/30 group animate-in fade-in duration-300">
                                                     <TableCell className="font-mono text-sm font-medium">{item.number}</TableCell>
                                                     <TableCell 
                                                         className="text-right font-urdu text-base py-4 min-w-[400px]" 
@@ -285,3 +301,4 @@ export function MutationRemarkerTab() {
         </Card>
     );
 }
+
