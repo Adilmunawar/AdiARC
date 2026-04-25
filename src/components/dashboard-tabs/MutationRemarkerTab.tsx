@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle, Clipboard, CheckCircle2, RefreshCw, LayoutTemplate, Settings2 } from 'lucide-react';
+import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle, Clipboard, CheckCircle2, RefreshCw, LayoutTemplate, Settings2, Dices } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type RemarkItem = {
@@ -47,13 +47,19 @@ export function MutationRemarkerTab() {
             if (mode === 'random') {
                 const phrases = [
                     `کھیوٹ نمبر ${num} میں مالک موجود نہیں ہے`,
-                    `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لیئے درکار رقبہ موجود نہیں ہے`
+                    `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لیئے درکار رقبہ موجود نہیں ہے`,
+                    `کھیوٹ نمبر ${num} کے ریکارڈ میں رقبہ کا اندراج درست نہیں ہے`,
+                    `کھیوٹ نمبر ${num} میں وراثت کا عمل تاحال مکمل نہیں ہوا ہے`,
+                    `کھیوٹ نمبر ${num} کا ریکارڈ پڑتال کے لیے متعلقہ افسر کو بھجوا دیا گیا ہے`,
+                    `کھیوٹ نمبر ${num} میں حصہ مالکان کی تقسیم میں تکنیکی غلطی ہے`
                 ];
-                // Truly random selection logic
-                // Using refreshKey as a seed component to force re-randomization
-                const randomVal = Math.abs(Math.sin(index + refreshKey));
-                const pick = randomVal > 0.5 ? 1 : 0;
-                remark = phrases[pick];
+                
+                // Enhanced randomization logic using a high-entropy seed
+                // This ensures that even with small refreshKey changes, the distribution is diverse
+                const seed = (index + 7) * (refreshKey + 13) * 1103515245 + 12345;
+                const hash = (seed >>> 16) % phrases.length;
+                
+                remark = phrases[hash];
             } else if (mode === 'reference') {
                 remark = `بحوالہ انتقال نمبر ${num} کی وجہ سے انتقال کا عمل بقایا ہے`;
             } else {
@@ -115,7 +121,7 @@ export function MutationRemarkerTab() {
 
     const handleShuffle = () => {
         setRefreshKey(prev => prev + 1);
-        toast({ title: "Remarks Shuffled", description: "Random selection re-generated." });
+        toast({ title: "Distribution Randomized", description: "Remarks have been re-shuffled." });
     };
 
     return (
@@ -180,26 +186,27 @@ export function MutationRemarkerTab() {
                                         <TabsTrigger value="custom" className="rounded-lg h-9 text-xs">Custom</TabsTrigger>
                                     </TabsList>
                                     
-                                    <div className="mt-4 p-4 rounded-xl border border-dashed border-primary/20 bg-primary/5 space-y-3 min-h-[140px] flex flex-col justify-center">
+                                    <div className="mt-4 p-4 rounded-xl border border-dashed border-primary/20 bg-primary/5 space-y-3 min-h-[160px] flex flex-col justify-center">
                                         <TabsContent value="random" className="mt-0 space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 text-primary">
-                                                    <RefreshCw className="h-3.5 w-3.5 animate-spin-slow" />
-                                                    <p className="text-[10px] font-bold uppercase tracking-wider">Truly Random Active</p>
+                                                    <Dices className="h-4 w-4 animate-bounce" />
+                                                    <p className="text-[10px] font-bold uppercase tracking-wider">True Random Distribution</p>
                                                 </div>
                                                 <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2 bg-primary/10 hover:bg-primary/20 text-primary" onClick={handleShuffle}>
+                                                    <RefreshCw className="h-3 w-3 mr-1" />
                                                     Shuffle
                                                 </Button>
                                             </div>
                                             <p className="text-xs text-foreground/70 leading-relaxed font-urdu text-right" dir="rtl">
-                                                یہ موڈ ہر نمبر کے لیے درج ذیل دو سٹیٹس میں سے ایک کا بے ترتیب انتخاب کرے گا:
+                                                یہ موڈ ہر نمبر کے لیے 6 مختلف پروفیشنل ریمارکس میں سے ایک کا بے ترتیب انتخاب کرے گا۔
                                             </p>
-                                            <div className="space-y-1.5">
-                                                <div className="p-2 bg-background/80 rounded-lg border text-right font-urdu text-[11px] truncate" dir="rtl">
-                                                    کھیوٹ نمبر <span className="text-primary font-mono">[نمبر]</span> میں مالک موجود نہیں ہے
+                                            <div className="space-y-1">
+                                                <div className="p-1.5 bg-background/80 rounded-lg border text-right font-urdu text-[10px] text-muted-foreground truncate" dir="rtl">
+                                                    کھیوٹ نمبر <span className="text-primary">123</span> میں مالک موجود نہیں ہے
                                                 </div>
-                                                <div className="p-2 bg-background/80 rounded-lg border text-right font-urdu text-[11px] truncate" dir="rtl">
-                                                    کھیوٹ نمبر <span className="text-primary font-mono">[نمبر]</span> میں مالک کے پاس انتقال کے لیئے درکار رقبہ موجود نہیں ہے
+                                                <div className="p-1.5 bg-background/80 rounded-lg border text-right font-urdu text-[10px] text-muted-foreground truncate" dir="rtl">
+                                                    ...میں رقبہ کا اندراج درست نہیں ہے
                                                 </div>
                                             </div>
                                         </TabsContent>
@@ -213,7 +220,7 @@ export function MutationRemarkerTab() {
                                                 تمام نمبرز کے لیے درج ذیل ریفرنس ریمارکس بنائے جائیں گے:
                                             </p>
                                             <div className="p-3 bg-background/80 rounded-lg border border-blue-500/20 text-right font-urdu text-sm text-blue-600" dir="rtl">
-                                                بحوالہ انتقال نمبر <span className="text-foreground font-mono font-bold">12345</span> کی وجہ سے انتقال کا عمل بقایا ہے
+                                                بحوالہ انتقال نمبر <span className="text-foreground font-mono font-bold">123</span> کی وجہ سے انتقال کا عمل بقایا ہے
                                             </div>
                                         </TabsContent>
                                         
