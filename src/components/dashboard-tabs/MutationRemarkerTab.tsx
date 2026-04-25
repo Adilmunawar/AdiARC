@@ -10,10 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle, Clipboard } from 'lucide-react';
+import { MessageSquareQuote, Copy, Download, Trash2, FileSpreadsheet, Sparkles, Hash, AlertCircle, Clipboard, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type RemarkItem = {
@@ -28,16 +28,9 @@ export function MutationRemarkerTab() {
     const [numbersString, setNumbersString] = useState("");
     const [mode, setMode] = useState<Mode>('random');
     
-    // Mode-specific states
-    const [referenceId, setReferenceId] = useState("");
+    // Mode-specific states for Custom template
     const [customPrefix, setCustomPrefix] = useState("انتقال نمبر");
     const [customSuffix, setCustomSuffix] = useState("کی رپورٹ مکمل ہے۔");
-
-    // Standard Urdu phrases
-    const PHRASES = [
-        "مالک موقع پر موجود نہ ہے۔",
-        "انتقال کے لیے رقبہ دستیاب نہ ہے۔"
-    ];
 
     const detectedNumbers = useMemo(() => {
         // Robust Regex Parser: Splits by space, comma, semicolon, or newline
@@ -51,31 +44,24 @@ export function MutationRemarkerTab() {
         return detectedNumbers.map((num, index) => {
             let remark = "";
             if (mode === 'random') {
-                const pick = index % PHRASES.length;
-                remark = PHRASES[pick];
+                const phrases = [
+                    `کھیوٹ نمبر ${num} میں مالک موجود نہیں ہے`,
+                    `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لیئے درکار رقبہ موجود نہیں ہے`
+                ];
+                const pick = index % phrases.length;
+                remark = phrases[pick];
             } else if (mode === 'reference') {
-                const ref = referenceId.trim();
-                remark = ref ? `بحوالہ انتقال نمبر ${ref} کی وجہ سے انتقال کا عمل بقایا ہے۔` : "بغیر حوالہ انتقال";
+                remark = `بحوالہ انتقال نمبر ${num} کی وجہ سے انتقال کا عمل بقایا ہے`;
             } else {
                 remark = `${customPrefix.trim()} ${num} ${customSuffix.trim()}`;
             }
             return { number: num, remark };
         });
-    }, [detectedNumbers, mode, referenceId, customPrefix, customSuffix]);
+    }, [detectedNumbers, mode, customPrefix, customSuffix]);
 
     const handleCopyRemarks = async () => {
         if (processedData.length === 0) return;
         
-        if (mode === 'reference' && !referenceId.trim()) {
-            toast({ 
-                variant: "destructive", 
-                title: "Reference Required", 
-                description: "Please enter a reference number.",
-                icon: <AlertCircle className="h-4 w-4" />
-            });
-            return;
-        }
-
         const text = processedData.map(d => d.remark).join('\n');
         try {
             await navigator.clipboard.writeText(text);
@@ -102,11 +88,6 @@ export function MutationRemarkerTab() {
 
     const handleExportExcel = () => {
         if (processedData.length === 0) return;
-
-        if (mode === 'reference' && !referenceId.trim()) {
-            toast({ variant: "destructive", title: "Reference Required" });
-            return;
-        }
         
         const worksheet = XLSX.utils.json_to_sheet(processedData.map(item => ({
             "Mutation ID": item.number,
@@ -117,7 +98,7 @@ export function MutationRemarkerTab() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Mutation Remarks");
         
         // Adjust column widths
-        worksheet['!cols'] = [{ wch: 15 }, { wch: 60 }];
+        worksheet['!cols'] = [{ wch: 15 }, { wch: 70 }];
 
         XLSX.writeFile(workbook, `mutation_remarks_${Date.now()}.xlsx`);
         toast({ title: "Excel Exported", description: "Downloading .xlsx file." });
@@ -125,7 +106,6 @@ export function MutationRemarkerTab() {
 
     const handleClear = () => {
         setNumbersString("");
-        setReferenceId("");
         toast({ title: "Input Cleared" });
     };
 
@@ -139,7 +119,7 @@ export function MutationRemarkerTab() {
                             Mutation Remarker
                         </CardTitle>
                         <CardDescription className="text-base">
-                            Professional Urdu status generator with robust multi-format parsing.
+                            Professional Urdu status generator with automated number injection.
                         </CardDescription>
                     </div>
                     {detectedNumbers.length > 0 && (
@@ -167,7 +147,7 @@ export function MutationRemarkerTab() {
                                 id="numbers-input"
                                 value={numbersString}
                                 onChange={(e) => setNumbersString(e.target.value)}
-                                placeholder="Paste numbers here... (Supports space, comma, semicolon, newline)"
+                                placeholder="Paste numbers here... (e.g. 98 99 100)"
                                 className="h-[280px] font-mono text-sm bg-background/40 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all resize-none shadow-inner"
                             />
                             <p className="text-[10px] text-muted-foreground">
@@ -183,53 +163,52 @@ export function MutationRemarkerTab() {
                                 2. Remark Generation Logic
                             </Label>
                             <Tabs defaultValue="random" value={mode} onValueChange={(v) => setMode(v as Mode)} className="w-full">
-                                <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl">
-                                    <TabsTrigger value="random" className="rounded-lg">Random Status</TabsTrigger>
-                                    <TabsTrigger value="reference" className="rounded-lg">Bulk Reference</TabsTrigger>
-                                    <TabsTrigger value="custom" className="rounded-lg">Custom Template</TabsTrigger>
+                                <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl h-11">
+                                    <TabsTrigger value="random" className="rounded-lg h-9">Random Status</TabsTrigger>
+                                    <TabsTrigger value="reference" className="rounded-lg h-9">Bulk Reference</TabsTrigger>
+                                    <TabsTrigger value="custom" className="rounded-lg h-9">Custom Template</TabsTrigger>
                                 </TabsList>
                                 
-                                <TabsContent value="random" className="p-6 rounded-xl border border-dashed border-border/60 bg-muted/10 mt-4 space-y-2">
+                                <TabsContent value="random" className="p-6 rounded-xl border border-dashed border-primary/20 bg-primary/5 mt-4 space-y-3">
+                                    <div className="flex items-center gap-2 text-primary">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        <p className="text-xs font-bold uppercase tracking-wider">Correct Phrasing Active</p>
+                                    </div>
                                     <p className="text-sm text-foreground/80 leading-relaxed font-urdu text-right" dir="rtl">
-                                        یہ موڈ خود بخود درج ذیل دو سٹیٹس کو آپ کی لسٹ پر 50/50 کی بنیاد پر تقسیم کرے گا:
+                                        یہ موڈ خود بخود درج ذیل دو سٹیٹس کو باری باری استعمال کرے گا:
                                     </p>
-                                    <ul className="text-sm space-y-1 text-primary font-urdu text-right list-disc list-inside" dir="rtl">
-                                        <li>مالک موقع پر موجود نہ ہے۔</li>
-                                        <li>انتقال کے لیے رقبہ دستیاب نہ ہے۔</li>
+                                    <ul className="text-sm space-y-2 text-primary font-urdu text-right list-none" dir="rtl">
+                                        <li>کھیوٹ نمبر <span className="text-foreground font-mono">[نمبر]</span> میں مالک موجود نہیں ہے</li>
+                                        <li>کھیوٹ نمبر <span className="text-foreground font-mono">[نمبر]</span> میں مالک کے پاس انتقال کے لیئے درکار رقبہ موجود نہیں ہے</li>
                                     </ul>
                                 </TabsContent>
                                 
-                                <TabsContent value="reference" className="space-y-4 p-6 rounded-xl border border-dashed border-border/60 bg-muted/10 mt-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-semibold">Master Reference Mutation Number</Label>
-                                        <Input 
-                                            placeholder="e.g. 61168" 
-                                            value={referenceId} 
-                                            onChange={(e) => setReferenceId(e.target.value)}
-                                            className="h-11 bg-background/60"
-                                        />
+                                <TabsContent value="reference" className="p-6 rounded-xl border border-dashed border-blue-500/20 bg-blue-500/5 mt-4 space-y-3">
+                                     <div className="flex items-center gap-2 text-blue-500">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        <p className="text-xs font-bold uppercase tracking-wider">Auto-Reference Mode</p>
                                     </div>
-                                    <div className="pt-2">
-                                        <p className="text-xs text-muted-foreground mb-1">Preview Logic:</p>
-                                        <div className="p-3 bg-background/80 rounded-lg border text-right font-urdu text-sm" dir="rtl">
-                                            بحوالہ انتقال نمبر <span className="text-primary font-bold">{referenceId || '____'}</span> کی وجہ سے انتقال کا عمل بقایا ہے۔
-                                        </div>
+                                    <p className="text-sm text-foreground/80 leading-relaxed font-urdu text-right" dir="rtl">
+                                        تمام نمبرز کے لیے درج ذیل ریفرنس ریمارکس بنائے جائیں گے:
+                                    </p>
+                                    <div className="p-3 bg-background/80 rounded-lg border border-blue-500/20 text-right font-urdu text-sm" dir="rtl">
+                                        بحوالہ انتقال نمبر <span className="text-blue-500 font-mono">[نمبر]</span> کی وجہ سے انتقال کا عمل بقایا ہے
                                     </div>
                                 </TabsContent>
                                 
                                 <TabsContent value="custom" className="space-y-4 p-6 rounded-xl border border-dashed border-border/60 bg-muted/10 mt-4">
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-semibold">Urdu Prefix</Label>
+                                            <Label className="text-xs font-semibold text-muted-foreground">Urdu Prefix</Label>
                                             <Input value={customPrefix} onChange={(e) => setCustomPrefix(e.target.value)} className="h-10 font-urdu text-right bg-background/60" dir="rtl" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-semibold">Urdu Suffix</Label>
+                                            <Label className="text-xs font-semibold text-muted-foreground">Urdu Suffix</Label>
                                             <Input value={customSuffix} onChange={(e) => setCustomSuffix(e.target.value)} className="h-10 font-urdu text-right bg-background/60" dir="rtl" />
                                         </div>
                                     </div>
                                     <div className="pt-2">
-                                        <p className="text-xs text-muted-foreground mb-1">Custom Preview:</p>
+                                        <p className="text-[10px] text-muted-foreground mb-1 uppercase font-bold tracking-tighter">Live Template Preview:</p>
                                         <div className="p-3 bg-background/80 rounded-lg border text-right font-urdu text-sm text-primary" dir="rtl">
                                             {customPrefix} <span className="text-foreground font-mono">12345</span> {customSuffix}
                                         </div>
