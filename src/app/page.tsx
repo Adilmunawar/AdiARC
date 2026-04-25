@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Minimize2, FileScan } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Minimize2, FileScan, MessageSquareQuote } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSecretMode } from "@/components/layout/Sidebar";
@@ -55,6 +55,12 @@ const allTools = [
         description: "Scan image metadata for embedded mutation IDs.",
         icon: Box,
         path: "/inventory"
+    },
+    {
+        name: "Mutation Remarker",
+        description: "Bulk generate Urdu remarks for mutation lists with standard templates.",
+        icon: MessageSquareQuote,
+        path: "/mutation-remarker"
     },
      {
         name: "Server Sync",

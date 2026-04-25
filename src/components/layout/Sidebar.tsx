@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan, Minimize2
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan, Minimize2, MessageSquareQuote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,7 @@ const allNavItems = [
   { name: "Property Consultant", icon: UserCircle, path: "/ai-assistant" },
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
   { name: "XMP Inventory", icon: Box, path: "/inventory" },
+  { name: "Mutation Remarker", icon: MessageSquareQuote, path: "/mutation-remarker" },
   { name: "Local OCR", icon: ScanText, path: "/ocr" },
   { name: "HTML Extractor", icon: FileCode, path: "/extractor" },
   { name: "Range Gaps", icon: Split, path: "/range-gaps" },
