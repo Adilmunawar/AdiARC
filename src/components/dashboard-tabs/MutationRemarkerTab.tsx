@@ -34,8 +34,6 @@ export function MutationRemarkerTab() {
     const [customSuffix, setCustomSuffix] = useState("کی رپورٹ مکمل ہے۔");
 
     const detectedNumbers = useMemo(() => {
-        // Robust Regex Parser: Splits by space, comma, semicolon, or newline
-        // Preserves complex IDs like 6332/1 and ranges like 1754-1758
         return numbersString.split(/[\s,;]+/).map(n => n.trim()).filter(n => n !== "");
     }, [numbersString]);
 
@@ -47,15 +45,10 @@ export function MutationRemarkerTab() {
             if (mode === 'random') {
                 const phrases = [
                     `کھیوٹ نمبر ${num} میں مالک موجود نہیں ہے`,
-                    `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لیئے درکار رقبہ موجود نہیں ہے`,
-                    `کھیوٹ نمبر ${num} کے ریکارڈ میں رقبہ کا اندراج درست نہیں ہے`,
-                    `کھیوٹ نمبر ${num} میں وراثت کا عمل تاحال مکمل نہیں ہوا ہے`,
-                    `کھیوٹ نمبر ${num} کا ریکارڈ پڑتال کے لیے متعلقہ افسر کو بھجوا دیا گیا ہے`,
-                    `کھیوٹ نمبر ${num} میں حصہ مالکان کی تقسیم میں تکنیکی غلطی ہے`
+                    `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لئے درکار رقبہ موجود نہیں ہے`
                 ];
                 
-                // Enhanced randomization logic using a high-entropy seed
-                // This ensures that even with small refreshKey changes, the distribution is diverse
+                // Enhanced randomization logic
                 const seed = (index + 7) * (refreshKey + 13) * 1103515245 + 12345;
                 const hash = (seed >>> 16) % phrases.length;
                 
@@ -84,7 +77,6 @@ export function MutationRemarkerTab() {
     const handleCopyTable = async () => {
         if (processedData.length === 0) return;
         
-        // Formats as TSV for direct paste into Excel
         const header = "Mutation ID\tRemark (Urdu)\n";
         const rows = processedData.map(d => `${d.number}\t${d.remark}`).join('\n');
         
@@ -107,7 +99,6 @@ export function MutationRemarkerTab() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Mutation Remarks");
         
-        // Adjust column widths for professional appearance
         worksheet['!cols'] = [{ wch: 15 }, { wch: 80 }];
 
         XLSX.writeFile(workbook, `mutation_remarks_${Date.now()}.xlsx`);
@@ -191,7 +182,7 @@ export function MutationRemarkerTab() {
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 text-primary">
                                                     <Dices className="h-4 w-4 animate-bounce" />
-                                                    <p className="text-[10px] font-bold uppercase tracking-wider">True Random Distribution</p>
+                                                    <p className="text-[10px] font-bold uppercase tracking-wider">Restricted Distribution</p>
                                                 </div>
                                                 <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2 bg-primary/10 hover:bg-primary/20 text-primary" onClick={handleShuffle}>
                                                     <RefreshCw className="h-3 w-3 mr-1" />
@@ -199,14 +190,14 @@ export function MutationRemarkerTab() {
                                                 </Button>
                                             </div>
                                             <p className="text-xs text-foreground/70 leading-relaxed font-urdu text-right" dir="rtl">
-                                                یہ موڈ ہر نمبر کے لیے 6 مختلف پروفیشنل ریمارکس میں سے ایک کا بے ترتیب انتخاب کرے گا۔
+                                                بے ترتیب ریمارکس کی تقسیم:
                                             </p>
                                             <div className="space-y-1">
                                                 <div className="p-1.5 bg-background/80 rounded-lg border text-right font-urdu text-[10px] text-muted-foreground truncate" dir="rtl">
                                                     کھیوٹ نمبر <span className="text-primary">123</span> میں مالک موجود نہیں ہے
                                                 </div>
                                                 <div className="p-1.5 bg-background/80 rounded-lg border text-right font-urdu text-[10px] text-muted-foreground truncate" dir="rtl">
-                                                    ...میں رقبہ کا اندراج درست نہیں ہے
+                                                    کھیوٹ نمبر <span className="text-primary">123</span> میں مالک کے پاس انتقال کے لئے درکار رقبہ موجود نہیں ہے
                                                 </div>
                                             </div>
                                         </TabsContent>
