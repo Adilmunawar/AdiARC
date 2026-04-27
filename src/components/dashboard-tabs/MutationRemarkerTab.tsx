@@ -143,9 +143,9 @@ export function MutationRemarkerTab() {
                 </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-12">
+            <div className="grid gap-6 lg:grid-cols-12 h-full lg:h-[calc(100vh-200px)]">
                 {/* Configuration Panel */}
-                <div className="lg:col-span-5 space-y-6">
+                <div className="lg:col-span-5 space-y-6 overflow-y-auto pr-2">
                     <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-xl rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-border/40 bg-muted/20">
                             <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
@@ -161,7 +161,7 @@ export function MutationRemarkerTab() {
                                     value={numbersString}
                                     onChange={(e) => setNumbersString(e.target.value)}
                                     placeholder="Paste IDs here... (e.g. 101, 102, 103...)"
-                                    className="h-[220px] font-mono text-sm bg-background/50 border-border/50 focus:border-primary/40 transition-all resize-none shadow-inner rounded-xl"
+                                    className="h-[180px] font-mono text-sm bg-background/50 border-border/50 focus:border-primary/40 transition-all resize-none shadow-inner rounded-xl"
                                 />
                                 <p className="text-[10px] text-muted-foreground italic px-1">
                                     Supports spaces, commas, semicolons, and ranges (101-105).
@@ -177,7 +177,7 @@ export function MutationRemarkerTab() {
                                         <TabsTrigger value="custom" className="rounded-lg h-9 text-xs">Custom</TabsTrigger>
                                     </TabsList>
                                     
-                                    <div className="mt-4 p-4 rounded-xl border border-dashed border-primary/20 bg-primary/5 space-y-3 min-h-[160px] flex flex-col justify-center">
+                                    <div className="mt-4 p-4 rounded-xl border border-dashed border-primary/20 bg-primary/5 space-y-3 min-h-[140px] flex flex-col justify-center">
                                         <TabsContent value="random" className="mt-0 space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 text-primary">
@@ -259,24 +259,25 @@ export function MutationRemarkerTab() {
                 </div>
 
                 {/* Results Table Panel */}
-                <div className="lg:col-span-7 space-y-4">
+                <div className="lg:col-span-7 h-full">
                     <Card className="h-full border-border/40 bg-background/40 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl flex flex-col">
-                        <div className="p-4 bg-muted/20 border-b border-border/40 flex items-center justify-between">
+                        <div className="p-4 bg-muted/20 border-b border-border/40 flex items-center justify-between shrink-0">
                             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                                 <Sparkles className="h-4 w-4 text-primary" />
                                 Live Table Generation
                             </h3>
                              {processedData.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
+                                <Badge variant="outline" className="text-[10px] font-medium bg-background/50 px-2 py-0.5 rounded-full border-primary/20">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse mr-1.5" />
                                     Auto-Updated
-                                </span>
+                                </Badge>
                              )}
                         </div>
 
-                        <div className="flex-1 min-h-[500px]">
+                        <div className="flex-1 min-h-[400px] overflow-hidden">
                             <ScrollArea className="h-full w-full">
-                                <Table className="relative">
-                                    <TableHeader className="bg-muted/80 sticky top-0 z-20 backdrop-blur-md">
+                                <Table className="relative min-w-full">
+                                    <TableHeader className="bg-muted/90 sticky top-0 z-20 backdrop-blur-md shadow-sm">
                                         <TableRow className="border-border/40 hover:bg-transparent">
                                             <TableHead className="w-[140px] font-bold text-foreground">Mutation ID</TableHead>
                                             <TableHead className="text-right pr-8 font-bold text-foreground">Generated Urdu Remark</TableHead>
@@ -324,3 +325,4 @@ export function MutationRemarkerTab() {
         </div>
     );
 }
+
