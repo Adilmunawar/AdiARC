@@ -19,7 +19,6 @@ const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bm
 
 /**
  * detectCategory - Logic Translation from Python
- * Scans relative path for keywords or falls back to parent folder name
  */
 function detectCategory(filePath: string, baseMauzaPath: string): string {
     const relPath = path.relative(baseMauzaPath, filePath).toLowerCase();
@@ -44,23 +43,28 @@ function detectCategory(filePath: string, baseMauzaPath: string): string {
 }
 
 /**
- * Recursive File Scanner
+ * Recursive File Scanner with Concurrency Limit
  */
 async function scanDirectory(dir: string, base: string, stats: Record<string, number>) {
     try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
-
-        for (const entry of entries) {
-            const res = path.resolve(dir, entry.name);
-            if (entry.isDirectory()) {
-                await scanDirectory(res, base, stats);
-            } else {
-                const ext = path.extname(entry.name).toLowerCase();
-                if (IMAGE_EXTENSIONS.has(ext)) {
-                    const category = detectCategory(res, base);
-                    stats[category] = (stats[category] || 0) + 1;
+        
+        // Process entries in smaller chunks to avoid EMFILE
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+            const chunk = entries.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(async (entry) => {
+                const res = path.resolve(dir, entry.name);
+                if (entry.isDirectory()) {
+                    await scanDirectory(res, base, stats);
+                } else {
+                    const ext = path.extname(entry.name).toLowerCase();
+                    if (IMAGE_EXTENSIONS.has(ext)) {
+                        const category = detectCategory(res, base);
+                        stats[category] = (stats[category] || 0) + 1;
+                    }
                 }
-            }
+            }));
         }
     } catch (err) {
         console.error(`Error scanning ${dir}:`, err);
@@ -77,30 +81,26 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: "Invalid targets provided." }, { status: 400 });
         }
 
-        const results = [];
-
-        // Run scans in parallel with error isolation
-        const scanPromises = targets.map(async (target) => {
+        // Parallel scan with result isolation
+        const scanResults = await Promise.all(targets.map(async (target) => {
             const stats: Record<string, number> = {};
             try {
-                // Quick existence check
-                await fs.access(target.path);
-                await scanDirectory(target.path, target.path, stats);
-                return { name: target.name, path: target.path, stats, status: 'success' };
+                // Handle Windows-style network paths correctly
+                const normalizedPath = target.path.replace(/\//g, path.sep).replace(/\\/g, path.sep);
+                await fs.access(normalizedPath);
+                await scanDirectory(normalizedPath, normalizedPath, stats);
+                return { name: target.name, path: normalizedPath, stats, status: 'success' };
             } catch (err: any) {
                 return { name: target.name, path: target.path, error: err.message, status: 'failed' };
             }
-        });
+        }));
 
-        const scanResults = await Promise.all(scanPromises);
-
-        // Optional: Save to Server Path
+        // Optional: Save to Server Path (Default provided in Frontend)
         if (serverSavePath && scanResults.length > 0) {
             try {
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const filePath = path.join(serverSavePath, `mauza_scan_${timestamp}.csv`);
                 
-                // Get all unique headers
                 const allKeys = new Set<string>();
                 scanResults.forEach(r => {
                     if (r.stats) Object.keys(r.stats).forEach(k => allKeys.add(k));
@@ -116,11 +116,17 @@ export async function POST(request: Request) {
                     })
                 ].join('\n');
 
-                await fs.mkdir(serverSavePath, { recursive: true });
+                // Try to create directory if it doesn't exist
+                try {
+                    await fs.mkdir(serverSavePath, { recursive: true });
+                } catch (e) {
+                    console.warn("Could not create directory, might already exist or permission denied.");
+                }
+                
                 await fs.writeFile(filePath, csvContent);
-                console.log(`Report saved to ${filePath}`);
+                console.log(`Report saved to server at: ${filePath}`);
             } catch (err) {
-                console.error("Failed to save report to server path:", err);
+                console.error("Failed to save report to host machine:", err);
             }
         }
 

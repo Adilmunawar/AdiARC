@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { FolderSearch, Loader2, Download, Trash2, UploadCloud, AlertCircle, CheckCircle2, FileText, Database } from 'lucide-react';
+import { FolderSearch, Loader2, Download, Trash2, UploadCloud, AlertCircle, CheckCircle2, FileText, Database, BarChart3, PieChart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -25,7 +25,7 @@ type ScanResult = {
 export function MauzaScannerTab() {
     const { toast } = useToast();
     const [input, setInput] = useState("");
-    const [serverSavePath, setServerSavePath] = useState("");
+    const [serverSavePath, setServerSavePath] = useState("\\\\192.125.5.243\\Div Rawalpindi\\20Adil.Hussain");
     const [isScanning, setIsScanning] = useState(false);
     const [results, setResults] = useState<ScanResult[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +89,6 @@ export function MauzaScannerTab() {
     const downloadCsv = () => {
         if (results.length === 0) return;
 
-        // Collect all unique categories across all results
         const categories = Array.from(new Set(results.flatMap(r => r.stats ? Object.keys(r.stats) : [])));
         const headers = ["Mauza Name", "Path", "Status", ...categories, "Error"];
 
@@ -110,11 +109,27 @@ export function MauzaScannerTab() {
         document.body.removeChild(link);
     };
 
-    // Calculate dynamic columns for the UI table
-    const dynamicCategories = Array.from(new Set(results.flatMap(r => r.stats ? Object.keys(r.stats) : []))).sort();
+    const dynamicCategories = useMemo(() => 
+        Array.from(new Set(results.flatMap(r => r.stats ? Object.keys(r.stats) : []))).sort(),
+    [results]);
+
+    const totalSummary = useMemo(() => {
+        const summary: Record<string, number> = {};
+        let totalAll = 0;
+        results.forEach(r => {
+            if (r.stats) {
+                Object.entries(r.stats).forEach(([cat, count]) => {
+                    summary[cat] = (summary[cat] || 0) + count;
+                    totalAll += count;
+                });
+            }
+        });
+        return { breakdown: summary, total: totalAll };
+    }, [results]);
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 animate-enter">
+            {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/40 backdrop-blur-md p-6 rounded-2xl border border-border/40 shadow-sm">
                 <div className="space-y-1">
                     <div className="flex items-center gap-3">
@@ -124,7 +139,7 @@ export function MauzaScannerTab() {
                         <h1 className="text-2xl font-bold tracking-tight">Mauza Network Scanner</h1>
                     </div>
                     <p className="text-muted-foreground text-sm pl-11">
-                        Deep-scan network paths and automatically categorize image counts.
+                        Perform deep recursive scanning of network drives with fuzzy keyword categorization.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -132,49 +147,58 @@ export function MauzaScannerTab() {
                         <Trash2 className="h-4 w-4 mr-2" /> Clear
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isScanning}>
-                        <UploadCloud className="h-4 w-4 mr-2" /> Upload Targets
+                        <UploadCloud className="h-4 w-4 mr-2" /> Upload Targets (.txt)
                     </Button>
                     <input type="file" ref={fileInputRef} className="hidden" accept=".txt" onChange={handleFileUpload} />
                 </div>
             </div>
 
+            {/* Main Workspace */}
             <div className="grid gap-6 lg:grid-cols-12">
-                {/* Configuration Panel */}
+                {/* Configuration Sidebar */}
                 <div className="lg:col-span-4 space-y-6">
                     <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-xl rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-border/40 bg-muted/20">
                             <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                <FileText className="h-4 w-4" /> Scan Targets
+                                <FileText className="h-4 w-4" /> Scan Configuration
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-6 space-y-4">
+                        <CardContent className="p-6 space-y-5">
                             <div className="space-y-2">
-                                <Label className="text-xs font-bold">Paste Targets (Mauza Name, Path)</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-bold">Paste Targets</Label>
+                                    <span className="text-[10px] text-muted-foreground">Name, \\Path</span>
+                                </div>
                                 <Textarea 
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
-                                    placeholder={"Moza Amr Kot, \\\\192.125.5.241\\ لاہور_امرتس\nSodiwal, \\\\192.125.5.241\\ لاہور_سودیوال"}
-                                    className="h-[200px] font-mono text-xs bg-background/50"
+                                    placeholder={"Mauza Name, \\\\192.125.x.x\\path\n..."}
+                                    className="h-[180px] font-mono text-[11px] leading-relaxed bg-background/50 focus:ring-primary/20"
                                     disabled={isScanning}
                                 />
-                                <p className="text-[10px] text-muted-foreground italic">Tip: Use one line per target. Separate name and path with a comma.</p>
                             </div>
 
                             <div className="space-y-2 pt-2 border-t border-dashed">
                                 <Label className="text-xs font-bold flex items-center gap-2">
-                                    <Database className="h-3 w-3" /> Server Export Path (Optional)
+                                    <Database className="h-3 w-3 text-primary" /> Auto-Save Report to Server
                                 </Label>
                                 <Input 
                                     value={serverSavePath}
                                     onChange={(e) => setServerSavePath(e.target.value)}
-                                    placeholder="e.g. C:\AdiARC\Exports"
-                                    className="h-9 text-xs"
+                                    placeholder="Enter network or local path"
+                                    className="h-9 text-xs font-mono"
                                     disabled={isScanning}
                                 />
-                                <p className="text-[10px] text-muted-foreground">If provided, the server will attempt to write a CSV file directly to this location.</p>
+                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">
+                                    A CSV report will be written to this path on the server host for each scan.
+                                </p>
                             </div>
 
-                            <Button onClick={startScan} className="w-full font-bold shadow-lg shadow-primary/20" disabled={isScanning || !input.trim()}>
+                            <Button 
+                                onClick={startScan} 
+                                className="w-full font-bold shadow-lg shadow-primary/20 h-11" 
+                                disabled={isScanning || !input.trim()}
+                            >
                                 {isScanning ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -182,29 +206,56 @@ export function MauzaScannerTab() {
                                     </>
                                 ) : (
                                     <>
-                                        <FolderSearch className="mr-2 h-4 w-4" />
-                                        Execute Deep Scan
+                                        <Play className="mr-2 h-4 w-4" />
+                                        Start Recursive Scan
                                     </>
                                 )}
                             </Button>
                         </CardContent>
                     </Card>
+
+                    {/* Summary Card */}
+                    {results.length > 0 && (
+                        <Card className="border-border/40 bg-primary/5 shadow-md rounded-2xl animate-fade-in">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs font-bold text-primary flex items-center gap-2">
+                                    <BarChart3 className="h-4 w-4" /> Global Scan Summary
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-xs text-muted-foreground">Total Files Detected</span>
+                                    <span className="text-2xl font-black text-primary">{totalSummary.total.toLocaleString()}</span>
+                                </div>
+                                <div className="space-y-1.5 pt-2 border-t border-primary/10">
+                                    {Object.entries(totalSummary.breakdown).map(([cat, count]) => (
+                                        <div key={cat} className="flex justify-between text-[11px]">
+                                            <span className="text-muted-foreground">{cat}</span>
+                                            <span className="font-bold">{count.toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
-                {/* Results Panel */}
+                {/* Results Workspace */}
                 <div className="lg:col-span-8 flex flex-col gap-4">
-                    <Card className="flex-1 border-border/40 bg-background/40 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl flex flex-col min-h-[500px]">
+                    <Card className="flex-1 border-border/40 bg-background/40 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl flex flex-col min-h-[600px]">
                         <div className="p-4 bg-muted/20 border-b border-border/40 flex items-center justify-between">
                             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                <CheckCircle2 className="h-4 w-4 text-primary" /> Scan Results
+                                <CheckCircle2 className="h-4 w-4 text-primary" /> Live Audit Log
                             </h3>
                             <div className="flex items-center gap-2">
                                 {results.length > 0 && (
                                     <Button onClick={downloadCsv} size="sm" variant="secondary" className="h-8 font-bold text-xs">
-                                        <Download className="mr-2 h-3.5 w-3.5" /> Download CSV
+                                        <Download className="mr-2 h-3.5 w-3.5" /> Download Report
                                     </Button>
                                 )}
-                                <Badge variant="outline" className="text-[10px]">{isScanning ? "Scanning..." : results.length > 0 ? "Results Ready" : "Awaiting Input"}</Badge>
+                                <Badge variant="outline" className="text-[10px] bg-background/50">
+                                    {isScanning ? "Processing..." : results.length > 0 ? `${results.length} Mauzas Ready` : "Awaiting Input"}
+                                </Badge>
                             </div>
                         </div>
 
@@ -214,34 +265,41 @@ export function MauzaScannerTab() {
                                     <Table>
                                         <TableHeader className="bg-muted/95 sticky top-0 z-20 backdrop-blur-md">
                                             <TableRow>
-                                                <TableHead className="font-bold min-w-[150px]">Mauza Name</TableHead>
-                                                <TableHead className="font-bold min-w-[100px]">Status</TableHead>
+                                                <TableHead className="font-bold min-w-[200px] text-xs">Target Details</TableHead>
+                                                <TableHead className="font-bold min-w-[100px] text-xs">Status</TableHead>
                                                 {dynamicCategories.map(cat => (
-                                                    <TableHead key={cat} className="text-right font-bold min-w-[80px]">{cat}</TableHead>
+                                                    <TableHead key={cat} className="text-right font-bold min-w-[90px] text-xs">{cat}</TableHead>
                                                 ))}
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {results.map((r, i) => (
-                                                <TableRow key={i} className="hover:bg-primary/5 transition-colors border-border/10">
+                                                <TableRow key={i} className="hover:bg-primary/5 transition-colors group">
                                                     <TableCell className="font-medium">
-                                                        <div className="flex flex-col">
-                                                            <span>{r.name}</span>
-                                                            <span className="text-[10px] text-muted-foreground truncate max-w-[200px]" title={r.path}>{r.path}</span>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-sm font-bold group-hover:text-primary transition-colors">{r.name}</span>
+                                                            <code className="text-[9px] text-muted-foreground bg-muted/50 px-1 py-0.5 rounded truncate max-w-[250px]" title={r.path}>
+                                                                {r.path}
+                                                            </code>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
                                                         {r.status === 'success' ? (
-                                                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">Success</Badge>
+                                                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-[9px] font-bold uppercase">Ready</Badge>
                                                         ) : (
-                                                            <div className="flex items-center gap-1 text-destructive">
-                                                                <AlertCircle className="h-3 w-3" />
-                                                                <span className="text-[10px] font-bold">Failed</span>
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="flex items-center gap-1 text-destructive">
+                                                                    <AlertCircle className="h-3 w-3" />
+                                                                    <span className="text-[9px] font-bold">Access Denied</span>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </TableCell>
                                                     {dynamicCategories.map(cat => (
-                                                        <TableCell key={cat} className="text-right font-mono text-xs">
+                                                        <TableCell key={cat} className={cn(
+                                                            "text-right font-mono text-[11px] tabular-nums",
+                                                            r.stats?.[cat] ? "text-foreground font-bold" : "text-muted-foreground/30"
+                                                        )}>
                                                             {r.stats?.[cat] || 0}
                                                         </TableCell>
                                                     ))}
@@ -250,11 +308,15 @@ export function MauzaScannerTab() {
                                         </TableBody>
                                     </Table>
                                 ) : (
-                                    <div className="h-full flex flex-col items-center justify-center p-10 opacity-30 text-center space-y-4">
-                                        <FolderSearch className="h-16 w-16 stroke-[1px]" />
+                                    <div className="h-full flex flex-col items-center justify-center p-20 opacity-40 text-center space-y-4">
+                                        <div className="p-6 bg-muted/20 rounded-full">
+                                            <PieChart className="h-20 w-20 stroke-[1px]" />
+                                        </div>
                                         <div className="space-y-1">
-                                            <p className="text-lg font-bold">No Data Scanned</p>
-                                            <p className="text-sm">Configure targets and execute the scan to view results.</p>
+                                            <p className="text-xl font-bold">No Active Data</p>
+                                            <p className="text-sm max-w-xs mx-auto text-muted-foreground">
+                                                Paste your network paths or upload a target file to begin the deep recursive audit.
+                                            </p>
                                         </div>
                                     </div>
                                 )}
