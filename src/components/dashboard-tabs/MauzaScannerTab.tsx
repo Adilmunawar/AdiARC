@@ -146,22 +146,14 @@ export function MauzaScannerTab() {
             
             const stats: Record<string, number> = {};
             try {
-                // In browser-land, we assume the user picked the root that contains these paths
-                // We try to resolve the specific subdirectory handle
-                let targetHandle: FileSystemDirectoryHandle | null = currentHandle;
-                
-                // Simple logic: if path is absolute network path, we try to match relative to picked root
-                // This is an approximation since browser can't jump to IPs
-                const normalizedPath = target.path.replace(/\\/g, '/').replace(/^\/+/, '');
-                
-                // Perform the scan
-                await scanDirectory(targetHandle, target.path, stats);
+                // Perform the scan relative to the root authorized handle
+                await scanDirectory(currentHandle, target.path, stats);
                 finalResults.push({ ...target, status: 'success', stats });
             } catch (err: any) {
                 finalResults.push({ ...target, status: 'failed', stats: {}, error: err.message });
             }
             
-            // UI Yield
+            // UI Yield to prevent blocking
             if (i % 2 === 0) await new Promise(r => setTimeout(r, 0));
         }
 

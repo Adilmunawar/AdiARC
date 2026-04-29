@@ -35,7 +35,7 @@ export function MutationRemarkerTab() {
     const [masterList, setMasterList] = useState("");
     const [statusList, setStatusList] = useState("");
     
-    // Phrases
+    // Phrases - Exact templates from user
     const PHRASE_OWNER_MISSING = (num: string) => `کھیوٹ نمبر ${num} میں مالک موجود نہیں ہے`;
     const PHRASE_AREA_MISSING = (num: string) => `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لئے درکار رقبہ موجود نہیں ہے`;
     const PHRASE_REFERENCE = (num: string) => `بحوالہ انتقال نمبر ${num} کی وجہ سے انتقال کا عمل بقایا ہے`;
