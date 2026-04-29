@@ -35,8 +35,7 @@ export function MutationRemarkerTab() {
     // Advanced Mode State
     const [masterList, setMasterList] = useState("");
     const [statusList, setStatusList] = useState("");
-    const [referenceList, setReferenceList] = useState("");
-
+    
     // Phrases
     const PHRASE_OWNER_MISSING = (num: string) => `کھیوٹ نمبر ${num} میں مالک موجود نہیں ہے`;
     const PHRASE_AREA_MISSING = (num: string) => `کھیوٹ نمبر ${num} میں مالک کے پاس انتقال کے لئے درکار رقبہ موجود نہیں ہے`;
@@ -183,7 +182,7 @@ export function MutationRemarkerTab() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-bold flex items-center gap-2"><Dices className="h-3 w-3 text-amber-500"/> 2. Status List (Random LRMIS Phrases)</Label>
+                                        <Label className="text-xs font-bold flex items-center gap-2"><Dices className="h-3 w-3 text-amber-500"/> 2. Status List (Owner/Area Remarks)</Label>
                                         <Textarea 
                                             value={statusList} 
                                             onChange={(e) => setStatusList(e.target.value)}
@@ -192,8 +191,8 @@ export function MutationRemarkerTab() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-bold flex items-center gap-2"><ArrowRightLeft className="h-3 w-3 text-blue-500"/> 3. Reference List (Defaults to Ref Phrase)</Label>
-                                        <p className="text-[10px] text-muted-foreground italic">Master IDs not in List 2 get the "Reference" phrase.</p>
+                                        <Label className="text-xs font-bold flex items-center gap-2"><ArrowRightLeft className="h-3 w-3 text-blue-500"/> 3. Reference Logic</Label>
+                                        <p className="text-[10px] text-muted-foreground italic">Master IDs not in the Status List will automatically receive the "Reference" (بحوالہ) phrase.</p>
                                     </div>
                                 </TabsContent>
 
@@ -248,7 +247,7 @@ export function MutationRemarkerTab() {
                                                     <TableRow key={`${i}-${refreshKey}`} className="hover:bg-primary/5 transition-colors border-border/10">
                                                         <TableCell className="font-mono text-xs font-medium">
                                                             <div className="flex items-center gap-2">
-                                                                <div className={cn("h-1.5 w-1.5 rounded-full", item.type === 'status' ? 'bg-amber-500' : 'bg-blue-500')} />
+                                                                <div className={cn("h-1.5 w-1.5 rounded-full", item.type === 'status' ? 'bg-amber-500' : (item.type === 'reference' ? 'bg-blue-500' : 'bg-primary'))} />
                                                                 {item.number}
                                                             </div>
                                                         </TableCell>
