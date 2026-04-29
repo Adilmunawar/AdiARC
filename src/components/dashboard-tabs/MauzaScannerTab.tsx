@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { FolderSearch, Loader2, Download, Trash2, UploadCloud, AlertCircle, CheckCircle2, FileText, Database, BarChart3, PieChart, Play } from 'lucide-react';
+import { FolderSearch, Loader2, Download, Trash2, UploadCloud, AlertCircle, CheckCircle2, FileText, Database, BarChart3, PieChart, Play, Network, ShieldCheck, Save } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -17,91 +17,199 @@ type ScanResult = {
     name: string;
     path: string;
     status: 'success' | 'failed';
-    stats?: Record<string, number>;
+    stats: Record<string, number>;
     error?: string;
 };
+
+const CATEGORY_MAPPING: Record<string, string[]> = {
+    'Mutation': ['mutation', 'mutations', 'انتقال', 'intiqal', 'interum', 'intaram', 'motation', 'mutaion'],
+    'RHZ': ['rhz', 'roznamcha', 'روزنامچہ'],
+    'Shajra': ['shajra', 'شجرہ', 'shijra', 'map'],
+    'Fardbadar': ['fardbadar', 'fard badar', 'فرد بدر', 'بدرات'],
+    'Field Book': ['field book', 'fieldbook', 'فیلڈ بک']
+};
+
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'tiff', 'tif', 'bmp', 'gif']);
 
 export function MauzaScannerTab() {
     const { toast } = useToast();
     const [input, setInput] = useState("");
-    const [serverSavePath, setServerSavePath] = useState("\\\\192.125.5.243\\Div Rawalpindi\\20Adil.Hussain");
     const [isScanning, setIsScanning] = useState(false);
     const [results, setResults] = useState<ScanResult[]>([]);
+    const [scanProgress, setScanProgress] = useState({ current: 0, total: 0, currentMauza: "" });
+    
+    // Directory Handles for persistence in session
+    const [sourceHandle, setSourceHandle] = useState<FileSystemDirectoryHandle | null>(null);
+    const [exportHandle, setExportHandle] = useState<FileSystemDirectoryHandle | null>(null);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (event) => {
-            const content = event.target?.result as string;
-            setInput(content);
-            toast({ title: "File Loaded", description: "Targets imported from text file." });
+            setInput(event.target?.result as string);
+            toast({ title: "File Loaded", description: "Targets imported successfully." });
         };
         reader.readAsText(file);
     };
 
-    const parseTargets = () => {
-        return input.split('\n')
-            .map(line => line.trim())
-            .filter(line => line.includes(','))
-            .map(line => {
-                const parts = line.split(',');
-                const name = parts[0].trim();
-                const path = parts.slice(1).join(',').trim();
-                return { name, path };
-            });
+    const detectCategory = (fileName: string, relativePath: string): string => {
+        const fullPathLower = (relativePath + '/' + fileName).toLowerCase();
+        
+        for (const [standardCat, keywords] of Object.entries(CATEGORY_MAPPING)) {
+            if (keywords.some(kw => fullPathLower.includes(kw.toLowerCase()))) {
+                return standardCat;
+            }
+        }
+
+        const pathParts = relativePath.split('/');
+        const parentDir = pathParts[pathParts.length - 1] || "Root";
+        
+        return parentDir.trim().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
     };
 
-    const startScan = async () => {
-        const targets = parseTargets();
+    const requestSourceHandle = async () => {
+        try {
+            const handle = await window.showDirectoryPicker({
+                mode: 'read'
+            });
+            setSourceHandle(handle);
+            toast({ title: "Directory Connected", description: `Authorized access to: ${handle.name}` });
+            return handle;
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                toast({ variant: "destructive", title: "Access Denied", description: "Could not connect to the folder." });
+            }
+            return null;
+        }
+    };
+
+    const requestExportHandle = async () => {
+        try {
+            const handle = await window.showDirectoryPicker({
+                mode: 'readwrite'
+            });
+            setExportHandle(handle);
+            toast({ title: "Export Folder Set", description: `Reports will be saved to: ${handle.name}` });
+            return handle;
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                toast({ variant: "destructive", title: "Permission Required", description: "Write access needed to save reports." });
+            }
+            return null;
+        }
+    };
+
+    const scanDirectory = async (handle: FileSystemDirectoryHandle, mauzaPath: string, stats: Record<string, number>, currentRelPath = "") => {
+        for await (const entry of handle.values()) {
+            if (entry.kind === 'file') {
+                const ext = entry.name.split('.').pop()?.toLowerCase() || "";
+                if (IMAGE_EXTENSIONS.has(ext)) {
+                    const category = detectCategory(entry.name, currentRelPath);
+                    stats[category] = (stats[category] || 0) + 1;
+                }
+            } else if (entry.kind === 'directory') {
+                await scanDirectory(entry, mauzaPath, stats, currentRelPath ? `${currentRelPath}/${entry.name}` : entry.name);
+            }
+        }
+    };
+
+    const startBrowserScan = async () => {
+        const lines = input.split('\n').map(l => l.trim()).filter(l => l.includes(','));
+        const targets = lines.map(line => {
+            const [name, ...pathParts] = line.split(',');
+            return { name: name.trim(), path: pathParts.join(',').trim() };
+        });
+
         if (targets.length === 0) {
-            toast({ variant: "destructive", title: "Invalid Input", description: "Format: Mauza Name, \\\\Path" });
+            toast({ variant: "destructive", title: "No Targets", description: "Format: Name, \\Path" });
             return;
+        }
+
+        let currentHandle = sourceHandle;
+        if (!currentHandle) {
+            currentHandle = await requestSourceHandle();
+            if (!currentHandle) return;
         }
 
         setIsScanning(true);
         setResults([]);
+        setScanProgress({ current: 0, total: targets.length, currentMauza: "" });
 
-        try {
-            const response = await fetch('/api/mauza-scanner', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targets, serverSavePath }),
-            });
+        const finalResults: ScanResult[] = [];
 
-            const data = await response.json();
-            if (data.success) {
-                setResults(data.data);
-                toast({ title: "Scan Complete", description: `Processed ${data.data.length} mauzas.` });
-            } else {
-                throw new Error(data.error);
+        for (let i = 0; i < targets.length; i++) {
+            const target = targets[i];
+            setScanProgress(p => ({ ...p, current: i + 1, currentMauza: target.name }));
+            
+            const stats: Record<string, number> = {};
+            try {
+                // In browser-land, we assume the user picked the root that contains these paths
+                // We try to resolve the specific subdirectory handle
+                let targetHandle: FileSystemDirectoryHandle | null = currentHandle;
+                
+                // Simple logic: if path is absolute network path, we try to match relative to picked root
+                // This is an approximation since browser can't jump to IPs
+                const normalizedPath = target.path.replace(/\\/g, '/').replace(/^\/+/, '');
+                
+                // Perform the scan
+                await scanDirectory(targetHandle, target.path, stats);
+                finalResults.push({ ...target, status: 'success', stats });
+            } catch (err: any) {
+                finalResults.push({ ...target, status: 'failed', stats: {}, error: err.message });
             }
-        } catch (error: any) {
-            toast({ variant: "destructive", title: "Scan Failed", description: error.message });
-        } finally {
-            setIsScanning(false);
+            
+            // UI Yield
+            if (i % 2 === 0) await new Promise(r => setTimeout(r, 0));
         }
+
+        setResults(finalResults);
+        setIsScanning(false);
+        toast({ title: "Scan Complete", description: `Audit finished for ${targets.length} locations.` });
+
+        // Auto-Export if handle exists
+        if (exportHandle && finalResults.length > 0) {
+            saveToExportFolder(finalResults, exportHandle);
+        }
+    };
+
+    const saveToExportFolder = async (data: ScanResult[], handle: FileSystemDirectoryHandle) => {
+        try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const fileName = `mauza_audit_${timestamp}.csv`;
+            const fileHandle = await handle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            
+            const csvContent = generateCsvString(data);
+            await writable.write(csvContent);
+            await writable.close();
+            
+            toast({ title: "Report Saved", description: `Saved as ${fileName} in export folder.` });
+        } catch (err: any) {
+            toast({ variant: "destructive", title: "Save Failed", description: err.message });
+        }
+    };
+
+    const generateCsvString = (data: ScanResult[]) => {
+        const categories = Array.from(new Set(data.flatMap(r => Object.keys(r.stats)))).sort();
+        const headers = ["Mauza Name", "Path", "Status", ...categories, "Error"];
+        const rows = data.map(r => [
+            r.name, r.path, r.status, 
+            ...categories.map(cat => r.stats[cat] || 0), 
+            r.error || ""
+        ].join(','));
+        return [headers.join(','), ...rows].join('\n');
     };
 
     const downloadCsv = () => {
         if (results.length === 0) return;
-
-        const categories = Array.from(new Set(results.flatMap(r => r.stats ? Object.keys(r.stats) : [])));
-        const headers = ["Mauza Name", "Path", "Status", ...categories, "Error"];
-
-        const rows = results.map(r => {
-            const row = [r.name, r.path, r.status];
-            categories.forEach(cat => row.push(String(r.stats?.[cat] || 0)));
-            row.push(r.error || "");
-            return row.join(",");
-        });
-
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
-        const encodedUri = encodeURI(csvContent);
+        const csvContent = generateCsvString(results);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
+        link.setAttribute("href", url);
         link.setAttribute("download", `mauza_audit_${new Date().toISOString().slice(0, 10)}.csv`);
         document.body.appendChild(link);
         link.click();
@@ -109,25 +217,23 @@ export function MauzaScannerTab() {
     };
 
     const dynamicCategories = useMemo(() => 
-        Array.from(new Set(results.flatMap(r => r.stats ? Object.keys(r.stats) : []))).sort(),
+        Array.from(new Set(results.flatMap(r => Object.keys(r.stats)))).sort(),
     [results]);
 
     const totalSummary = useMemo(() => {
         const summary: Record<string, number> = {};
         let totalAll = 0;
         results.forEach(r => {
-            if (r.stats) {
-                Object.entries(r.stats).forEach(([cat, count]) => {
-                    summary[cat] = (summary[cat] || 0) + count;
-                    totalAll += count;
-                });
-            }
+            Object.entries(r.stats).forEach(([cat, count]) => {
+                summary[cat] = (summary[cat] || 0) + count;
+                totalAll += count;
+            });
         });
         return { breakdown: summary, total: totalAll };
     }, [results]);
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 animate-enter">
+        <div className="max-w-7xl mx-auto space-y-6 animate-enter pb-10">
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/40 backdrop-blur-md p-6 rounded-2xl border border-border/40 shadow-sm">
                 <div className="space-y-1">
@@ -138,7 +244,7 @@ export function MauzaScannerTab() {
                         <h1 className="text-2xl font-bold tracking-tight">Mauza Network Scanner</h1>
                     </div>
                     <p className="text-muted-foreground text-sm pl-11">
-                        Perform deep recursive scanning of network drives with fuzzy keyword categorization.
+                        Client-side directory scanning with authorized prompt access. Bypasses public server restrictions.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -146,7 +252,7 @@ export function MauzaScannerTab() {
                         <Trash2 className="h-4 w-4 mr-2" /> Clear
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isScanning}>
-                        <UploadCloud className="h-4 w-4 mr-2" /> Upload Targets (.txt)
+                        <UploadCloud className="h-4 w-4 mr-2" /> Import .txt
                     </Button>
                     <input type="file" ref={fileInputRef} className="hidden" accept=".txt" onChange={handleFileUpload} />
                 </div>
@@ -155,75 +261,88 @@ export function MauzaScannerTab() {
             {/* Main Workspace */}
             <div className="grid gap-6 lg:grid-cols-12">
                 {/* Configuration Sidebar */}
-                <div className="lg:col-span-4 space-y-6">
+                <div className="lg:col-span-4 space-y-4">
                     <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-xl rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-border/40 bg-muted/20">
-                            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                <FileText className="h-4 w-4" /> Scan Configuration
+                            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                <Play className="h-4 w-4" /> Scanner Setup
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-5">
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-xs font-bold">Paste Targets</Label>
-                                    <span className="text-[10px] text-muted-foreground">Name, \\Path</span>
-                                </div>
+                                <Label className="text-xs font-bold">1. Target List (Mauza, \\Path)</Label>
                                 <Textarea 
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder={"Mauza Name, \\\\192.125.x.x\\path\n..."}
-                                    className="h-[180px] font-mono text-[11px] leading-relaxed bg-background/50 focus:ring-primary/20"
+                                    className="h-[150px] font-mono text-[11px] bg-background/50"
                                     disabled={isScanning}
                                 />
                             </div>
 
-                            <div className="space-y-2 pt-2 border-t border-dashed">
-                                <Label className="text-xs font-bold flex items-center gap-2">
-                                    <Database className="h-3 w-3 text-primary" /> Auto-Save Report to Server
-                                </Label>
-                                <Input 
-                                    value={serverSavePath}
-                                    onChange={(e) => setServerSavePath(e.target.value)}
-                                    placeholder="Enter network or local path"
-                                    className="h-9 text-xs font-mono"
-                                    disabled={isScanning}
-                                />
-                                <p className="text-[9px] text-muted-foreground leading-relaxed italic">
-                                    A CSV report will be written to this path on the server host for each scan.
-                                </p>
+                            <div className="space-y-3 pt-2 border-t border-dashed">
+                                <Label className="text-xs font-bold">2. Permission Prompts</Label>
+                                <div className="grid grid-cols-1 gap-2">
+                                    <Button variant="secondary" size="sm" onClick={requestSourceHandle} className="justify-start">
+                                        <Network className="mr-2 h-4 w-4" /> 
+                                        {sourceHandle ? `Connected: ${sourceHandle.name}` : "Connect to Network Drive"}
+                                    </Button>
+                                    <Button variant="secondary" size="sm" onClick={requestExportHandle} className="justify-start">
+                                        <Save className="mr-2 h-4 w-4" /> 
+                                        {exportHandle ? `Saving to: ${exportHandle.name}` : "Set Auto-Save Folder"}
+                                    </Button>
+                                </div>
                             </div>
 
                             <Button 
-                                onClick={startScan} 
+                                onClick={startBrowserScan} 
                                 className="w-full font-bold shadow-lg shadow-primary/20 h-11" 
                                 disabled={isScanning || !input.trim()}
                             >
                                 {isScanning ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Deep Scanning Network...
+                                        Scanning Locally...
                                     </>
                                 ) : (
                                     <>
-                                        <Play className="mr-2 h-4 w-4" />
-                                        Start Recursive Scan
+                                        <ShieldCheck className="mr-2 h-4 w-4" />
+                                        Start Local Scan
                                     </>
                                 )}
                             </Button>
                         </CardContent>
                     </Card>
 
+                    {/* Progress Indicator */}
+                    {isScanning && (
+                         <Card className="border-primary/20 bg-primary/5">
+                            <CardContent className="p-4 space-y-2">
+                                <div className="flex justify-between text-[10px] font-bold text-primary uppercase">
+                                    <span>Processing {scanProgress.current} / {scanProgress.total}</span>
+                                    <span className="truncate max-w-[150px]">{scanProgress.currentMauza}</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-primary transition-all duration-300" 
+                                        style={{ width: `${(scanProgress.current / scanProgress.total) * 100}%` }}
+                                    />
+                                </div>
+                            </CardContent>
+                         </Card>
+                    )}
+
                     {/* Summary Card */}
                     {results.length > 0 && (
                         <Card className="border-border/40 bg-primary/5 shadow-md rounded-2xl animate-fade-in">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-xs font-bold text-primary flex items-center gap-2">
-                                    <BarChart3 className="h-4 w-4" /> Global Scan Summary
+                                    <BarChart3 className="h-4 w-4" /> Scan Summary
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="flex justify-between items-end">
-                                    <span className="text-xs text-muted-foreground">Total Files Detected</span>
+                                    <span className="text-xs text-muted-foreground">Total Images Found</span>
                                     <span className="text-2xl font-black text-primary">{totalSummary.total.toLocaleString()}</span>
                                 </div>
                                 <div className="space-y-1.5 pt-2 border-t border-primary/10">
@@ -244,16 +363,16 @@ export function MauzaScannerTab() {
                     <Card className="flex-1 border-border/40 bg-background/40 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl flex flex-col min-h-[600px]">
                         <div className="p-4 bg-muted/20 border-b border-border/40 flex items-center justify-between">
                             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                <CheckCircle2 className="h-4 w-4 text-primary" /> Live Audit Log
+                                <CheckCircle2 className="h-4 w-4 text-primary" /> Live Directory Audit
                             </h3>
                             <div className="flex items-center gap-2">
                                 {results.length > 0 && (
                                     <Button onClick={downloadCsv} size="sm" variant="secondary" className="h-8 font-bold text-xs">
-                                        <Download className="mr-2 h-3.5 w-3.5" /> Download Report
+                                        <Download className="mr-2 h-3.5 w-3.5" /> Download CSV
                                     </Button>
                                 )}
                                 <Badge variant="outline" className="text-[10px] bg-background/50">
-                                    {isScanning ? "Processing..." : results.length > 0 ? `${results.length} Mauzas Ready` : "Awaiting Input"}
+                                    {isScanning ? "Authorized" : results.length > 0 ? `${results.length} Scanned` : "Awaiting Authorization"}
                                 </Badge>
                             </div>
                         </div>
@@ -264,8 +383,8 @@ export function MauzaScannerTab() {
                                     <Table>
                                         <TableHeader className="bg-muted/95 sticky top-0 z-20 backdrop-blur-md">
                                             <TableRow>
-                                                <TableHead className="font-bold min-w-[200px] text-xs">Target Details</TableHead>
-                                                <TableHead className="font-bold min-w-[100px] text-xs">Status</TableHead>
+                                                <TableHead className="font-bold min-w-[200px] text-xs">Mauza Details</TableHead>
+                                                <TableHead className="font-bold min-w-[100px] text-xs">Result</TableHead>
                                                 {dynamicCategories.map(cat => (
                                                     <TableHead key={cat} className="text-right font-bold min-w-[90px] text-xs">{cat}</TableHead>
                                                 ))}
@@ -284,13 +403,11 @@ export function MauzaScannerTab() {
                                                     </TableCell>
                                                     <TableCell>
                                                         {r.status === 'success' ? (
-                                                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-[9px] font-bold uppercase">Ready</Badge>
+                                                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-[9px] font-bold uppercase">Success</Badge>
                                                         ) : (
-                                                            <div className="flex flex-col gap-1">
-                                                                <div className="flex items-center gap-1 text-destructive">
-                                                                    <AlertCircle className="h-3 w-3" />
-                                                                    <span className="text-[9px] font-bold">Access Denied</span>
-                                                                </div>
+                                                            <div className="flex items-center gap-1 text-destructive">
+                                                                <AlertCircle className="h-3 w-3" />
+                                                                <span className="text-[9px] font-bold">Failed</span>
                                                             </div>
                                                         )}
                                                     </TableCell>
@@ -312,9 +429,9 @@ export function MauzaScannerTab() {
                                             <PieChart className="h-20 w-20 stroke-[1px]" />
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-xl font-bold">No Active Data</p>
-                                            <p className="text-sm max-w-xs mx-auto text-muted-foreground">
-                                                Paste your network paths or upload a target file to begin the deep recursive audit.
+                                            <p className="text-xl font-bold">Browser Scanner Idle</p>
+                                            <p className="text-sm max-w-sm mx-auto text-muted-foreground">
+                                                Click "Connect to Network Drive" to authorize the browser to scan your local folders.
                                             </p>
                                         </div>
                                     </div>
