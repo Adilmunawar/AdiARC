@@ -1,7 +1,8 @@
+
 "use client";
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Minimize2, FileScan, MessageSquareQuote } from "lucide-react";
+import { FileCode, Split, Calculator, Box, ScanText, Database, DatabaseZap, ClipboardCheck, Printer, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Minimize2, FileScan, MessageSquareQuote, Move } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSecretMode } from "@/components/layout/Sidebar";
@@ -30,6 +31,12 @@ const allTools = [
         description: "Get advice on Pakistani property laws and inheritance. All conversations are in Urdu.",
         icon: UserCircle,
         path: "/ai-assistant"
+    },
+    {
+        name: "Smart Image Sorter",
+        description: "High-speed local image sorting into subfolders with sequential naming logic.",
+        icon: Move,
+        path: "/image-sorter"
     },
     {
         name: "Range Gaps",
