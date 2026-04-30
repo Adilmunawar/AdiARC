@@ -30,7 +30,6 @@ import Image from 'next/image';
 type FileEntry = {
     handle: FileSystemFileHandle;
     name: string;
-    url: string;
 };
 
 export function ImageSorterTab() {
@@ -40,8 +39,10 @@ export function ImageSorterTab() {
     const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [files, setFiles] = useState<FileEntry[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
     const [isMoving, setIsMoving] = useState(false);
+    const [isImageLoading, setIsImageLoading] = useState(false);
     
     // UI State
     const [folderInput, setFolderInput] = useState("");
@@ -50,10 +51,38 @@ export function ImageSorterTab() {
     const [recentFolders, setRecentFolders] = useState<string[]>([]);
     
     const inputRef = useRef<HTMLInputElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
 
     // Filter for images
     const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp', '.webp'];
+
+    // --- REFINED: Dynamic Image Loading to prevent Memory Leaks ---
+    const loadCurrentImage = useCallback(async () => {
+        if (files.length === 0 || currentIndex < 0 || currentIndex >= files.length) {
+            setCurrentImageUrl(null);
+            return;
+        }
+
+        setIsImageLoading(true);
+        try {
+            const file = await files[currentIndex].handle.getFile();
+            const url = URL.createObjectURL(file);
+            
+            // Clean up old URL
+            setCurrentImageUrl(prev => {
+                if (prev) URL.revokeObjectURL(prev);
+                return url;
+            });
+        } catch (err) {
+            console.error("Failed to load image:", err);
+            toast({ variant: "destructive", title: "Read Error", description: "Could not load this specific file handle." });
+        } finally {
+            setIsImageLoading(false);
+        }
+    }, [files, currentIndex, toast]);
+
+    useEffect(() => {
+        loadCurrentImage();
+    }, [loadCurrentImage]);
 
     const connectFolder = async () => {
         try {
@@ -69,18 +98,16 @@ export function ImageSorterTab() {
                 if (entry.kind === 'file') {
                     const ext = entry.name.split('.').pop()?.toLowerCase();
                     if (ext && IMAGE_EXTENSIONS.includes(`.${ext}`)) {
-                        const file = await entry.getFile();
                         entries.push({
                             handle: entry,
-                            name: entry.name,
-                            url: URL.createObjectURL(file)
+                            name: entry.name
                         });
                     }
                 }
             }
 
             if (entries.length === 0) {
-                toast({ variant: "destructive", title: "No Images Found", description: "No valid image files were found in the selected root folder." });
+                toast({ variant: "destructive", title: "No Images Found", description: "No valid image files were found in the selected folder." });
                 setIsConnecting(false);
                 return;
             }
@@ -90,7 +117,6 @@ export function ImageSorterTab() {
             setIsConnecting(false);
             toast({ title: "Folder Connected", description: `Found ${entries.length} images ready for sorting.` });
             
-            // Auto focus input
             setTimeout(() => inputRef.current?.focus(), 100);
             
         } catch (err: any) {
@@ -109,45 +135,36 @@ export function ImageSorterTab() {
         const folderName = targetFolderName.trim();
 
         try {
-            // 1. Get or Create Subfolder
             const subDirHandle = await directoryHandle.getDirectoryHandle(folderName, { create: true });
             
-            // 2. Determine new filename (Sequential logic)
             const extension = currentFile.name.split('.').pop() || 'jpg';
             let newFileName = `${folderName}.${extension}`;
             let counter = 2;
 
-            // Simple loop to find a free sequential name
             while (true) {
                 try {
                     await subDirHandle.getFileHandle(newFileName);
-                    // If this doesn't throw, the file exists
                     newFileName = `${folderName}(${counter}).${extension}`;
                     counter++;
                 } catch {
-                    // File does not exist, we can use this name
                     break;
                 }
             }
 
-            // 3. Move File (Copy then Delete)
             const file = await currentFile.handle.getFile();
             const newFileHandle = await subDirHandle.getFileHandle(newFileName, { create: true });
             const writable = await newFileHandle.createWritable();
             await writable.write(file);
             await writable.close();
 
-            // 4. Remove original
             await directoryHandle.removeEntry(currentFile.name);
 
-            // 5. Update UI
             toast({ 
                 title: `Sorted to Folder ${folderName}`, 
                 description: `Moved as: ${newFileName}`,
                 duration: 2000 
             });
 
-            // Update recent folders
             setRecentFolders(prev => {
                 const updated = [folderName, ...prev.filter(f => f !== folderName)].slice(0, 5);
                 return updated;
@@ -158,7 +175,6 @@ export function ImageSorterTab() {
             setFiles(newFiles);
             setFolderInput("");
             
-            // If we were at the end, move back one, otherwise stay at same index (which is now the next file)
             if (currentIndex >= newFiles.length && newFiles.length > 0) {
                 setCurrentIndex(newFiles.length - 1);
             }
@@ -167,7 +183,7 @@ export function ImageSorterTab() {
             toast({ variant: "destructive", title: "Move Failed", description: err.message });
         } finally {
             setIsMoving(false);
-            inputRef.current?.focus();
+            setTimeout(() => inputRef.current?.focus(), 50);
         }
     };
 
@@ -204,12 +220,12 @@ export function ImageSorterTab() {
         }
     };
 
-    // Clean up blobs when images change or component unmounts
+    // Final cleanup
     useEffect(() => {
         return () => {
-            files.forEach(f => URL.revokeObjectURL(f.url));
+            if (currentImageUrl) URL.revokeObjectURL(currentImageUrl);
         };
-    }, [files]);
+    }, [currentImageUrl]);
 
     const currentFile = files[currentIndex];
 
@@ -269,22 +285,27 @@ export function ImageSorterTab() {
                     {/* Main Preview Column */}
                     <div className="lg:col-span-8 flex flex-col gap-4">
                         <Card className="flex-1 bg-black/95 rounded-2xl overflow-hidden shadow-2xl relative group border-0">
-                            {currentFile ? (
+                            {currentFile && currentImageUrl ? (
                                 <div className="absolute inset-0 flex items-center justify-center overflow-hidden cursor-zoom-in">
                                     <div 
                                         className="transition-transform duration-200 ease-out h-full w-full relative"
                                         style={{ transform: `scale(${zoom})` }}
                                     >
                                         <Image 
-                                            src={currentFile.url} 
+                                            src={currentImageUrl} 
                                             alt={currentFile.name}
                                             fill
-                                            className="object-contain"
+                                            className={cn("object-contain transition-opacity duration-300", isImageLoading ? "opacity-40" : "opacity-100")}
                                             unoptimized
                                         />
                                     </div>
                                     
-                                    {/* Quick Controls overlay */}
+                                    {isImageLoading && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <Loader2 className="h-10 w-10 text-white animate-spin" />
+                                        </div>
+                                    )}
+                                    
                                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-background/20 backdrop-blur-xl border border-white/10 p-2 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setZoom(z => Math.max(1, z - 0.5))}>
                                             <ZoomOut className="h-4 w-4" />
@@ -303,17 +324,22 @@ export function ImageSorterTab() {
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4">
-                                    <CheckCircle2 className="h-16 w-16" />
-                                    <p className="text-xl font-bold">All Sorted!</p>
+                                    {files.length === 0 ? (
+                                        <>
+                                            <CheckCircle2 className="h-16 w-16" />
+                                            <p className="text-xl font-bold">All Sorted!</p>
+                                        </>
+                                    ) : (
+                                        <Loader2 className="h-10 w-10 animate-spin" />
+                                    )}
                                 </div>
                             )}
 
-                            {/* Nav Overlays */}
                             <Button 
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={goToPrev}
-                                disabled={currentIndex === 0}
+                                disabled={currentIndex === 0 || files.length === 0}
                                 className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-black/20 hover:bg-black/40 text-white border-0 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                                 <ChevronLeft className="h-6 w-6" />
@@ -322,17 +348,16 @@ export function ImageSorterTab() {
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={goToNext}
-                                disabled={currentIndex === files.length - 1}
+                                disabled={currentIndex === files.length - 1 || files.length === 0}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-black/20 hover:bg-black/40 text-white border-0 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                                 <ChevronRight className="h-6 w-6" />
                             </Button>
                         </Card>
                         
-                        {/* File Info Bar */}
                         <div className="flex items-center justify-between px-2 text-[11px] text-muted-foreground font-mono">
                             <span className="truncate max-w-[300px]">{currentFile?.name || "Ready"}</span>
-                            <span>{currentIndex + 1} / {files.length}</span>
+                            <span>{files.length > 0 ? `${currentIndex + 1} / ${files.length}` : "0 / 0"}</span>
                         </div>
                     </div>
 
@@ -358,6 +383,7 @@ export function ImageSorterTab() {
                                             placeholder="Enter Folder Name..."
                                             className="h-14 text-xl font-bold pl-4 pr-12 rounded-xl bg-background/50 border-2 border-primary/20 focus-visible:border-primary shadow-inner"
                                             autoComplete="off"
+                                            disabled={files.length === 0 || isMoving}
                                         />
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                             <div className="p-1.5 bg-muted rounded-md border text-[10px] font-bold text-muted-foreground">⏎</div>
@@ -386,7 +412,7 @@ export function ImageSorterTab() {
                                                     className="h-8 rounded-lg text-xs font-semibold px-3"
                                                     onClick={() => {
                                                         setFolderInput(folder);
-                                                        inputRef.current?.focus();
+                                                        setTimeout(() => inputRef.current?.focus(), 50);
                                                     }}
                                                 >
                                                     {folder}
@@ -398,14 +424,13 @@ export function ImageSorterTab() {
                             </CardContent>
                         </Card>
 
-                        {/* Navigation Card */}
                         <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-md rounded-2xl">
                             <CardContent className="p-4 space-y-4">
                                 <div className="grid grid-cols-2 gap-2">
-                                    <Button variant="outline" className="rounded-lg h-10" onClick={goToPrev} disabled={currentIndex === 0}>
+                                    <Button variant="outline" className="rounded-lg h-10" onClick={goToPrev} disabled={currentIndex === 0 || files.length === 0}>
                                         <ChevronLeft className="mr-2 h-4 w-4" /> Previous
                                     </Button>
-                                    <Button variant="outline" className="rounded-lg h-10" onClick={goToNext} disabled={currentIndex === files.length - 1}>
+                                    <Button variant="outline" className="rounded-lg h-10" onClick={goToNext} disabled={currentIndex === files.length - 1 || files.length === 0}>
                                         Next <ChevronRight className="ml-2 h-4 w-4" />
                                     </Button>
                                 </div>
@@ -418,17 +443,18 @@ export function ImageSorterTab() {
                                             onChange={(e) => setJumpValue(e.target.value)}
                                             className="h-10 rounded-lg text-center font-bold"
                                             onKeyDown={(e) => e.key === 'Enter' && handleJump()}
+                                            disabled={files.length === 0}
                                         />
                                     </div>
-                                    <Button variant="ghost" onClick={handleJump} size="sm" className="h-10 font-bold">GOTO</Button>
+                                    <Button variant="ghost" onClick={handleJump} size="sm" className="h-10 font-bold" disabled={files.length === 0}>GOTO</Button>
                                 </div>
 
                                 <div className="space-y-1 pt-2">
                                     <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
                                         <span>Progress</span>
-                                        <span>{Math.round(((currentIndex + 1) / files.length) * 100)}%</span>
+                                        <span>{files.length > 0 ? Math.round(((currentIndex + 1) / files.length) * 100) : 0}%</span>
                                     </div>
-                                    <Progress value={((currentIndex + 1) / files.length) * 100} className="h-1" />
+                                    <Progress value={files.length > 0 ? ((currentIndex + 1) / files.length) * 100 : 0} className="h-1" />
                                 </div>
                             </CardContent>
                         </Card>
@@ -448,4 +474,3 @@ export function ImageSorterTab() {
         </div>
     );
 }
-
