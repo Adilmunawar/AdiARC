@@ -284,9 +284,21 @@ export function ImageSorterTab() {
             if (e.key === 'ArrowRight') {
                 e.preventDefault();
                 goToNext();
+                return;
             } else if (e.key === 'ArrowLeft') {
                 e.preventDefault();
                 goToPrev();
+                return;
+            }
+
+            // Capture alphanumeric typing globally if not using modifier keys (Ctrl, Alt, Meta)
+            if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
+                // Ignore space to prevent unintended scrolling, or allow it if it's for filenames
+                if (e.key === ' ') return;
+                
+                e.preventDefault();
+                setFolderInput(prev => prev + e.key);
+                setTimeout(() => inputRef.current?.focus(), 10);
             }
         };
 
