@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Camera, Folder, Settings, Focus, RefreshCw, Image as ImageIcon, BookOpen, Receipt, FileText, Cpu, Info, Sliders, Layers, Sun, Contrast, RotateCw } from "lucide-react";
+import { Camera, Folder, Settings, Focus, RefreshCw, Image as ImageIcon, BookOpen, Receipt, FileText, Cpu, Info, Sliders, Layers, Sun, Contrast, RotateCw, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +53,7 @@ export function HardwareScannerTab() {
   const [bitDepth, setBitDepth] = useState("24");
   const [fileFormat, setFileFormat] = useState("jpeg");
   const [saveDir, setSaveDir] = useState("C:\\Scans");
+  const [fileSequence, setFileSequence] = useState("0001");
   
   // Enhancement sliders
   const [brightness, setBrightness] = useState(0);
@@ -112,7 +113,7 @@ export function HardwareScannerTab() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [streamActive, isScanning, saveDir, mode, resolution, selectedDevice, brightness, contrast, bitDepth, fileFormat, rotation, quality, warmTint]);
+  }, [streamActive, isScanning, saveDir, mode, resolution, selectedDevice, brightness, contrast, bitDepth, fileFormat, rotation, quality, warmTint, fileSequence]);
 
   const startStream = async () => {
     stopStream();
@@ -178,6 +179,15 @@ export function HardwareScannerTab() {
     }
   };
 
+  const incrementSequence = (current: string) => {
+    const match = current.match(/(\d+)$/);
+    if (!match) return current;
+    const numStr = match[1];
+    const nextNum = parseInt(numStr, 10) + 1;
+    const padded = nextNum.toString().padStart(numStr.length, "0");
+    return current.replace(/(\d+)$/, padded);
+  };
+
   const handleScan = async () => {
     if (!streamActive || !videoRef.current) {
       toast.error("Scanner is not ready.");
@@ -231,11 +241,12 @@ export function HardwareScannerTab() {
         ctx.putImageData(imgData, 0, 0);
       }
       
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const imagesToSave = [];
       const imageFormatMime = fileFormat === "png" ? "image/png" : "image/jpeg";
       const fileExt = fileFormat === "png" ? "png" : "jpg";
       
+      let nextBase = fileSequence;
+
       if (mode === "book") {
           const halfWidth = Math.floor(canvas.width / 2);
           
@@ -252,18 +263,26 @@ export function HardwareScannerTab() {
           rightCtx?.drawImage(canvas, halfWidth, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
 
           imagesToSave.push({
-              filename: `scan_book_left_${timestamp}.${fileExt}`,
+              filename: `${nextBase}_left.${fileExt}`,
               base64: leftCanvas.toDataURL(imageFormatMime, quality / 100)
           });
+          
+          nextBase = incrementSequence(nextBase);
+
           imagesToSave.push({
-              filename: `scan_book_right_${timestamp}.${fileExt}`,
+              filename: `${nextBase}_right.${fileExt}`,
               base64: rightCanvas.toDataURL(imageFormatMime, quality / 100)
           });
+
+          // And increment for the next capture
+          setFileSequence(incrementSequence(nextBase));
       } else {
           imagesToSave.push({
-              filename: `scan_${mode}_${timestamp}.${fileExt}`,
+              filename: `${nextBase}.${fileExt}`,
               base64: canvas.toDataURL(imageFormatMime, quality / 100)
           });
+          
+          setFileSequence(incrementSequence(nextBase));
       }
 
       const res = await fetch("/api/save-scan", {
@@ -307,27 +326,27 @@ export function HardwareScannerTab() {
   dynamicResolutions.sort((a, b) => (a.width * a.height) - (b.width * b.height));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] w-full gap-3 p-3 overflow-hidden select-none bg-background dark:bg-background">
+    <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-4 sm:-my-6 lg:-my-8 flex flex-col h-[calc(100%+2rem)] sm:h-[calc(100%+3rem)] lg:h-[calc(100%+4rem)] w-[calc(100%+2rem)] sm:w-[calc(100%+3rem)] lg:w-[calc(100%+4rem)] gap-3 p-4 overflow-hidden select-none bg-background dark:bg-background">
       
       {/* 3-Column Studio Display */}
       <div className="grid grid-cols-1 xl:grid-cols-12 h-full gap-3 max-h-full flex-1 overflow-hidden">
         
         {/* Left Column: Settings & Direct Access */}
-        <div className="xl:col-span-2 flex flex-col justify-start h-full gap-3 min-h-0 overflow-hidden">
+        <div className="xl:col-span-3 flex flex-col justify-start h-full gap-3 min-h-0 overflow-hidden">
           
           {/* Hardware Configuration */}
-          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-3.5 flex flex-col gap-3 shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-4 flex flex-col gap-3 shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
             <h3 className="text-xs font-bold flex items-center gap-1.5 text-primary uppercase tracking-wider">
               <Settings className="w-3.5 h-3.5" /> Hardware Source
             </h3>
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold text-muted-foreground flex items-center justify-between leading-tight">
                   <span>Attached Sensor</span>
                   {selectedDevice && <span className="text-primary/70 text-[8px] uppercase tracking-wider font-extrabold">Active</span>}
                 </Label>
                 <Select value={selectedDevice} onValueChange={setSelectedDevice}>
-                    <SelectTrigger className="w-full h-8.5 px-3 text-[11px] bg-white dark:bg-slate-950 border border-primary/20 hover:border-primary/40 rounded-xl transition-all duration-200">
+                    <SelectTrigger className="w-full h-9 px-3 text-[11px] bg-white dark:bg-slate-950 border border-primary/20 hover:border-primary/40 rounded-xl transition-all duration-200">
                         <SelectValue placeholder="No source found" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-900 border border-primary/20 rounded-xl">
@@ -345,7 +364,7 @@ export function HardwareScannerTab() {
               </div>
 
               {hardwareDetails.maxMP && (
-                <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl p-2 text-[10px] text-muted-foreground leading-tight flex items-start gap-1 backdrop-blur-sm">
+                <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl p-2.5 text-[10px] text-muted-foreground leading-tight flex items-start gap-1 backdrop-blur-sm">
                   <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                   <div>Detected true maximum: <strong className="text-primary font-bold">{hardwareDetails.maxMP} MP</strong> ({hardwareDetails.maxWidth}×{hardwareDetails.maxHeight})</div>
                 </div>
@@ -354,7 +373,7 @@ export function HardwareScannerTab() {
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold text-muted-foreground leading-tight">Output Native Precision</Label>
                 <Select value={resolution} onValueChange={setResolution}>
-                    <SelectTrigger className="w-full h-8.5 px-3 text-[11px] bg-white dark:bg-slate-950 border border-primary/20 hover:border-primary/40 rounded-xl transition-all duration-200">
+                    <SelectTrigger className="w-full h-9 px-3 text-[11px] bg-white dark:bg-slate-950 border border-primary/20 hover:border-primary/40 rounded-xl transition-all duration-200">
                         <SelectValue placeholder="Resolution" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-900 border border-primary/20 rounded-xl">
@@ -370,7 +389,7 @@ export function HardwareScannerTab() {
           </div>
 
           {/* Disk Directory Path & Compression Settings */}
-          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-3.5 flex flex-col gap-3 shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-4 flex flex-col gap-3 shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
             <h3 className="text-xs font-bold flex items-center gap-1.5 text-primary uppercase tracking-wider">
               <Folder className="w-3.5 h-3.5" /> File Extensions
             </h3>
@@ -396,6 +415,18 @@ export function HardwareScannerTab() {
                         )
                     })}
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold text-muted-foreground leading-tight flex items-center gap-1">
+                  <Hash className="w-3 h-3 text-primary" /> Auto Sequence Index
+                </Label>
+                <Input 
+                    value={fileSequence} 
+                    onChange={(e) => setFileSequence(e.target.value)}
+                    placeholder="0001" 
+                    className="font-mono text-[11px] border-primary/20 bg-white dark:bg-slate-950 h-8.5 px-3 hover:border-primary/40 rounded-xl transition-all duration-200"
+                />
               </div>
 
               <div className="space-y-1">
@@ -427,9 +458,9 @@ export function HardwareScannerTab() {
         </div>
 
         {/* Center Viewfinder Area */}
-        <div className="xl:col-span-7 flex flex-col h-full gap-2 min-h-0 overflow-hidden">
+        <div className="xl:col-span-6 flex flex-col h-full gap-2 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-hidden flex flex-col bg-black border border-primary/20 shadow-none rounded-2xl min-h-0 select-none">
-            <div className="bg-primary/10 p-2 border-b border-primary/20 backdrop-blur-xl flex justify-between items-center select-none rounded-t-2xl">
+            <div className="bg-primary/10 p-2.5 border-b border-primary/20 backdrop-blur-xl flex justify-between items-center select-none rounded-t-2xl">
                 <div className="flex items-center gap-1 text-xs font-bold text-primary">
                     <Focus className="w-3.5 h-3.5 text-primary animate-pulse" /> Live Preview
                 </div>
@@ -481,7 +512,7 @@ export function HardwareScannerTab() {
              <Button 
                 onClick={handleScan} 
                 disabled={!streamActive || isScanning}
-                className="w-full h-10 text-sm font-black bg-primary text-primary-foreground hover:bg-primary/90 shadow-none border border-primary/20 active:scale-[0.98] transition-all flex items-center justify-center rounded-2xl"
+                className="w-full h-11 text-sm font-black bg-primary text-primary-foreground hover:bg-primary/90 shadow-none border border-primary/20 active:scale-[0.98] transition-all flex items-center justify-center rounded-2xl"
              >
                 {isScanning ? (
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin text-white" />
@@ -497,11 +528,11 @@ export function HardwareScannerTab() {
         <div className="xl:col-span-3 flex flex-col justify-start h-full gap-3 min-h-0 overflow-hidden">
           
           {/* Scanning Mode Selection */}
-          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-3.5 flex flex-col gap-2 justify-between select-none shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-4 flex flex-col gap-2 justify-between select-none shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
             <h3 className="text-xs font-bold flex items-center gap-1.5 text-primary uppercase tracking-wider">
               <Focus className="w-3.5 h-3.5" /> Target Profile
             </h3>
-            <div className="grid grid-cols-2 gap-1.5 flex-1">
+            <div className="grid grid-cols-2 gap-2 flex-1">
                 {SCAN_MODES.map(m => {
                     const Icon = m.icon;
                     const isSelected = mode === m.id;
@@ -510,13 +541,13 @@ export function HardwareScannerTab() {
                             key={m.id}
                             onClick={() => setMode(m.id)}
                             className={cn(
-                                "cursor-pointer rounded-xl border p-1.5 flex flex-col items-center justify-center text-center transition-all duration-300 select-none",
+                                "cursor-pointer rounded-xl border p-2 flex flex-col items-center justify-center text-center transition-all duration-300 select-none",
                                 isSelected 
                                     ? "border-primary bg-primary/10 shadow-sm" 
                                     : "border-border/60 bg-background/50 hover:border-primary/40"
                             )}
                         >
-                            <Icon className={cn("w-3.5 h-3.5 mb-0.5", isSelected ? "text-primary" : "text-muted-foreground")} />
+                            <Icon className={cn("w-4 h-4 mb-0.5", isSelected ? "text-primary" : "text-muted-foreground")} />
                             <p className={cn("text-[11px] font-bold leading-tight", isSelected ? "text-primary" : "text-foreground")}>{m.name}</p>
                             <p className="text-[9px] text-muted-foreground line-clamp-1">{m.desc}</p>
                         </div>
@@ -526,15 +557,15 @@ export function HardwareScannerTab() {
           </div>
 
           {/* Custom Filters & Real-time Enhancement */}
-          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-3.5 flex flex-col gap-2.5 shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-2xl p-4 flex flex-col gap-2.5 shadow-none overflow-hidden select-none hover:border-primary/40 transition-all duration-300">
             <h3 className="text-xs font-bold flex items-center gap-1.5 text-primary uppercase tracking-wider">
               <Sliders className="w-3.5 h-3.5" /> Advanced Image Controls
             </h3>
-            <div className="space-y-2 bg-primary/5 p-2 rounded-xl border border-primary/10">
+            <div className="space-y-3 bg-primary/5 p-2.5 rounded-xl border border-primary/10">
                
                <div className="space-y-0.5">
                   <div className="flex justify-between text-[10px] font-semibold">
-                     <span className="flex items-center gap-1"><Sun className="w-3 h-3 text-primary" /> Brightness</span>
+                     <span className="flex items-center gap-1"><Sun className="w-3.5 h-3.5 text-primary" /> Brightness</span>
                      <span className={cn(brightness > 0 ? "text-primary font-bold" : "")}>{brightness}%</span>
                   </div>
                   <Slider
@@ -549,7 +580,7 @@ export function HardwareScannerTab() {
 
                <div className="space-y-0.5">
                   <div className="flex justify-between text-[10px] font-semibold">
-                     <span className="flex items-center gap-1"><Contrast className="w-3 h-3 text-primary" /> Contrast</span>
+                     <span className="flex items-center gap-1"><Contrast className="w-3.5 h-3.5 text-primary" /> Contrast</span>
                      <span className={cn(contrast > 0 ? "text-primary font-bold" : "")}>{contrast}%</span>
                   </div>
                   <Slider
@@ -565,7 +596,7 @@ export function HardwareScannerTab() {
                {/* Add warmth / Tint slider */}
                <div className="space-y-0.5">
                   <div className="flex justify-between text-[10px] font-semibold">
-                     <span className="flex items-center gap-1"><Layers className="w-3 h-3 text-primary" /> Warmth / Tint</span>
+                     <span className="flex items-center gap-1"><Layers className="w-3.5 h-3.5 text-primary" /> Warmth / Tint</span>
                      <span className={cn(warmTint > 0 ? "text-primary font-bold" : "")}>{warmTint}%</span>
                   </div>
                   <Slider
@@ -578,10 +609,10 @@ export function HardwareScannerTab() {
                   />
                </div>
 
-               <div className="pt-1.5 border-t border-primary/10 flex flex-col gap-1.5">
-                 <div className="space-y-0.5">
+               <div className="pt-1.5 border-t border-primary/10 flex flex-col gap-2">
+                 <div className="space-y-1">
                     <span className="font-semibold flex items-center gap-1 text-[10px] text-muted-foreground leading-tight">
-                      <RotateCw className="w-3 h-3 text-primary" /> Orientation
+                      <RotateCw className="w-3.5 h-3.5 text-primary" /> Orientation
                     </span>
                     <div className="grid grid-cols-4 gap-0.5 bg-primary/5 p-1 border border-primary/20 rounded-xl">
                         {ROTATIONS.map(rot => {
@@ -591,7 +622,7 @@ export function HardwareScannerTab() {
                                     key={rot.id}
                                     onClick={() => setRotation(rot.id)}
                                     className={cn(
-                                        "cursor-pointer rounded-lg px-1.5 py-1 text-center transition-all text-[10px] font-bold select-none",
+                                        "cursor-pointer rounded-lg px-1.5 py-1 text-center transition-all text-[11px] font-bold select-none",
                                         isSelected 
                                             ? "bg-primary text-primary-foreground shadow-sm" 
                                             : "text-muted-foreground hover:bg-primary/20"
@@ -605,9 +636,9 @@ export function HardwareScannerTab() {
                  </div>
 
                  {/* Bit depth picker */}
-                 <div className="space-y-0.5">
+                 <div className="space-y-1">
                     <span className="font-semibold flex items-center gap-1 text-[10px] text-muted-foreground leading-tight">
-                       <Layers className="w-3 h-3 text-primary" /> Bit Depth
+                       <Layers className="w-3.5 h-3.5 text-primary" /> Bit Depth
                     </span>
                     <div className="grid grid-cols-3 gap-0.5 bg-primary/5 p-1 border border-primary/20 rounded-xl">
                         {BIT_DEPTHS.map(bd => {
@@ -617,7 +648,7 @@ export function HardwareScannerTab() {
                                     key={bd.id}
                                     onClick={() => setBitDepth(bd.id)}
                                     className={cn(
-                                        "cursor-pointer rounded-lg px-1 py-1 text-center transition-all text-[10px] font-bold select-none leading-tight",
+                                        "cursor-pointer rounded-lg px-1 py-1 text-center transition-all text-[11px] font-bold select-none leading-tight",
                                         isSelected 
                                             ? "bg-primary text-primary-foreground shadow-sm" 
                                             : "text-muted-foreground hover:bg-primary/20"
