@@ -49,6 +49,9 @@ export function ImageSorterTab() {
     // UI State
     const [folderInput, setFolderInput] = useState("");
     const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [jumpValue, setJumpValue] = useState("");
     const [recentFolders, setRecentFolders] = useState<string[]>([]);
     const [sessionStats, setSessionStats] = useState({ moved: 0, skipped: 0 });
@@ -90,6 +93,11 @@ export function ImageSorterTab() {
     useEffect(() => {
         loadCurrentImage();
     }, [loadCurrentImage]);
+
+    useEffect(() => {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+    }, [currentIndex]);
 
     const connectFolder = async () => {
         try {
@@ -343,18 +351,53 @@ export function ImageSorterTab() {
                             {currentFile && currentImageUrl ? (
                                 <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
                                     <div 
-                                        className="transition-transform duration-200 ease-out h-full w-full relative select-none"
+                                        className={cn(
+                                            "h-full w-full relative select-none flex items-center justify-center",
+                                            isDragging ? "cursor-grabbing duration-0" : (zoom > 1 ? "cursor-grab" : "cursor-default")
+                                        )}
                                         style={{ 
-                                            transform: `scale(${zoom})`,
-                                            cursor: zoom > 1 ? 'grab' : 'default' 
+                                            transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+                                            transition: isDragging ? 'none' : 'transform 150ms ease-out'
                                         }}
+                                        onMouseDown={(e) => {
+                                            if (zoom > 1) {
+                                                setIsDragging(true);
+                                                setDragStart({ x: e.clientX - pan.x * zoom, y: e.clientY - pan.y * zoom });
+                                            }
+                                        }}
+                                        onMouseMove={(e) => {
+                                            if (isDragging && zoom > 1) {
+                                                const dx = (e.clientX - dragStart.x) / zoom;
+                                                const dy = (e.clientY - dragStart.y) / zoom;
+                                                setPan({ x: dx, y: dy });
+                                            }
+                                        }}
+                                        onMouseUp={() => setIsDragging(false)}
+                                        onMouseLeave={() => setIsDragging(false)}
+                                        onTouchStart={(e) => {
+                                            if (zoom > 1 && e.touches.length === 1) {
+                                                setIsDragging(true);
+                                                setDragStart({ 
+                                                    x: e.touches[0].clientX - pan.x * zoom, 
+                                                    y: e.touches[0].clientY - pan.y * zoom 
+                                                });
+                                            }
+                                        }}
+                                        onTouchMove={(e) => {
+                                            if (isDragging && zoom > 1 && e.touches.length === 1) {
+                                                const dx = (e.touches[0].clientX - dragStart.x) / zoom;
+                                                const dy = (e.touches[0].clientY - dragStart.y) / zoom;
+                                                setPan({ x: dx, y: dy });
+                                            }
+                                        }}
+                                        onTouchEnd={() => setIsDragging(false)}
                                     >
                                         <Image 
                                             src={currentImageUrl} 
                                             alt={currentFile.name}
                                             fill
                                             className={cn(
-                                                "object-contain transition-opacity duration-300 pointer-events-none", 
+                                                "object-contain transition-opacity duration-300 pointer-events-none select-none", 
                                                 isImageLoading ? "opacity-30" : "opacity-100"
                                             )}
                                             unoptimized
@@ -370,17 +413,26 @@ export function ImageSorterTab() {
                                     
                                     {/* Overlay Controls */}
                                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-background/20 backdrop-blur-2xl border border-white/10 p-2 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setZoom(z => Math.max(1, z - 0.5))}>
+                                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => {
+                                            setZoom(z => {
+                                                const newZoom = Math.max(1, z - 0.5);
+                                                if (newZoom === 1) setPan({ x: 0, y: 0 });
+                                                return newZoom;
+                                            });
+                                        }}>
                                             <ZoomOut className="h-4 w-4" />
                                         </Button>
-                                        <div className="w-14 text-center text-[11px] font-black text-white uppercase tracking-tighter tabular-nums">
+                                        <div className="w-14 text-center text-[11px] font-black text-white uppercase tracking-tighter tabular-nums select-none">
                                             {Math.round(zoom * 100)}%
                                         </div>
                                         <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setZoom(z => Math.min(5, z + 0.5))}>
                                             <ZoomIn className="h-4 w-4" />
                                         </Button>
                                         <div className="w-px h-5 bg-white/20 mx-1" />
-                                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setZoom(1)}>
+                                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => {
+                                            setZoom(1);
+                                            setPan({ x: 0, y: 0 });
+                                        }}>
                                             <RotateCcw className="h-4 w-4" />
                                         </Button>
                                     </div>
