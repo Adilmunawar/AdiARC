@@ -72,6 +72,16 @@ export function MauzaScannerTab() {
 
     const requestSourceHandle = async () => {
         try {
+            if (!(window as any).showDirectoryPicker) {
+                const origin = typeof window !== 'undefined' ? window.location.origin : 'http://192.168.0.107:3000';
+                toast({
+                    variant: "destructive",
+                    title: "Security Context Required",
+                    description: `The browser blocks experimental File System APIs over network HTTP. To enable, go to chrome://flags/#unsafely-treat-insecure-origin-as-secure in your browser, add '${origin}', select 'Enabled' from dropdown, and relaunch.`,
+                    duration: 15000
+                });
+                return null;
+            }
             const handle = await (window as any).showDirectoryPicker({
                 mode: 'read'
             });
@@ -88,6 +98,16 @@ export function MauzaScannerTab() {
 
     const requestExportHandle = async () => {
         try {
+            if (!(window as any).showDirectoryPicker) {
+                const origin = typeof window !== 'undefined' ? window.location.origin : 'http://192.168.0.107:3000';
+                toast({
+                    variant: "destructive",
+                    title: "Security Context Required",
+                    description: `The browser blocks experimental File System APIs over network HTTP. To enable, go to chrome://flags/#unsafely-treat-insecure-origin-as-secure in your browser, add '${origin}', select 'Enabled' from dropdown, and relaunch.`,
+                    duration: 15000
+                });
+                return null;
+            }
             const handle = await (window as any).showDirectoryPicker({
                 mode: 'readwrite'
             });

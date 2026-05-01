@@ -102,6 +102,19 @@ export function ImageSorterTab() {
     const connectFolder = async () => {
         try {
             setIsConnecting(true);
+            
+            if (!(window as any).showDirectoryPicker) {
+                const origin = typeof window !== 'undefined' ? window.location.origin : 'http://192.168.0.107:3000';
+                toast({
+                    variant: "destructive",
+                    title: "Security Context Required",
+                    description: `The browser blocks experimental File System APIs over network HTTP. To enable, go to chrome://flags/#unsafely-treat-insecure-origin-as-secure in your browser, add '${origin}' to the text box, select 'Enabled' from the dropdown, and click relaunch.`,
+                    duration: 15000
+                });
+                setIsConnecting(false);
+                return;
+            }
+
             const handle = await (window as any).showDirectoryPicker({
                 mode: 'readwrite'
             });
@@ -243,29 +256,43 @@ export function ImageSorterTab() {
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            moveCurrentFile(folderInput);
-        } else if (e.key === 'ArrowRight' && e.ctrlKey) {
-            goToNext();
-        } else if (e.key === 'ArrowLeft' && e.ctrlKey) {
-            goToPrev();
-        }
-    };
-
-    const goToNext = () => {
+    const goToNext = useCallback(() => {
         if (currentIndex < files.length - 1) {
             setCurrentIndex(prev => prev + 1);
             setZoom(1);
         }
-    };
+    }, [currentIndex, files.length]);
 
-    const goToPrev = () => {
+    const goToPrev = useCallback(() => {
         if (currentIndex > 0) {
             setCurrentIndex(prev => prev - 1);
             setZoom(1);
         }
+    }, [currentIndex]);
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            moveCurrentFile(folderInput);
+        }
     };
+
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+            if (isInput) return;
+
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                goToNext();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                goToPrev();
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [goToNext, goToPrev]);
 
     const handleJump = () => {
         const val = parseInt(jumpValue);
@@ -327,22 +354,87 @@ export function ImageSorterTab() {
             </div>
 
             {!directoryHandle ? (
-                <Card className="flex-1 border-dashed border-2 bg-muted/10 flex items-center justify-center min-h-[300px]">
-                    <CardContent className="flex flex-col items-center justify-center text-center space-y-4 max-w-sm p-4">
-                        <div className="p-6 bg-background rounded-full shadow-2xl border-4 border-muted/20">
-                            <FolderOpen className="h-12 w-12 text-primary/30" />
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="text-xl font-bold">Ready to Sort?</h3>
-                            <p className="text-xs text-muted-foreground">
-                                Select a local folder or network share. This tool moves files <strong>locally</strong> for privacy and speed.
-                            </p>
-                        </div>
-                        <Button onClick={connectFolder} size="sm" className="rounded-xl h-10 px-8 text-sm font-bold">
-                            Select Source Directory
-                        </Button>
-                    </CardContent>
-                </Card>
+                <div className="flex-1 grid gap-4 lg:grid-cols-12 min-h-[400px]">
+                    <Card className="lg:col-span-5 border bg-card/40 backdrop-blur-md shadow-xl flex items-center justify-center border-border/40 p-5 rounded-2xl">
+                        <CardContent className="flex flex-col items-center justify-center text-center space-y-4 p-0 max-w-sm">
+                            <div className="p-5 bg-primary/10 rounded-full shadow-2xl border-4 border-primary/20 relative group animate-pulse duration-[3000ms]">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full blur opacity-40 group-hover:opacity-100 transition duration-500"></div>
+                                <FolderOpen className="h-10 w-10 text-primary relative" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-bold tracking-tight">Ready to Sort?</h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Connect a local directory or network share. Images are processed locally for top-tier speed and total data security.
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={connectFolder} 
+                                size="lg" 
+                                className="rounded-xl h-12 w-full max-w-[280px] font-black text-sm shadow-xl shadow-primary/20 bg-gradient-to-r from-primary to-primary/90 hover:opacity-95 transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 mt-2"
+                            >
+                                <FolderOpen className="mr-2.5 h-4 w-4" /> Connect Source Directory
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <div className="lg:col-span-7 grid grid-cols-2 gap-3.5 flex-1 content-center">
+                        <Card className="border bg-card/30 backdrop-blur-md border-border/40 p-4 rounded-xl shadow-sm group hover:border-primary/30 transition-all duration-300">
+                            <CardContent className="p-0 space-y-2 select-none">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:scale-110 transition-transform">
+                                        <Hash className="h-4 w-4" />
+                                    </div>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Multi-Folder Sorting</h4>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed pl-1">
+                                    Move or copy images sequentially to multiple folders. Type comma-separated folder names (e.g. `101,102`).
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border bg-card/30 backdrop-blur-md border-border/40 p-4 rounded-xl shadow-sm group hover:border-primary/30 transition-all duration-300">
+                            <CardContent className="p-0 space-y-2 select-none">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:scale-110 transition-transform">
+                                        <Move className="h-4 w-4" />
+                                    </div>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Drag & Pan Zoom</h4>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed pl-1">
+                                    Zoom into files with exact scaling. Click and drag or pan the image directly to inspect every precise detail.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border bg-card/30 backdrop-blur-md border-border/40 p-4 rounded-xl shadow-sm group hover:border-primary/30 transition-all duration-300">
+                            <CardContent className="p-0 space-y-2 select-none">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:scale-110 transition-transform">
+                                        <Keyboard className="h-4 w-4" />
+                                    </div>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">High-Speed Shortcuts</h4>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed pl-1">
+                                    Blazing fast shortcuts using single <span className="font-mono bg-background px-1 py-0.5 rounded border">←/→</span> keys to navigate files anywhere in the tab.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border bg-card/30 backdrop-blur-md border-border/40 p-4 rounded-xl shadow-sm group hover:border-primary/30 transition-all duration-300">
+                            <CardContent className="p-0 space-y-2 select-none">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:scale-110 transition-transform">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                    </div>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Queue Progress</h4>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed pl-1">
+                                    Track progress at any time. Features real-time indicators, dynamic percentage tracking, and session stats.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             ) : (
                 <div className="grid gap-3 lg:grid-cols-12 flex-1">
                     {/* Main Preview Column */}
@@ -618,7 +710,7 @@ export function ImageSorterTab() {
                             <div className="grid grid-cols-1 gap-1.5">
                                 <div className="flex items-center justify-between text-[9px]">
                                     <span className="text-muted-foreground font-medium">Next / Prev</span>
-                                    <span className="font-mono bg-background px-1 py-0.5 rounded border border-border/60">CTRL + ←/→</span>
+                                    <span className="font-mono bg-background px-1 py-0.5 rounded border border-border/60">←/→</span>
                                 </div>
                                 <div className="flex items-center justify-between text-[9px]">
                                     <span className="text-muted-foreground font-medium">Quick Move</span>
