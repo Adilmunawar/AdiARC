@@ -218,8 +218,8 @@ export function Sidebar() {
       )}
     >
       <div className={cn("flex h-16 items-center border-b px-4 transition-all duration-300", isOpen ? "justify-start" : "justify-center")}>
-         <div className="flex items-center gap-2 group cursor-pointer">
-            <Globe className="h-7 w-7 text-primary transition-transform duration-300 group-hover:scale-110" />
+          <div className="flex items-center gap-2 group cursor-pointer select-none">
+            <img src="/AdiARC - Logo.png" alt="AdiARC Logo" className="h-10 w-auto max-w-[40px] max-h-10 object-contain transition-transform duration-300 group-hover:scale-105" />
             {isOpen && <span className="font-bold text-lg transition-opacity duration-300">AdiARC</span>}
         </div>
       </div>
