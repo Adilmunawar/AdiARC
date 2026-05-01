@@ -20,10 +20,10 @@ const port = 3000;
 
 console.clear();
 console.log('\x1b[36m%s\x1b[0m', '================================================');
-console.log('\x1b[32m%s\x1b[0m', ' 🚀 Starting AdiARC Local Development Server');
+console.log('\x1b[32m%s\x1b[0m', ' Starting AdiARC Local Development Server');
 console.log('\x1b[36m%s\x1b[0m', '================================================');
-console.log(` 💻 Local URL:   \x1b[35mhttp://localhost:${port}\x1b[0m`);
-console.log(` 🌐 Network URL: \x1b[35mhttp://${ip}:${port}\x1b[0m`);
+console.log(`  Local URL:   \x1b[35mhttp://localhost:${port}\x1b[0m`);
+console.log(`  Network URL: \x1b[35mhttp://${ip}:${port}\x1b[0m`);
 console.log('\x1b[36m%s\x1b[0m', '================================================\n');
 
 // Spawn next dev on all network interfaces, pipe stdout to adjust logs

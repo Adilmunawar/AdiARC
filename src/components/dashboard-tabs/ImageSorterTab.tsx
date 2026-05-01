@@ -281,64 +281,65 @@ export function ImageSorterTab() {
     const currentFile = files[currentIndex];
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 animate-enter pb-10 h-full flex flex-col">
+        <div className="max-w-7xl mx-auto space-y-3 animate-enter pb-4 h-full flex flex-col">
             {/* Top Stats & Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/60 backdrop-blur-md p-5 rounded-2xl border border-border/40 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-card/60 backdrop-blur-md p-3 md:p-4 rounded-xl border border-border/40 shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-primary/10 rounded-xl shadow-inner">
-                        <Move className="h-6 w-6 text-primary" />
+                    <div className="p-2 bg-primary/10 rounded-xl shadow-inner">
+                        <Move className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold tracking-tight">Smart Image Sorter</h1>
-                        <p className="text-muted-foreground text-xs">Organize local images into subfolders with keyboard precision.</p>
+                        <h1 className="text-lg font-bold tracking-tight leading-none">Smart Image Sorter</h1>
+                        <p className="text-muted-foreground text-[10px] md:text-xs">Organize local images into subfolders with keyboard precision.</p>
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-4 mr-4 px-4 py-1.5 bg-background/50 rounded-lg border border-dashed">
+                    <div className="flex items-center gap-3 mr-2 px-3 py-1 bg-background/50 rounded-lg border border-dashed">
                         <div className="text-center">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Moved</p>
-                            <p className="text-sm font-bold text-primary">{sessionStats.moved}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase leading-none">Moved</p>
+                            <p className="text-xs font-bold text-primary leading-none mt-0.5">{sessionStats.moved}</p>
                         </div>
-                        <div className="w-px h-6 bg-border" />
+                        <div className="w-px h-5 bg-border" />
                         <div className="text-center">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Total</p>
-                            <p className="text-sm font-bold">{files.length}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase leading-none">Total</p>
+                            <p className="text-xs font-bold leading-none mt-0.5">{files.length}</p>
                         </div>
                     </div>
                     <Button 
                         onClick={connectFolder} 
                         variant={directoryHandle ? "outline" : "default"} 
                         disabled={isConnecting}
-                        className="rounded-xl shadow-lg shadow-primary/10"
+                        size="sm"
+                        className="rounded-lg shadow-sm text-xs h-9 px-3"
                     >
-                        {isConnecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderOpen className="mr-2 h-4 w-4" />}
-                        {directoryHandle ? "Change Folder" : "Connect Source Folder"}
+                        {isConnecting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <FolderOpen className="mr-2 h-3.5 w-3.5" />}
+                        {directoryHandle ? "Change" : "Connect"}
                     </Button>
                 </div>
             </div>
 
             {!directoryHandle ? (
-                <Card className="flex-1 border-dashed border-2 bg-muted/10 flex items-center justify-center min-h-[400px]">
-                    <CardContent className="flex flex-col items-center justify-center text-center space-y-6 max-w-sm">
-                        <div className="p-8 bg-background rounded-full shadow-2xl border-4 border-muted/20">
-                            <FolderOpen className="h-16 w-16 text-primary/30" />
+                <Card className="flex-1 border-dashed border-2 bg-muted/10 flex items-center justify-center min-h-[300px]">
+                    <CardContent className="flex flex-col items-center justify-center text-center space-y-4 max-w-sm p-4">
+                        <div className="p-6 bg-background rounded-full shadow-2xl border-4 border-muted/20">
+                            <FolderOpen className="h-12 w-12 text-primary/30" />
                         </div>
-                        <div className="space-y-2">
-                            <h3 className="text-2xl font-bold">Ready to Sort?</h3>
-                            <p className="text-sm text-muted-foreground">
+                        <div className="space-y-1">
+                            <h3 className="text-xl font-bold">Ready to Sort?</h3>
+                            <p className="text-xs text-muted-foreground">
                                 Select a local folder or network share. This tool moves files <strong>locally</strong> for privacy and speed.
                             </p>
                         </div>
-                        <Button onClick={connectFolder} size="lg" className="rounded-xl h-12 px-10 text-base font-bold">
+                        <Button onClick={connectFolder} size="sm" className="rounded-xl h-10 px-8 text-sm font-bold">
                             Select Source Directory
                         </Button>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="grid gap-6 lg:grid-cols-12 flex-1">
+                <div className="grid gap-3 lg:grid-cols-12 flex-1">
                     {/* Main Preview Column */}
-                    <div className="lg:col-span-8 flex flex-col gap-3">
-                        <Card className="flex-1 bg-neutral-900 rounded-2xl overflow-hidden shadow-2xl relative group border-0 min-h-[450px]">
+                    <div className="lg:col-span-8 flex flex-col gap-2">
+                        <Card className="flex-1 bg-neutral-900 rounded-2xl overflow-hidden shadow-2xl relative group border-0 min-h-[280px] lg:min-h-[400px]">
                             {currentFile && currentImageUrl ? (
                                 <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
                                     <div 
@@ -433,44 +434,44 @@ export function ImageSorterTab() {
                     </div>
 
                     {/* Sorting Sidebar */}
-                    <div className="lg:col-span-4 space-y-4 flex flex-col h-full animate-fade-in">
-                        <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-xl rounded-2xl overflow-hidden border-t-2 border-t-primary/30 flex flex-col">
-                            <CardHeader className="bg-primary/5 border-b border-primary/10 pb-4">
+                    <div className="lg:col-span-4 space-y-2.5 flex flex-col h-full animate-fade-in select-none">
+                        <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-lg rounded-xl overflow-hidden border-t-2 border-t-primary/30 flex flex-col">
+                            <CardHeader className="bg-primary/5 border-b border-primary/10 p-3">
                                 <div className="flex items-center justify-between">
-                                    <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                                        <Hash className="h-4 w-4" /> Move Image
+                                    <CardTitle className="text-xs font-black uppercase tracking-[0.15em] text-primary flex items-center gap-2">
+                                        <Hash className="h-3.5 w-3.5" /> Move Image
                                     </CardTitle>
-                                    <Badge variant="outline" className="text-[9px] bg-background/50 border-primary/20">Active Session</Badge>
+                                    <Badge variant="outline" className="text-[8px] bg-background/50 border-primary/20 px-1.5 py-0">Active</Badge>
                                 </div>
-                                <CardDescription className="text-[10px] font-medium leading-relaxed pt-1">
+                                <CardDescription className="text-[9px] font-medium leading-tight pt-0.5">
                                     Type single or comma-separated folder names and press <strong>ENTER</strong>.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-6 flex-1 flex flex-col justify-between">
-                                <div className="space-y-4">
+                            <CardContent className="p-3.5 space-y-3.5 flex-1 flex flex-col justify-between">
+                                <div className="space-y-2.5">
                                     <div className="relative group">
-                                        <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-xl blur opacity-30 group-focus-within:opacity-100 transition duration-500"></div>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-xl blur opacity-30 group-focus-within:opacity-100 transition duration-500"></div>
                                         <Input 
                                             ref={inputRef}
                                             value={folderInput}
                                             onChange={(e) => setFolderInput(e.target.value)}
                                             onKeyDown={handleKeyDown}
                                             placeholder="Ex: 101 or 101,102"
-                                            className="h-16 text-2xl font-black pl-5 pr-14 rounded-xl bg-background border-2 border-primary/20 focus-visible:border-primary relative shadow-2xl placeholder:text-muted-foreground/20 transition-all duration-300 tracking-wide"
+                                            className="h-11 md:h-12 text-lg font-black pl-3 pr-10 rounded-lg bg-background border-2 border-primary/20 focus-visible:border-primary relative shadow-md placeholder:text-muted-foreground/20 transition-all duration-300 tracking-wide"
                                             autoComplete="off"
                                             disabled={files.length === 0 || isMoving}
                                         />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                            <span className="bg-muted px-1.5 py-0.5 rounded border text-[9px] font-bold text-muted-foreground shadow-sm">⏎</span>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                            <span className="bg-muted px-1 py-0 rounded border text-[8px] font-bold text-muted-foreground shadow-sm">⏎</span>
                                         </div>
                                     </div>
 
                                     {/* Visual preview for comma-separated targets */}
                                     {folderInput.trim() && (
-                                        <div className="flex flex-wrap gap-1 bg-muted/40 p-2.5 rounded-xl border border-dashed border-border/60 animate-enter select-none">
-                                            <span className="text-[9px] font-bold text-muted-foreground uppercase block w-full mb-1 tracking-wider">Targets:</span>
+                                        <div className="flex flex-wrap gap-1 bg-muted/40 p-2 rounded-xl border border-dashed border-border/60 animate-enter">
+                                            <span className="text-[8px] font-bold text-muted-foreground uppercase block w-full mb-0.5 tracking-wider">Targets:</span>
                                             {folderInput.split(',').map(f => f.trim()).filter(Boolean).map((folder, i) => (
-                                                <Badge key={i} className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20 text-xs font-black px-2.5 py-1 rounded-lg">
+                                                <Badge key={i} className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20 text-[10px] font-black px-2 py-0.5 rounded-md leading-none">
                                                     /{folder}/
                                                 </Badge>
                                             ))}
@@ -478,18 +479,18 @@ export function ImageSorterTab() {
                                     )}
                                     
                                     <Button 
-                                        className="w-full h-14 font-black rounded-xl shadow-xl shadow-primary/15 transition-all hover:-translate-y-0.5 active:translate-y-0 bg-gradient-to-r from-primary to-primary/90 hover:opacity-95" 
+                                        className="w-full h-11 font-black rounded-lg shadow-md shadow-primary/15 transition-all hover:-translate-y-0.5 active:translate-y-0 bg-gradient-to-r from-primary to-primary/90 hover:opacity-95 text-xs" 
                                         disabled={!folderInput || isMoving || !currentFile}
                                         onClick={() => moveCurrentFile(folderInput)}
                                     >
                                         {isMoving ? (
                                             <>
-                                                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                                 MOVING...
                                             </>
                                         ) : (
                                             <>
-                                                <ArrowRight className="mr-3 h-5 w-5" />
+                                                <ArrowRight className="mr-2 h-4 w-4" />
                                                 MOVE TO {folderInput.split(',').map(f => f.trim()).filter(Boolean).join(' + ') || "FOLDER"}
                                             </>
                                         )}
@@ -497,19 +498,19 @@ export function ImageSorterTab() {
                                 </div>
 
                                 {recentFolders.length > 0 && (
-                                    <div className="pt-4 border-t border-dashed space-y-3 mt-4">
+                                    <div className="pt-2.5 border-t border-dashed space-y-2 mt-1">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                                                 <History className="h-3 w-3" /> Recent Folders
                                             </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-1.5">
+                                        <div className="flex flex-wrap gap-1">
                                             {recentFolders.map(folder => (
                                                 <Button 
                                                     key={folder} 
                                                     variant="secondary" 
                                                     size="sm" 
-                                                    className="h-8 rounded-lg text-xs font-bold px-3 bg-background hover:bg-primary/10 hover:text-primary transition-colors border shadow-sm"
+                                                    className="h-6 rounded-md text-[10px] font-bold px-2 bg-background hover:bg-primary/10 hover:text-primary transition-colors border shadow-sm"
                                                     onClick={() => {
                                                         setFolderInput(folder);
                                                         setTimeout(() => inputRef.current?.focus(), 50);
@@ -524,52 +525,52 @@ export function ImageSorterTab() {
                             </CardContent>
                         </Card>
 
-                        <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-md rounded-2xl">
-                            <CardContent className="p-4 space-y-4">
+                        <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-md rounded-xl">
+                            <CardContent className="p-3 space-y-3">
                                 <div className="grid grid-cols-2 gap-2">
-                                    <Button variant="outline" className="rounded-xl h-11 font-bold text-xs bg-background/50 hover:bg-muted" onClick={goToPrev} disabled={currentIndex === 0 || files.length === 0}>
-                                        <ChevronLeft className="mr-2 h-4 w-4" /> PREV
+                                    <Button variant="outline" className="rounded-lg h-9 font-bold text-[10px] bg-background/50 hover:bg-muted" onClick={goToPrev} disabled={currentIndex === 0 || files.length === 0}>
+                                        <ChevronLeft className="mr-1 h-3.5 w-3.5" /> PREV
                                     </Button>
-                                    <Button variant="outline" className="rounded-xl h-11 font-bold text-xs bg-background/50 hover:bg-muted" onClick={goToNext} disabled={currentIndex === files.length - 1 || files.length === 0}>
-                                        NEXT <ChevronRight className="ml-2 h-4 w-4" />
+                                    <Button variant="outline" className="rounded-lg h-9 font-bold text-[10px] bg-background/50 hover:bg-muted" onClick={goToNext} disabled={currentIndex === files.length - 1 || files.length === 0}>
+                                        NEXT <ChevronRight className="ml-1 h-3.5 w-3.5" />
                                     </Button>
                                 </div>
                                 
-                                <div className="flex items-center gap-2 pt-2 border-t border-dashed mt-2">
+                                <div className="flex items-center gap-1.5 pt-1.5 border-t border-dashed mt-1">
                                     <Input 
                                         placeholder="Jump to #" 
                                         value={jumpValue}
                                         onChange={(e) => setJumpValue(e.target.value)}
-                                        className="h-10 rounded-xl text-center font-black tabular-nums border-dashed bg-background/50 focus-visible:border-primary/50"
+                                        className="h-8 rounded-lg text-center font-black tabular-nums border-dashed bg-background/50 focus-visible:border-primary/50 text-xs"
                                         onKeyDown={(e) => e.key === 'Enter' && handleJump()}
                                         disabled={files.length === 0}
                                     />
-                                    <Button variant="ghost" onClick={handleJump} size="sm" className="h-10 font-black text-xs hover:bg-primary/5 px-4" disabled={files.length === 0}>GOTO</Button>
+                                    <Button variant="ghost" onClick={handleJump} size="sm" className="h-8 font-black text-[10px] hover:bg-primary/5 px-2.5" disabled={files.length === 0}>GOTO</Button>
                                 </div>
 
-                                <div className="space-y-2 pt-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
-                                        <span>QUEUE PROGRESS</span>
+                                <div className="space-y-1.5 pt-1">
+                                    <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground tracking-tighter">
+                                        <span>PROGRESS</span>
                                         <span className="text-primary">{files.length > 0 ? Math.round(((currentIndex + 1) / files.length) * 100) : 0}%</span>
                                     </div>
-                                    <Progress value={files.length > 0 ? ((currentIndex + 1) / (files.length + sessionStats.moved)) * 100 : 0} className="h-1.5 bg-muted/50 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary/70" />
+                                    <Progress value={files.length > 0 ? ((currentIndex + 1) / (files.length + sessionStats.moved)) * 100 : 0} className="h-1 bg-muted/50 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary/70" />
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <div className="p-4 bg-muted/40 border rounded-2xl space-y-3 mt-auto shadow-inner border-border/40 backdrop-blur-md">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Keyboard className="h-4 w-4 text-primary" />
-                                <span className="text-[11px] font-black uppercase tracking-wider">Shortcuts</span>
+                        <div className="p-3 bg-muted/40 border rounded-xl space-y-2 mt-auto shadow-inner border-border/40 backdrop-blur-md">
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Keyboard className="h-3.5 w-3.5 text-primary" />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Shortcuts</span>
                             </div>
-                            <div className="grid grid-cols-1 gap-2">
-                                <div className="flex items-center justify-between text-[10px]">
+                            <div className="grid grid-cols-1 gap-1.5">
+                                <div className="flex items-center justify-between text-[9px]">
                                     <span className="text-muted-foreground font-medium">Next / Prev</span>
-                                    <span className="font-mono bg-background px-1.5 py-0.5 rounded border border-border/60">CTRL + ←/→</span>
+                                    <span className="font-mono bg-background px-1 py-0.5 rounded border border-border/60">CTRL + ←/→</span>
                                 </div>
-                                <div className="flex items-center justify-between text-[10px]">
+                                <div className="flex items-center justify-between text-[9px]">
                                     <span className="text-muted-foreground font-medium">Quick Move</span>
-                                    <span className="font-mono bg-background px-1.5 py-0.5 rounded border border-border/60">ENTER</span>
+                                    <span className="font-mono bg-background px-1 py-0.5 rounded border border-border/60">ENTER</span>
                                 </div>
                             </div>
                         </div>
