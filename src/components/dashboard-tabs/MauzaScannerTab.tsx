@@ -72,7 +72,7 @@ export function MauzaScannerTab() {
 
     const requestSourceHandle = async () => {
         try {
-            const handle = await window.showDirectoryPicker({
+            const handle = await (window as any).showDirectoryPicker({
                 mode: 'read'
             });
             setSourceHandle(handle);
@@ -88,7 +88,7 @@ export function MauzaScannerTab() {
 
     const requestExportHandle = async () => {
         try {
-            const handle = await window.showDirectoryPicker({
+            const handle = await (window as any).showDirectoryPicker({
                 mode: 'readwrite'
             });
             setExportHandle(handle);

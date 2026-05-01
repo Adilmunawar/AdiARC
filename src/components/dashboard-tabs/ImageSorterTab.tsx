@@ -94,8 +94,7 @@ export function ImageSorterTab() {
     const connectFolder = async () => {
         try {
             setIsConnecting(true);
-            // Request readwrite access to move files
-            const handle = await window.showDirectoryPicker({
+            const handle = await (window as any).showDirectoryPicker({
                 mode: 'readwrite'
             });
             
