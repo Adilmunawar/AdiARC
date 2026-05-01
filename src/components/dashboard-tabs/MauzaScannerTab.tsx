@@ -103,7 +103,7 @@ export function MauzaScannerTab() {
     };
 
     const scanDirectory = async (handle: FileSystemDirectoryHandle, mauzaPath: string, stats: Record<string, number>, currentRelPath = "") => {
-        for await (const entry of handle.values()) {
+        for await (const entry of (handle as any).values()) {
             if (entry.kind === 'file') {
                 const ext = entry.name.split('.').pop()?.toLowerCase() || "";
                 if (IMAGE_EXTENSIONS.has(ext)) {

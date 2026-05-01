@@ -101,7 +101,7 @@ export function ImageSorterTab() {
             setDirectoryHandle(handle);
             const entries: FileEntry[] = [];
             
-            for await (const entry of handle.values()) {
+            for await (const entry of (handle as any).values()) {
                 if (entry.kind === 'file') {
                     const ext = entry.name.split('.').pop()?.toLowerCase();
                     if (ext && IMAGE_EXTENSIONS.includes(`.${ext}`)) {
