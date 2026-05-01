@@ -433,70 +433,83 @@ export function ImageSorterTab() {
                     </div>
 
                     {/* Sorting Sidebar */}
-                    <div className="lg:col-span-4 space-y-4 flex flex-col">
-                        <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-xl rounded-2xl overflow-hidden">
+                    <div className="lg:col-span-4 space-y-4 flex flex-col h-full animate-fade-in">
+                        <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-xl rounded-2xl overflow-hidden border-t-2 border-t-primary/30 flex flex-col">
                             <CardHeader className="bg-primary/5 border-b border-primary/10 pb-4">
-                                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                                    <Hash className="h-4 w-4" /> Move Image
-                                </CardTitle>
-                                <CardDescription className="text-[10px] font-medium leading-relaxed">
-                                    Type folder name and press <strong>ENTER</strong>. Sequential naming is handled automatically.
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                                        <Hash className="h-4 w-4" /> Move Image
+                                    </CardTitle>
+                                    <Badge variant="outline" className="text-[9px] bg-background/50 border-primary/20">Active Session</Badge>
+                                </div>
+                                <CardDescription className="text-[10px] font-medium leading-relaxed pt-1">
+                                    Type single or comma-separated folder names and press <strong>ENTER</strong>.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-6">
+                            <CardContent className="p-6 space-y-6 flex-1 flex flex-col justify-between">
                                 <div className="space-y-4">
                                     <div className="relative group">
-                                        <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur opacity-25 group-focus-within:opacity-100 transition duration-1000 group-focus-within:duration-200"></div>
+                                        <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-xl blur opacity-30 group-focus-within:opacity-100 transition duration-500"></div>
                                         <Input 
                                             ref={inputRef}
                                             value={folderInput}
                                             onChange={(e) => setFolderInput(e.target.value)}
                                             onKeyDown={handleKeyDown}
-                                            placeholder="Folder Name (e.g. 1097)"
-                                            className="h-16 text-2xl font-black pl-5 pr-14 rounded-xl bg-background border-2 border-primary/20 focus-visible:border-primary relative shadow-2xl placeholder:text-muted-foreground/30"
+                                            placeholder="Ex: 101 or 101,102"
+                                            className="h-16 text-2xl font-black pl-5 pr-14 rounded-xl bg-background border-2 border-primary/20 focus-visible:border-primary relative shadow-2xl placeholder:text-muted-foreground/20 transition-all duration-300 tracking-wide"
                                             autoComplete="off"
                                             disabled={files.length === 0 || isMoving}
                                         />
                                         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                            <div className="flex flex-col items-center gap-0.5 text-[9px] font-bold text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <span className="bg-muted px-1.5 py-0.5 rounded border">ENTER</span>
-                                            </div>
+                                            <span className="bg-muted px-1.5 py-0.5 rounded border text-[9px] font-bold text-muted-foreground shadow-sm">⏎</span>
                                         </div>
                                     </div>
+
+                                    {/* Visual preview for comma-separated targets */}
+                                    {folderInput.trim() && (
+                                        <div className="flex flex-wrap gap-1 bg-muted/40 p-2.5 rounded-xl border border-dashed border-border/60 animate-enter select-none">
+                                            <span className="text-[9px] font-bold text-muted-foreground uppercase block w-full mb-1 tracking-wider">Targets:</span>
+                                            {folderInput.split(',').map(f => f.trim()).filter(Boolean).map((folder, i) => (
+                                                <Badge key={i} className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20 text-xs font-black px-2.5 py-1 rounded-lg">
+                                                    /{folder}/
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    )}
                                     
                                     <Button 
-                                        className="w-full h-14 font-black rounded-xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-0.5 active:translate-y-0" 
+                                        className="w-full h-14 font-black rounded-xl shadow-xl shadow-primary/15 transition-all hover:-translate-y-0.5 active:translate-y-0 bg-gradient-to-r from-primary to-primary/90 hover:opacity-95" 
                                         disabled={!folderInput || isMoving || !currentFile}
                                         onClick={() => moveCurrentFile(folderInput)}
                                     >
                                         {isMoving ? (
                                             <>
                                                 <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                                                MOVING FILE...
+                                                MOVING...
                                             </>
                                         ) : (
                                             <>
                                                 <ArrowRight className="mr-3 h-5 w-5" />
-                                                MOVE TO {folderInput.toUpperCase() || "FOLDER"}
+                                                MOVE TO {folderInput.split(',').map(f => f.trim()).filter(Boolean).join(' + ') || "FOLDER"}
                                             </>
                                         )}
                                     </Button>
                                 </div>
 
                                 {recentFolders.length > 0 && (
-                                    <div className="pt-4 border-t border-dashed space-y-3">
+                                    <div className="pt-4 border-t border-dashed space-y-3 mt-4">
                                         <div className="flex items-center justify-between">
                                             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                                 <History className="h-3 w-3" /> Recent Folders
                                             </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-1.5">
                                             {recentFolders.map(folder => (
                                                 <Button 
                                                     key={folder} 
                                                     variant="secondary" 
                                                     size="sm" 
-                                                    className="h-8 rounded-lg text-xs font-bold px-3 bg-background hover:bg-primary/10 hover:text-primary transition-colors border"
+                                                    className="h-8 rounded-lg text-xs font-bold px-3 bg-background hover:bg-primary/10 hover:text-primary transition-colors border shadow-sm"
                                                     onClick={() => {
                                                         setFolderInput(folder);
                                                         setTimeout(() => inputRef.current?.focus(), 50);
@@ -514,10 +527,10 @@ export function ImageSorterTab() {
                         <Card className="border-border/40 bg-card/60 backdrop-blur-xl shadow-md rounded-2xl">
                             <CardContent className="p-4 space-y-4">
                                 <div className="grid grid-cols-2 gap-2">
-                                    <Button variant="outline" className="rounded-xl h-11 font-bold text-xs" onClick={goToPrev} disabled={currentIndex === 0 || files.length === 0}>
-                                        <ChevronLeft className="mr-2 h-4 w-4" /> PREVIOUS
+                                    <Button variant="outline" className="rounded-xl h-11 font-bold text-xs bg-background/50 hover:bg-muted" onClick={goToPrev} disabled={currentIndex === 0 || files.length === 0}>
+                                        <ChevronLeft className="mr-2 h-4 w-4" /> PREV
                                     </Button>
-                                    <Button variant="outline" className="rounded-xl h-11 font-bold text-xs" onClick={goToNext} disabled={currentIndex === files.length - 1 || files.length === 0}>
+                                    <Button variant="outline" className="rounded-xl h-11 font-bold text-xs bg-background/50 hover:bg-muted" onClick={goToNext} disabled={currentIndex === files.length - 1 || files.length === 0}>
                                         NEXT <ChevronRight className="ml-2 h-4 w-4" />
                                     </Button>
                                 </div>
@@ -527,36 +540,36 @@ export function ImageSorterTab() {
                                         placeholder="Jump to #" 
                                         value={jumpValue}
                                         onChange={(e) => setJumpValue(e.target.value)}
-                                        className="h-10 rounded-xl text-center font-black tabular-nums border-dashed"
+                                        className="h-10 rounded-xl text-center font-black tabular-nums border-dashed bg-background/50 focus-visible:border-primary/50"
                                         onKeyDown={(e) => e.key === 'Enter' && handleJump()}
                                         disabled={files.length === 0}
                                     />
-                                    <Button variant="ghost" onClick={handleJump} size="sm" className="h-10 font-black text-xs hover:bg-primary/5" disabled={files.length === 0}>GOTO</Button>
+                                    <Button variant="ghost" onClick={handleJump} size="sm" className="h-10 font-black text-xs hover:bg-primary/5 px-4" disabled={files.length === 0}>GOTO</Button>
                                 </div>
 
                                 <div className="space-y-2 pt-2">
                                     <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
                                         <span>QUEUE PROGRESS</span>
-                                        <span>{files.length > 0 ? Math.round(((currentIndex + 1) / files.length) * 100) : 0}%</span>
+                                        <span className="text-primary">{files.length > 0 ? Math.round(((currentIndex + 1) / files.length) * 100) : 0}%</span>
                                     </div>
-                                    <Progress value={files.length > 0 ? ((currentIndex + 1) / (files.length + sessionStats.moved)) * 100 : 0} className="h-1.5" />
+                                    <Progress value={files.length > 0 ? ((currentIndex + 1) / (files.length + sessionStats.moved)) * 100 : 0} className="h-1.5 bg-muted/50 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary/70" />
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <div className="p-4 bg-muted/40 border rounded-2xl space-y-3 mt-auto shadow-inner">
+                        <div className="p-4 bg-muted/40 border rounded-2xl space-y-3 mt-auto shadow-inner border-border/40 backdrop-blur-md">
                             <div className="flex items-center gap-2 text-muted-foreground">
-                                <Keyboard className="h-4 w-4" />
-                                <span className="text-[11px] font-black uppercase">Shortcuts</span>
+                                <Keyboard className="h-4 w-4 text-primary" />
+                                <span className="text-[11px] font-black uppercase tracking-wider">Shortcuts</span>
                             </div>
                             <div className="grid grid-cols-1 gap-2">
                                 <div className="flex items-center justify-between text-[10px]">
                                     <span className="text-muted-foreground font-medium">Next / Prev</span>
-                                    <span className="font-mono bg-background px-1.5 py-0.5 rounded border">CTRL + ←/→</span>
+                                    <span className="font-mono bg-background px-1.5 py-0.5 rounded border border-border/60">CTRL + ←/→</span>
                                 </div>
                                 <div className="flex items-center justify-between text-[10px]">
                                     <span className="text-muted-foreground font-medium">Quick Move</span>
-                                    <span className="font-mono bg-background px-1.5 py-0.5 rounded border">ENTER</span>
+                                    <span className="font-mono bg-background px-1.5 py-0.5 rounded border border-border/60">ENTER</span>
                                 </div>
                             </div>
                         </div>
