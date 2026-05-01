@@ -7,6 +7,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Sidebar, SecretModeProvider } from "@/components/layout/Sidebar";
+import { SplashScreen } from "@/components/layout/SplashScreen";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -29,6 +30,7 @@ export default function RootLayout({
           <link rel="icon" href="/AdiARC - Logo.png" />
       </head>
       <body className={cn("font-sans", inter.variable, notoNastaliqUrdu.variable)}>
+        <SplashScreen />
         <SecretModeProvider>
             <div className="flex h-screen bg-background">
               <Sidebar />
