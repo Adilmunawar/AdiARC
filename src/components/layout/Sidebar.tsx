@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan, Minimize2, MessageSquareQuote, Move
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan, Minimize2, MessageSquareQuote, Move, Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -147,6 +147,7 @@ const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const allNavItems = [
   { name: "Dashboard", icon: Home, path: "/" },
+  { name: "Hardware Scanner", icon: Camera, path: "/hardware-scanner" },
   { name: "Property Consultant", icon: UserCircle, path: "/ai-assistant" },
   { name: "Smart Image Sorter", icon: Move, path: "/image-sorter" },
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
@@ -217,10 +218,14 @@ export function Sidebar() {
         isOpen ? "w-60" : "w-20"
       )}
     >
-      <div className={cn("flex h-16 items-center border-b px-4 transition-all duration-300", isOpen ? "justify-start" : "justify-center")}>
-          <div className="flex items-center gap-2 group cursor-pointer select-none">
-            <img src="/AdiARC - Logo.png" alt="AdiARC Logo" className="h-10 w-auto max-w-[40px] max-h-10 object-contain transition-transform duration-300 group-hover:scale-105" />
-            {isOpen && <span className="font-bold text-lg transition-opacity duration-300">AdiARC</span>}
+      <div className={cn("flex h-20 items-center border-b border-border/40 px-4 transition-all duration-300", isOpen ? "justify-start" : "justify-center")}>
+          <div className="flex items-center gap-3 group cursor-pointer select-none">
+            <div className="relative">
+              {/* Subtle hover glow behind logo */}
+              <div className="absolute inset-0 bg-primary/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <img src="/AdiARC - Logo.png" alt="AdiARC Logo" className="relative h-12 w-auto max-w-[48px] max-h-12 object-contain transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-lg" />
+            </div>
+            {isOpen && <span className="font-extrabold text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 transition-opacity duration-300">AdiARC</span>}
         </div>
       </div>
 
@@ -229,13 +234,20 @@ export function Sidebar() {
             {sortedNavItems.map((item) => {
                 const isActive = pathname === item.path;
                 return (
-                    <Link href={item.path} key={item.name}>
+                    <Link href={item.path} key={item.name} className="outline-none">
                         <Button 
-                            variant={isActive ? "secondary" : "ghost"} 
-                            className={cn("w-full justify-start gap-3 group transition-all duration-200", !isOpen && "justify-center")}
+                            variant="ghost" 
+                            className={cn(
+                                "w-full justify-start gap-3 group transition-all duration-300 relative overflow-hidden", 
+                                !isOpen && "justify-center",
+                                isActive ? "bg-primary/10 text-primary font-semibold hover:bg-primary/20" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                            )}
                             title={isOpen ? "" : item.name}
                         >
-                            <item.icon className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                            {isActive && (
+                                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-r-full" />
+                            )}
+                            <item.icon className={cn("h-5 w-5 transition-all duration-300 group-hover:scale-110", isActive && "text-primary")} />
                             {isOpen && <span className="transition-opacity duration-200">{item.name}</span>}
                         </Button>
                     </Link>
