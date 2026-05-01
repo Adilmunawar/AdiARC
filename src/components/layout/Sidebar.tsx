@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan, Minimize2, MessageSquareQuote, Move, Camera
+  Home, Calculator, Box, ScanText, FileCode, Split, DatabaseZap, ChevronsLeft, ChevronsRight, Database, ClipboardCheck, Printer, Globe, UserCircle, ImageIcon, FileKey, FileMinus, FileSpreadsheet, Lock, Unlock, Search, Terminal, FileScan, Minimize2, MessageSquareQuote, Move, Camera, BarChart2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -148,6 +148,7 @@ const PowerShellIcon = (props: React.SVGProps<SVGSVGElement>) => (
 const allNavItems = [
   { name: "Dashboard", icon: Home, path: "/" },
   { name: "Hardware Scanner", icon: Camera, path: "/hardware-scanner" },
+  { name: "Live Mauza Tracker", icon: BarChart2, path: "/mauza-tracker" },
   { name: "Property Consultant", icon: UserCircle, path: "/ai-assistant" },
   { name: "Smart Image Sorter", icon: Move, path: "/image-sorter" },
   { name: "Wirasat Calculator", icon: Calculator, path: "/wirasat" },
