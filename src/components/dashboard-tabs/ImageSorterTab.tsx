@@ -154,42 +154,53 @@ export function ImageSorterTab() {
 
         setIsMoving(true);
         const currentFile = files[currentIndex];
-        const folderName = targetFolderName.trim();
+        
+        const folderNames = targetFolderName.split(',').map(f => f.trim()).filter(Boolean);
+        if (folderNames.length === 0) {
+            setIsMoving(false);
+            return;
+        }
 
         try {
-            // 1. Get or create target subfolder
-            const subDirHandle = await directoryHandle.getDirectoryHandle(folderName, { create: true });
-            
-            // 2. Determine target filename with sequential collision handling
+            const fileData = await currentFile.handle.getFile();
             const extension = currentFile.name.split('.').pop() || 'jpg';
-            let newFileName = `${folderName}.${extension}`;
-            let counter = 2;
+            const moveReport: string[] = [];
 
-            // Check if file exists in subfolder, if so, find next available (N)
-            while (true) {
-                try {
-                    await subDirHandle.getFileHandle(newFileName);
-                    newFileName = `${folderName}(${counter}).${extension}`;
-                    counter++;
-                } catch {
-                    break; // File doesn't exist, we can use this name
+            for (const folderName of folderNames) {
+                // 1. Get or create target subfolder
+                const subDirHandle = await (directoryHandle as any).getDirectoryHandle(folderName, { create: true });
+                
+                // 2. Determine target filename with sequential collision handling
+                let newFileName = `${folderName}.${extension}`;
+                let counter = 2;
+
+                // Check if file exists in subfolder, if so, find next available (N)
+                while (true) {
+                    try {
+                        await subDirHandle.getFileHandle(newFileName);
+                        newFileName = `${folderName}(${counter}).${extension}`;
+                        counter++;
+                    } catch {
+                        break; // File doesn't exist, we can use this name
+                    }
                 }
+
+                // 3. Move the file (Write new, then delete old)
+                const newFileHandle = await subDirHandle.getFileHandle(newFileName, { create: true });
+                const writable = await newFileHandle.createWritable();
+                await writable.write(fileData);
+                await writable.close();
+
+                moveReport.push(`/${folderName}/${newFileName}`);
             }
 
-            // 3. Move the file (Write new, then delete old)
-            const fileData = await currentFile.handle.getFile();
-            const newFileHandle = await subDirHandle.getFileHandle(newFileName, { create: true });
-            const writable = await newFileHandle.createWritable();
-            await writable.write(fileData);
-            await writable.close();
-
             // 4. Remove from source
-            await directoryHandle.removeEntry(currentFile.name);
+            await (directoryHandle as any).removeEntry(currentFile.name);
 
             // 5. Update UI state
             setSessionStats(s => ({ ...s, moved: s.moved + 1 }));
             setRecentFolders(prev => {
-                const updated = [folderName, ...prev.filter(f => f !== folderName)].slice(0, 8);
+                const updated = [...folderNames, ...prev.filter(f => !folderNames.includes(f))].slice(0, 8);
                 return updated;
             });
 
@@ -206,8 +217,8 @@ export function ImageSorterTab() {
 
             toast({ 
                 title: `Success`, 
-                description: `Moved ${currentFile.name} to /${folderName}/${newFileName}`,
-                duration: 2000 
+                description: `Moved ${currentFile.name} to: ${moveReport.join(', ')}`,
+                duration: 3000 
             });
 
         } catch (err: any) {
