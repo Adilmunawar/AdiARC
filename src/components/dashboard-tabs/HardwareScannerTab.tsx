@@ -260,6 +260,8 @@ export function HardwareScannerTab() {
       }, 150);
     }
 
+    let rawImage: ImageBitmap | HTMLVideoElement | null = videoRef.current;
+    
     try {
       const track = streamRef.current?.getVideoTracks()[0];
       const currentRes = dynamicResolutions.find(r => r.value === resolution) || DEFAULT_RESOLUTIONS[3];
@@ -269,7 +271,6 @@ export function HardwareScannerTab() {
 
       let finalBlobs: { blob: Blob, name: string }[] = [];
       let nextBase = fileSequence;
-      let rawImage: ImageBitmap | HTMLVideoElement = videoRef.current;
       let photoBlob: Blob | null = null;
       let actualWidth = currentRes.width;
       let actualHeight = currentRes.height;
