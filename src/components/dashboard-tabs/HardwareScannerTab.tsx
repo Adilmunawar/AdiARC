@@ -60,9 +60,11 @@ export function HardwareScannerTab() {
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [rotation, setRotation] = useState("0");
-  const [quality, setQuality] = useState(96);
+  const [quality, setQuality] = useState(100);
   const [warmTint, setWarmTint] = useState(0); // Sepia balance
   const [isMirrored, setIsMirrored] = useState(false);
+  const [sharpness, setSharpness] = useState(0);
+  const [supportedCapabilities, setSupportedCapabilities] = useState<any>(null);
 
   const [isScanning, setIsScanning] = useState(false);
   const [streamActive, setStreamActive] = useState(false);
@@ -145,6 +147,8 @@ export function HardwareScannerTab() {
             maxHeight,
             label: track.label || "Scanner Device"
         });
+        setSupportedCapabilities(caps);
+        if (caps.sharpness) setSharpness(caps.sharpness.min);
       } else {
         setHardwareDetails({ maxMP: 24, maxWidth: 5632, maxHeight: 4224, label: track?.label || "Scanner Device" });
       }
@@ -238,6 +242,7 @@ export function HardwareScannerTab() {
 
       // Check for ImageCapture support for TRUE high-res stills
       const canCaptureStill = track && 'ImageCapture' in window;
+      let photoBlob: Blob | null = null;
       let rawImage: ImageBitmap | HTMLVideoElement = videoRef.current;
       let actualWidth = currentRes.width;
       let actualHeight = currentRes.height;
@@ -245,19 +250,48 @@ export function HardwareScannerTab() {
       if (canCaptureStill) {
         try {
           const capturer = new (window as any).ImageCapture(track);
-          const photoBlob = await capturer.takePhoto();
+          
+          // Apply hardware sharpness if supported
+          if (supportedCapabilities?.sharpness) {
+            await (track as any).applyConstraints({ advanced: [{ sharpness }] });
+          }
+
+          photoBlob = await capturer.takePhoto();
           rawImage = await createImageBitmap(photoBlob);
           
-          // Use native sensor dimensions if resolution is set to native or if we want absolute best quality
           if (resolution.includes('x') || resolution === "100") {
             actualWidth = rawImage.width;
             actualHeight = rawImage.height;
+          }
+
+          // NATIVE PASS-THROUGH (The "Hardware Level" Secret)
+          // If no rotation, no filters, no mirroring, and no splitting is needed,
+          // save the raw hardware blob directly to avoid ANY canvas re-encoding loss.
+          const needsProcessing = rotation !== "0" || brightness !== 0 || contrast !== 0 || 
+                                 bitDepth !== "24" || warmTint !== 0 || isMirrored || mode === "book";
+          
+          if (!needsProcessing && photoBlob) {
+            finalBlobs.push({ blob: photoBlob, name: `${nextBase}.${fileExt}` });
+            setFileSequence(incrementSequence(nextBase));
+            // Skip the rest of the canvas logic
+            if (directoryHandle) {
+              await saveFileLocally(directoryHandle, finalBlobs[0].name, finalBlobs[0].blob);
+              toast.success("Saved 1:1 Raw Hardware Capture (Lossless)");
+            } else {
+              const formData = new FormData();
+              formData.append("saveDir", saveDir);
+              formData.append("files", photoBlob, `${nextBase}.${fileExt}`);
+              const res = await fetch("/api/save-scan", { method: "POST", body: formData });
+              const data = await res.json();
+              if (data.success) toast.success("Saved 1:1 Raw Hardware Capture via Server");
+            }
+            setIsScanning(false);
+            return;
           }
         } catch (e) {
           console.warn("Hardware still capture failed, falling back to video frame:", e);
         }
       } else {
-        // Fallback to video frame, use video's natural dimensions if possible
         actualWidth = (rawImage as HTMLVideoElement).videoWidth || actualWidth;
         actualHeight = (rawImage as HTMLVideoElement).videoHeight || actualHeight;
       }
@@ -270,13 +304,13 @@ export function HardwareScannerTab() {
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         
-        const ctx = canvas.getContext("2d", { alpha: false });
+        const ctx = canvas.getContext("2d", { alpha: false, willReadFrequently: bitDepth === "1" });
         if (!ctx) throw new Error("Canvas context failed");
 
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
-        // Apply filters
+        // High precision contrast/brightness mapping
         const b = 1 + brightness / 100;
         const c = 1 + contrast / 100;
         const gray = (bitDepth === "8" || bitDepth === "1") ? "100%" : "0%";
@@ -288,24 +322,19 @@ export function HardwareScannerTab() {
 
         ctx.save();
         ctx.translate(canvasWidth / 2, canvasHeight / 2);
-        
-        if (rotation !== "0") {
-          ctx.rotate((parseInt(rotation) * Math.PI) / 180);
-        }
-        
-        if (isMirrored) {
-          ctx.scale(-1, 1);
-        }
-        
+        if (rotation !== "0") ctx.rotate((parseInt(rotation) * Math.PI) / 180);
+        if (isMirrored) ctx.scale(-1, 1);
         ctx.drawImage(source, -width / 2, -height / 2, width, height);
         ctx.restore();
 
         if (bitDepth === "1") {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const d = imgData.data;
+          // Document optimized thresholding
+          const threshold = 120 + (contrast * -0.5); 
           for (let i = 0; i < d.length; i += 4) {
-            const avg = 0.34 * d[i] + 0.5 * d[i + 1] + 0.16 * d[i + 2];
-            const val = avg > 128 ? 255 : 0;
+            const avg = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+            const val = avg > threshold ? 255 : 0;
             d[i] = val; d[i + 1] = val; d[i + 2] = val;
           }
           ctx.putImageData(imgData, 0, 0);
@@ -314,7 +343,6 @@ export function HardwareScannerTab() {
       };
 
       if (mode === "book") {
-        // High-res split
         const canvas = document.createElement("canvas");
         canvas.width = actualWidth;
         canvas.height = actualHeight;
@@ -324,17 +352,12 @@ export function HardwareScannerTab() {
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(rawImage, 0, 0, actualWidth, actualHeight);
         }
-        
         const halfWidth = Math.floor(actualWidth / 2);
-        
         const p1Blob = await processCanvas(await createImageBitmap(canvas, 0, 0, halfWidth, actualHeight), halfWidth, actualHeight);
         if (p1Blob) finalBlobs.push({ blob: p1Blob, name: `${nextBase}.${fileExt}` });
-        
         nextBase = incrementSequence(nextBase);
-        
         const p2Blob = await processCanvas(await createImageBitmap(canvas, halfWidth, 0, halfWidth, actualHeight), halfWidth, actualHeight);
         if (p2Blob) finalBlobs.push({ blob: p2Blob, name: `${nextBase}.${fileExt}` });
-        
         setFileSequence(incrementSequence(nextBase));
       } else {
         const blob = await processCanvas(rawImage, actualWidth, actualHeight);
@@ -503,6 +526,23 @@ export function HardwareScannerTab() {
                     className="cursor-pointer"
                 />
               </div>
+
+              {supportedCapabilities?.sharpness && (
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px] font-semibold">
+                    <span className="text-muted-foreground font-bold">Hardware Sharpness</span>
+                    <span className="text-primary font-bold">{sharpness}</span>
+                  </div>
+                  <Slider
+                      value={[sharpness]}
+                      onValueChange={(val) => setSharpness(val[0])}
+                      min={supportedCapabilities.sharpness.min}
+                      max={supportedCapabilities.sharpness.max}
+                      step={supportedCapabilities.sharpness.step || 1}
+                      className="cursor-pointer"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold text-muted-foreground leading-tight">Target Directory</Label>
