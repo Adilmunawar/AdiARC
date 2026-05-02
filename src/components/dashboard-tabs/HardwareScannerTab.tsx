@@ -207,13 +207,6 @@ export function HardwareScannerTab() {
     await writable.close();
   };
 
-  const saveFileLocally = async (handle: any, filename: string, blob: Blob) => {
-    const fileHandle = await handle.getFileHandle(filename, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-  };
-
   const incrementSequence = (current: string) => {
     const match = current.match(/(\d+)$/);
     if (!match) return current;
