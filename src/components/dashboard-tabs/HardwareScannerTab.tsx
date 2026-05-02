@@ -54,6 +54,7 @@ export function HardwareScannerTab() {
   const [fileFormat, setFileFormat] = useState("jpeg");
   const [saveDir, setSaveDir] = useState("C:\\Scans");
   const [fileSequence, setFileSequence] = useState("0001");
+  const [directoryHandle, setDirectoryHandle] = useState<any>(null);
   
   // Enhancement sliders
   const [brightness, setBrightness] = useState(0);
@@ -179,6 +180,27 @@ export function HardwareScannerTab() {
     }
   };
 
+  const requestDirectory = async () => {
+    try {
+      if (!(window as any).showDirectoryPicker) {
+        toast.error("Local folder access requires Chrome/Edge or a secure context.");
+        return;
+      }
+      const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+      setDirectoryHandle(handle);
+      toast.success(`Authorized storage: ${handle.name}`);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') toast.error("Folder permission denied.");
+    }
+  };
+
+  const saveFileLocally = async (handle: any, filename: string, blob: Blob) => {
+    const fileHandle = await handle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  };
+
   const incrementSequence = (current: string) => {
     const match = current.match(/(\d+)$/);
     if (!match) return current;
@@ -244,52 +266,70 @@ export function HardwareScannerTab() {
       const imageFormatMime = fileFormat === "png" ? "image/png" : "image/jpeg";
       const fileExt = fileFormat === "png" ? "png" : "jpg";
       
-      const formData = new FormData();
-      formData.append("saveDir", saveDir);
-
+      const savedFilesCount = mode === "book" ? 2 : 1;
       let nextBase = fileSequence;
 
-      if (mode === "book") {
-          const halfWidth = Math.floor(canvas.width / 2);
-          
-          const leftCanvas = document.createElement("canvas");
-          leftCanvas.width = halfWidth;
-          leftCanvas.height = canvas.height;
-          const leftCtx = leftCanvas.getContext("2d");
-          leftCtx?.drawImage(canvas, 0, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
-          
-          const rightCanvas = document.createElement("canvas");
-          rightCanvas.width = halfWidth;
-          rightCanvas.height = canvas.height;
-          const rightCtx = rightCanvas.getContext("2d");
-          rightCtx?.drawImage(canvas, halfWidth, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
+      if (directoryHandle) {
+        // Direct Local Saving (Bypasses Server)
+        if (mode === "book") {
+            const halfWidth = Math.floor(canvas.width / 2);
+            const leftCanvas = document.createElement("canvas");
+            leftCanvas.width = halfWidth; leftCanvas.height = canvas.height;
+            leftCanvas.getContext("2d")?.drawImage(canvas, 0, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
+            
+            const rightCanvas = document.createElement("canvas");
+            rightCanvas.width = halfWidth; rightCanvas.height = canvas.height;
+            rightCanvas.getContext("2d")?.drawImage(canvas, halfWidth, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
 
-          const leftBlob = await new Promise<Blob | null>(resolve => leftCanvas.toBlob(resolve, imageFormatMime, quality / 100));
-          const rightBlob = await new Promise<Blob | null>(resolve => rightCanvas.toBlob(resolve, imageFormatMime, quality / 100));
+            const leftBlob = await new Promise<Blob | null>(resolve => leftCanvas.toBlob(resolve, imageFormatMime, quality / 100));
+            const rightBlob = await new Promise<Blob | null>(resolve => rightCanvas.toBlob(resolve, imageFormatMime, quality / 100));
 
-          if (leftBlob) formData.append("files", leftBlob, `${nextBase}_left.${fileExt}`);
-          nextBase = incrementSequence(nextBase);
-          if (rightBlob) formData.append("files", rightBlob, `${nextBase}_right.${fileExt}`);
-          
-          setFileSequence(incrementSequence(nextBase));
+            if (leftBlob) await saveFileLocally(directoryHandle, `${nextBase}_left.${fileExt}`, leftBlob);
+            nextBase = incrementSequence(nextBase);
+            if (rightBlob) await saveFileLocally(directoryHandle, `${nextBase}_right.${fileExt}`, rightBlob);
+        } else {
+            const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
+            if (blob) await saveFileLocally(directoryHandle, `${nextBase}.${fileExt}`, blob);
+        }
+        
+        setFileSequence(incrementSequence(nextBase));
+        toast.success(`Saved ${savedFilesCount} file(s) directly to ${directoryHandle.name}`);
       } else {
-          const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
-          if (blob) formData.append("files", blob, `${nextBase}.${fileExt}`);
-          
-          setFileSequence(incrementSequence(nextBase));
-      }
+        // API Fallback (Requires Local Node Server)
+        const formData = new FormData();
+        formData.append("saveDir", saveDir);
 
-      const res = await fetch("/api/save-scan", {
-          method: "POST",
-          body: formData
-      });
-      
-      const data = await res.json();
-      if (data.success) {
-          toast.success(`Scanning successful! Saved ${data.savedPaths?.length || 1} file(s)`);
-      } else {
-          toast.error(`Error saving: ${data.error}`);
-          console.error("Save error details:", data);
+        if (mode === "book") {
+            const halfWidth = Math.floor(canvas.width / 2);
+            const leftCanvas = document.createElement("canvas");
+            leftCanvas.width = halfWidth; leftCanvas.height = canvas.height;
+            leftCanvas.getContext("2d")?.drawImage(canvas, 0, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
+            
+            const rightCanvas = document.createElement("canvas");
+            rightCanvas.width = halfWidth; rightCanvas.height = canvas.height;
+            rightCanvas.getContext("2d")?.drawImage(canvas, halfWidth, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
+
+            const leftBlob = await new Promise<Blob | null>(resolve => leftCanvas.toBlob(resolve, imageFormatMime, quality / 100));
+            const rightBlob = await new Promise<Blob | null>(resolve => rightCanvas.toBlob(resolve, imageFormatMime, quality / 100));
+
+            if (leftBlob) formData.append("files", leftBlob, `${nextBase}_left.${fileExt}`);
+            nextBase = incrementSequence(nextBase);
+            if (rightBlob) formData.append("files", rightBlob, `${nextBase}_right.${fileExt}`);
+        } else {
+            const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
+            if (blob) formData.append("files", blob, `${nextBase}.${fileExt}`);
+        }
+
+        const res = await fetch("/api/save-scan", { method: "POST", body: formData });
+        const data = await res.json();
+        
+        if (data.success) {
+            setFileSequence(incrementSequence(nextBase));
+            toast.success(`Scanning successful! Saved ${data.savedPaths?.length || 1} file(s)`);
+        } else {
+            toast.error(`Error saving: ${data.error}`);
+            console.error("Save error details:", data);
+        }
       }
     } catch (err: any) {
       toast.error(`Scanning error: ${err.message}`);
@@ -441,12 +481,31 @@ export function HardwareScannerTab() {
 
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold text-muted-foreground leading-tight">Target Directory</Label>
-                <Input 
-                    value={saveDir} 
-                    onChange={(e) => setSaveDir(e.target.value)}
-                    placeholder="C:\Scans..." 
-                    className="font-mono text-[11px] border-primary/20 bg-white dark:bg-slate-950 h-8.5 px-3 hover:border-primary/40 rounded-xl transition-all duration-200"
-                />
+                <div className="flex gap-1.5">
+                    <Input 
+                        value={directoryHandle ? `[LOCAL] ${directoryHandle.name}` : saveDir} 
+                        onChange={(e) => setSaveDir(e.target.value)}
+                        placeholder="C:\Scans..." 
+                        disabled={!!directoryHandle}
+                        className="font-mono text-[11px] border-primary/20 bg-white dark:bg-slate-950 h-8.5 px-3 hover:border-primary/40 rounded-xl transition-all duration-200 flex-1"
+                    />
+                    <Button 
+                        variant="outline" 
+                        size="icon" 
+                        onClick={requestDirectory}
+                        className={cn(
+                            "h-8.5 w-8.5 rounded-xl border-primary/20 shrink-0 transition-all",
+                            directoryHandle ? "bg-primary/20 border-primary text-primary" : "hover:border-primary/40"
+                        )}
+                    >
+                        <Folder className="w-4 h-4" />
+                    </Button>
+                </div>
+                {directoryHandle && (
+                    <p className="text-[9px] text-primary font-bold mt-1 flex items-center gap-1">
+                        <Info className="w-3 h-3" /> Saving directly to your machine
+                    </p>
+                )}
               </div>
             </div>
           </div>
