@@ -62,6 +62,7 @@ export function HardwareScannerTab() {
   const [rotation, setRotation] = useState("0");
   const [quality, setQuality] = useState(96);
   const [warmTint, setWarmTint] = useState(0); // Sepia balance
+  const [isMirrored, setIsMirrored] = useState(false);
 
   const [isScanning, setIsScanning] = useState(false);
   const [streamActive, setStreamActive] = useState(false);
@@ -124,8 +125,8 @@ export function HardwareScannerTab() {
       const constraints = {
         video: {
           deviceId: { exact: selectedDevice },
-          width: { ideal: 4096 },
-          height: { ideal: 2160 }
+          width: { ideal: 8192 }, // Request much higher ideal width
+          height: { ideal: 6144 } // Request much higher ideal height
         }
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -238,25 +239,44 @@ export function HardwareScannerTab() {
       // Check for ImageCapture support for TRUE high-res stills
       const canCaptureStill = track && 'ImageCapture' in window;
       let rawImage: ImageBitmap | HTMLVideoElement = videoRef.current;
+      let actualWidth = currentRes.width;
+      let actualHeight = currentRes.height;
 
       if (canCaptureStill) {
         try {
           const capturer = new (window as any).ImageCapture(track);
           const photoBlob = await capturer.takePhoto();
           rawImage = await createImageBitmap(photoBlob);
+          
+          // Use native sensor dimensions if resolution is set to native or if we want absolute best quality
+          if (resolution.includes('x') || resolution === "100") {
+            actualWidth = rawImage.width;
+            actualHeight = rawImage.height;
+          }
         } catch (e) {
           console.warn("Hardware still capture failed, falling back to video frame:", e);
         }
+      } else {
+        // Fallback to video frame, use video's natural dimensions if possible
+        actualWidth = (rawImage as HTMLVideoElement).videoWidth || actualWidth;
+        actualHeight = (rawImage as HTMLVideoElement).videoHeight || actualHeight;
       }
 
       const processCanvas = async (source: ImageBitmap | HTMLVideoElement, width: number, height: number) => {
         const canvas = document.createElement("canvas");
-        canvas.width = isRotated ? height : width;
-        canvas.height = isRotated ? width : height;
+        const canvasWidth = isRotated ? height : width;
+        const canvasHeight = isRotated ? width : height;
+        
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        
         const ctx = canvas.getContext("2d", { alpha: false });
         if (!ctx) throw new Error("Canvas context failed");
 
-        // Apply filters only if they are non-default to save performance
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // Apply filters
         const b = 1 + brightness / 100;
         const c = 1 + contrast / 100;
         const gray = (bitDepth === "8" || bitDepth === "1") ? "100%" : "0%";
@@ -266,13 +286,19 @@ export function HardwareScannerTab() {
           ctx.filter = `brightness(${b * 100}%) contrast(${c * 100}%) grayscale(${gray}) sepia(${s})`;
         }
 
+        ctx.save();
+        ctx.translate(canvasWidth / 2, canvasHeight / 2);
+        
         if (rotation !== "0") {
-          ctx.translate(canvas.width / 2, canvas.height / 2);
           ctx.rotate((parseInt(rotation) * Math.PI) / 180);
-          ctx.translate(-(isRotated ? height : width) / 2, -(isRotated ? width : height) / 2);
         }
-
-        ctx.drawImage(source, 0, 0, width, height);
+        
+        if (isMirrored) {
+          ctx.scale(-1, 1);
+        }
+        
+        ctx.drawImage(source, -width / 2, -height / 2, width, height);
+        ctx.restore();
 
         if (bitDepth === "1") {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -288,28 +314,30 @@ export function HardwareScannerTab() {
       };
 
       if (mode === "book") {
-        // Split logic
+        // High-res split
         const canvas = document.createElement("canvas");
-        canvas.width = currentRes.width;
-        canvas.height = currentRes.height;
+        canvas.width = actualWidth;
+        canvas.height = actualHeight;
         const ctx = canvas.getContext("2d");
-        ctx?.drawImage(rawImage, 0, 0, canvas.width, canvas.height);
+        if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(rawImage, 0, 0, actualWidth, actualHeight);
+        }
         
-        const halfWidth = Math.floor(canvas.width / 2);
+        const halfWidth = Math.floor(actualWidth / 2);
         
-        // Page 1
-        const p1Blob = await processCanvas(await createImageBitmap(canvas, 0, 0, halfWidth, canvas.height), halfWidth, canvas.height);
+        const p1Blob = await processCanvas(await createImageBitmap(canvas, 0, 0, halfWidth, actualHeight), halfWidth, actualHeight);
         if (p1Blob) finalBlobs.push({ blob: p1Blob, name: `${nextBase}.${fileExt}` });
         
         nextBase = incrementSequence(nextBase);
         
-        // Page 2
-        const p2Blob = await processCanvas(await createImageBitmap(canvas, halfWidth, 0, halfWidth, canvas.height), halfWidth, canvas.height);
+        const p2Blob = await processCanvas(await createImageBitmap(canvas, halfWidth, 0, halfWidth, actualHeight), halfWidth, actualHeight);
         if (p2Blob) finalBlobs.push({ blob: p2Blob, name: `${nextBase}.${fileExt}` });
         
         setFileSequence(incrementSequence(nextBase));
       } else {
-        const blob = await processCanvas(rawImage, currentRes.width, currentRes.height);
+        const blob = await processCanvas(rawImage, actualWidth, actualHeight);
         if (blob) finalBlobs.push({ blob: blob, name: `${nextBase}.${fileExt}` });
         setFileSequence(incrementSequence(nextBase));
       }
@@ -537,7 +565,10 @@ export function HardwareScannerTab() {
                   filter: `brightness(${1 + brightness / 100}) contrast(${1 + contrast / 100}) grayscale(${bitDepth === '8' || bitDepth === '1' ? '100%' : '0%'}) sepia(${warmTint}%)`,
                   transform: rotation === "90" || rotation === "270" ? `rotate(${rotation}deg) scale(0.7)` : `rotate(${rotation}deg)`
                 }}
-                className="max-h-full max-w-full object-contain transition-all duration-200"
+                className={cn(
+                    "max-h-full max-w-full object-contain transition-all duration-200",
+                    isMirrored && "-scale-x-100"
+                )}
               />
               
               {!streamActive && (
@@ -661,6 +692,17 @@ export function HardwareScannerTab() {
                </div>
 
                <div className="pt-1.5 border-t border-primary/10 flex flex-col gap-2">
+                 <div className="flex items-center justify-between px-1">
+                   <span className="font-semibold flex items-center gap-1 text-[10px] text-muted-foreground leading-tight">
+                      Mirror Preview
+                   </span>
+                   <Switch 
+                       checked={isMirrored} 
+                       onCheckedChange={setIsMirrored} 
+                       className="scale-75 data-[state=checked]:bg-primary"
+                   />
+                 </div>
+
                  <div className="space-y-1">
                     <span className="font-semibold flex items-center gap-1 text-[10px] text-muted-foreground leading-tight">
                       <RotateCw className="w-3.5 h-3.5 text-primary" /> Orientation
