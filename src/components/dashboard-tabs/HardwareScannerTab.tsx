@@ -226,114 +226,111 @@ export function HardwareScannerTab() {
     }
     
     try {
-      const video = videoRef.current;
+      const track = streamRef.current?.getVideoTracks()[0];
       const currentRes = dynamicResolutions.find(r => r.value === resolution) || DEFAULT_RESOLUTIONS[3];
-      
       const isRotated = rotation === "90" || rotation === "270";
-      const canvas = document.createElement("canvas");
-      canvas.width = isRotated ? currentRes.height : currentRes.width;
-      canvas.height = isRotated ? currentRes.width : currentRes.height;
-      const ctx = canvas.getContext("2d");
-      
-      if (!ctx) throw new Error("Failed to initialize canvas");
-      
-      const b = 1 + brightness / 100;
-      const c = 1 + contrast / 100;
-      const gray = bitDepth === "8" || bitDepth === "1" ? "100%" : "0%";
-      const s = warmTint > 0 ? `${warmTint}%` : "0%";
-      
-      // Matrix transformation for orientation
-      if (rotation !== "0") {
-          ctx.translate(canvas.width / 2, canvas.height / 2);
-          ctx.rotate((parseInt(rotation) * Math.PI) / 180);
-          ctx.translate(-currentRes.width / 2, -currentRes.height / 2);
-      }
-      
-      ctx.filter = `brightness(${b * 100}%) contrast(${c * 100}%) grayscale(${gray}) sepia(${s})`;
-      ctx.drawImage(video, 0, 0, currentRes.width, currentRes.height);
-
-      if (bitDepth === "1") {
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const d = imgData.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const brightnessVal = 0.34 * d[i] + 0.5 * d[i + 1] + 0.16 * d[i + 2];
-          const val = brightnessVal > 128 ? 255 : 0;
-          d[i] = val; d[i + 1] = val; d[i + 2] = val;
-        }
-        ctx.putImageData(imgData, 0, 0);
-      }
-      
       const imageFormatMime = fileFormat === "png" ? "image/png" : "image/jpeg";
       const fileExt = fileFormat === "png" ? "png" : "jpg";
-      
-      const savedFilesCount = mode === "book" ? 2 : 1;
+
+      let finalBlobs: { blob: Blob, name: string }[] = [];
       let nextBase = fileSequence;
 
-      if (directoryHandle) {
-        // Direct Local Saving (Bypasses Server)
-        if (mode === "book") {
-            const halfWidth = Math.floor(canvas.width / 2);
-            const leftCanvas = document.createElement("canvas");
-            leftCanvas.width = halfWidth; leftCanvas.height = canvas.height;
-            leftCanvas.getContext("2d")?.drawImage(canvas, 0, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
-            
-            const rightCanvas = document.createElement("canvas");
-            rightCanvas.width = halfWidth; rightCanvas.height = canvas.height;
-            rightCanvas.getContext("2d")?.drawImage(canvas, halfWidth, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
+      // Check for ImageCapture support for TRUE high-res stills
+      const canCaptureStill = track && 'ImageCapture' in window;
+      let rawImage: ImageBitmap | HTMLVideoElement = videoRef.current;
 
-            const leftBlob = await new Promise<Blob | null>(resolve => leftCanvas.toBlob(resolve, imageFormatMime, quality / 100));
-            const rightBlob = await new Promise<Blob | null>(resolve => rightCanvas.toBlob(resolve, imageFormatMime, quality / 100));
-
-            if (leftBlob) await saveFileLocally(directoryHandle, `${nextBase}_left.${fileExt}`, leftBlob);
-            nextBase = incrementSequence(nextBase);
-            if (rightBlob) await saveFileLocally(directoryHandle, `${nextBase}_right.${fileExt}`, rightBlob);
-        } else {
-            const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
-            if (blob) await saveFileLocally(directoryHandle, `${nextBase}.${fileExt}`, blob);
-        }
-        
-        setFileSequence(incrementSequence(nextBase));
-        toast.success(`Saved ${savedFilesCount} file(s) directly to ${directoryHandle.name}`);
-      } else {
-        // API Fallback (Requires Local Node Server)
-        const formData = new FormData();
-        formData.append("saveDir", saveDir);
-
-        if (mode === "book") {
-            const halfWidth = Math.floor(canvas.width / 2);
-            const leftCanvas = document.createElement("canvas");
-            leftCanvas.width = halfWidth; leftCanvas.height = canvas.height;
-            leftCanvas.getContext("2d")?.drawImage(canvas, 0, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
-            
-            const rightCanvas = document.createElement("canvas");
-            rightCanvas.width = halfWidth; rightCanvas.height = canvas.height;
-            rightCanvas.getContext("2d")?.drawImage(canvas, halfWidth, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
-
-            const leftBlob = await new Promise<Blob | null>(resolve => leftCanvas.toBlob(resolve, imageFormatMime, quality / 100));
-            const rightBlob = await new Promise<Blob | null>(resolve => rightCanvas.toBlob(resolve, imageFormatMime, quality / 100));
-
-            if (leftBlob) formData.append("files", leftBlob, `${nextBase}_left.${fileExt}`);
-            nextBase = incrementSequence(nextBase);
-            if (rightBlob) formData.append("files", rightBlob, `${nextBase}_right.${fileExt}`);
-        } else {
-            const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
-            if (blob) formData.append("files", blob, `${nextBase}.${fileExt}`);
-        }
-
-        const res = await fetch("/api/save-scan", { method: "POST", body: formData });
-        const data = await res.json();
-        
-        if (data.success) {
-            setFileSequence(incrementSequence(nextBase));
-            toast.success(`Scanning successful! Saved ${data.savedPaths?.length || 1} file(s)`);
-        } else {
-            toast.error(`Error saving: ${data.error}`);
-            console.error("Save error details:", data);
+      if (canCaptureStill) {
+        try {
+          const capturer = new (window as any).ImageCapture(track);
+          const photoBlob = await capturer.takePhoto();
+          rawImage = await createImageBitmap(photoBlob);
+        } catch (e) {
+          console.warn("Hardware still capture failed, falling back to video frame:", e);
         }
       }
+
+      const processCanvas = async (source: ImageBitmap | HTMLVideoElement, width: number, height: number) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = isRotated ? height : width;
+        canvas.height = isRotated ? width : height;
+        const ctx = canvas.getContext("2d", { alpha: false });
+        if (!ctx) throw new Error("Canvas context failed");
+
+        // Apply filters only if they are non-default to save performance
+        const b = 1 + brightness / 100;
+        const c = 1 + contrast / 100;
+        const gray = (bitDepth === "8" || bitDepth === "1") ? "100%" : "0%";
+        const s = warmTint > 0 ? `${warmTint}%` : "0%";
+
+        if (b !== 1 || c !== 1 || gray !== "0%" || s !== "0%") {
+          ctx.filter = `brightness(${b * 100}%) contrast(${c * 100}%) grayscale(${gray}) sepia(${s})`;
+        }
+
+        if (rotation !== "0") {
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.rotate((parseInt(rotation) * Math.PI) / 180);
+          ctx.translate(-(isRotated ? height : width) / 2, -(isRotated ? width : height) / 2);
+        }
+
+        ctx.drawImage(source, 0, 0, width, height);
+
+        if (bitDepth === "1") {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const avg = 0.34 * d[i] + 0.5 * d[i + 1] + 0.16 * d[i + 2];
+            const val = avg > 128 ? 255 : 0;
+            d[i] = val; d[i + 1] = val; d[i + 2] = val;
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
+        return new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
+      };
+
+      if (mode === "book") {
+        // Split logic
+        const canvas = document.createElement("canvas");
+        canvas.width = currentRes.width;
+        canvas.height = currentRes.height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(rawImage, 0, 0, canvas.width, canvas.height);
+        
+        const halfWidth = Math.floor(canvas.width / 2);
+        
+        // Page 1
+        const p1Blob = await processCanvas(await createImageBitmap(canvas, 0, 0, halfWidth, canvas.height), halfWidth, canvas.height);
+        if (p1Blob) finalBlobs.push({ blob: p1Blob, name: `${nextBase}.${fileExt}` });
+        
+        nextBase = incrementSequence(nextBase);
+        
+        // Page 2
+        const p2Blob = await processCanvas(await createImageBitmap(canvas, halfWidth, 0, halfWidth, canvas.height), halfWidth, canvas.height);
+        if (p2Blob) finalBlobs.push({ blob: p2Blob, name: `${nextBase}.${fileExt}` });
+        
+        setFileSequence(incrementSequence(nextBase));
+      } else {
+        const blob = await processCanvas(rawImage, currentRes.width, currentRes.height);
+        if (blob) finalBlobs.push({ blob: blob, name: `${nextBase}.${fileExt}` });
+        setFileSequence(incrementSequence(nextBase));
+      }
+
+      if (directoryHandle) {
+        for (const f of finalBlobs) {
+          await saveFileLocally(directoryHandle, f.name, f.blob);
+        }
+        toast.success(`Saved ${finalBlobs.length} high-res image(s) to ${directoryHandle.name}`);
+      } else {
+        const formData = new FormData();
+        formData.append("saveDir", saveDir);
+        finalBlobs.forEach(f => formData.append("files", f.blob, f.name));
+        const res = await fetch("/api/save-scan", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.success) toast.success(`Saved ${finalBlobs.length} image(s) via server`);
+        else throw new Error(data.error);
+      }
     } catch (err: any) {
-      toast.error(`Scanning error: ${err.message}`);
-      console.error("Scan processing error:", err);
+      toast.error(`Scan failed: ${err.message}`);
+      console.error(err);
     } finally {
       setIsScanning(false);
     }
