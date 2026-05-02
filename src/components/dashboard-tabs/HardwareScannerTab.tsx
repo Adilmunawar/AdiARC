@@ -104,7 +104,7 @@ export function HardwareScannerTab() {
     if (selectedDevice) {
       startStream();
     }
-  }, [selectedDevice]);
+  }, [selectedDevice, resolution]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -124,11 +124,15 @@ export function HardwareScannerTab() {
     if (!selectedDevice) return;
 
     try {
+      const currentRes = dynamicResolutions.find(r => r.value === resolution) || DEFAULT_RESOLUTIONS[3];
+      const targetWidth = resolution.includes('x') || resolution === "100" ? currentRes.width : 4096;
+      const targetHeight = resolution.includes('x') || resolution === "100" ? currentRes.height : 2160;
+
       const constraints = {
         video: {
           deviceId: { exact: selectedDevice },
-          width: { ideal: 8192 },
-          height: { ideal: 8192 }
+          width: { ideal: targetWidth },
+          height: { ideal: targetHeight }
         }
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -284,18 +288,10 @@ export function HardwareScannerTab() {
             await (track as any).applyConstraints({ advanced: [{ sharpness }] });
           }
           
-          let photoSettings: any = {};
-          try {
-            const photoCaps = await capturer.getPhotoCapabilities();
-            if (photoCaps.imageWidth && photoCaps.imageWidth.max) {
-              photoSettings.imageWidth = photoCaps.imageWidth.max;
-            }
-            if (photoCaps.imageHeight && photoCaps.imageHeight.max) {
-              photoSettings.imageHeight = photoCaps.imageHeight.max;
-            }
-          } catch (e) {
-            console.warn("Could not get photo capabilities", e);
-          }
+          let photoSettings: any = {
+            imageWidth: actualWidth,
+            imageHeight: actualHeight
+          };
 
           const pb = await capturer.takePhoto(photoSettings);
           photoBlob = await setDPI(pb, 300); // Enforce 300 DPI for print
