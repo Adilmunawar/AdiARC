@@ -240,13 +240,10 @@ export function HardwareScannerTab() {
 
       let finalBlobs: { blob: Blob, name: string }[] = [];
       let nextBase = fileSequence;
+      let rawImage: ImageBitmap | HTMLVideoElement = videoRef.current;
 
       // Check for ImageCapture support for TRUE high-res stills
       const canCaptureStill = track && 'ImageCapture' in window;
-      let photoBlob: Blob | null = null;
-      let rawImage: ImageBitmap | HTMLVideoElement = videoRef.current;
-      let actualWidth = currentRes.width;
-      let actualHeight = currentRes.height;
 
       if (canCaptureStill) {
         try {
@@ -257,8 +254,9 @@ export function HardwareScannerTab() {
             await (track as any).applyConstraints({ advanced: [{ sharpness }] });
           }
 
-          photoBlob = await capturer.takePhoto();
-          rawImage = await createImageBitmap(photoBlob);
+          const pb = await capturer.takePhoto();
+          photoBlob = pb;
+          rawImage = await createImageBitmap(pb);
           
           if (resolution.includes('x') || resolution === "100") {
             actualWidth = rawImage.width;
@@ -354,10 +352,18 @@ export function HardwareScannerTab() {
             ctx.drawImage(rawImage, 0, 0, actualWidth, actualHeight);
         }
         const halfWidth = Math.floor(actualWidth / 2);
-        const p1Blob = await processCanvas(await createImageBitmap(canvas, 0, 0, halfWidth, actualHeight), halfWidth, actualHeight);
+        
+        const b1 = await createImageBitmap(canvas, 0, 0, halfWidth, actualHeight);
+        const p1Blob = await processCanvas(b1, halfWidth, actualHeight);
+        b1.close();
+        
         if (p1Blob) finalBlobs.push({ blob: p1Blob, name: `${nextBase}.${fileExt}` });
         nextBase = incrementSequence(nextBase);
-        const p2Blob = await processCanvas(await createImageBitmap(canvas, halfWidth, 0, halfWidth, actualHeight), halfWidth, actualHeight);
+        
+        const b2 = await createImageBitmap(canvas, halfWidth, 0, halfWidth, actualHeight);
+        const p2Blob = await processCanvas(b2, halfWidth, actualHeight);
+        b2.close();
+        
         if (p2Blob) finalBlobs.push({ blob: p2Blob, name: `${nextBase}.${fileExt}` });
         setFileSequence(incrementSequence(nextBase));
       } else {
@@ -385,6 +391,9 @@ export function HardwareScannerTab() {
       console.error(err);
     } finally {
       setIsScanning(false);
+      if (rawImage instanceof ImageBitmap) {
+        rawImage.close();
+      }
     }
   };
 
