@@ -241,10 +241,12 @@ export function HardwareScannerTab() {
         ctx.putImageData(imgData, 0, 0);
       }
       
-      const imagesToSave = [];
       const imageFormatMime = fileFormat === "png" ? "image/png" : "image/jpeg";
       const fileExt = fileFormat === "png" ? "png" : "jpg";
       
+      const formData = new FormData();
+      formData.append("saveDir", saveDir);
+
       let nextBase = fileSequence;
 
       if (mode === "book") {
@@ -262,43 +264,36 @@ export function HardwareScannerTab() {
           const rightCtx = rightCanvas.getContext("2d");
           rightCtx?.drawImage(canvas, halfWidth, 0, halfWidth, canvas.height, 0, 0, halfWidth, canvas.height);
 
-          imagesToSave.push({
-              filename: `${nextBase}_left.${fileExt}`,
-              base64: leftCanvas.toDataURL(imageFormatMime, quality / 100)
-          });
-          
+          const leftBlob = await new Promise<Blob | null>(resolve => leftCanvas.toBlob(resolve, imageFormatMime, quality / 100));
+          const rightBlob = await new Promise<Blob | null>(resolve => rightCanvas.toBlob(resolve, imageFormatMime, quality / 100));
+
+          if (leftBlob) formData.append("files", leftBlob, `${nextBase}_left.${fileExt}`);
           nextBase = incrementSequence(nextBase);
-
-          imagesToSave.push({
-              filename: `${nextBase}_right.${fileExt}`,
-              base64: rightCanvas.toDataURL(imageFormatMime, quality / 100)
-          });
-
-          // And increment for the next capture
+          if (rightBlob) formData.append("files", rightBlob, `${nextBase}_right.${fileExt}`);
+          
           setFileSequence(incrementSequence(nextBase));
       } else {
-          imagesToSave.push({
-              filename: `${nextBase}.${fileExt}`,
-              base64: canvas.toDataURL(imageFormatMime, quality / 100)
-          });
+          const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
+          if (blob) formData.append("files", blob, `${nextBase}.${fileExt}`);
           
           setFileSequence(incrementSequence(nextBase));
       }
 
       const res = await fetch("/api/save-scan", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ images: imagesToSave, saveDir })
+          body: formData
       });
       
       const data = await res.json();
       if (data.success) {
-          toast.success(`Scanning successful! Saved ${imagesToSave.length} file(s)`);
+          toast.success(`Scanning successful! Saved ${data.savedPaths?.length || 1} file(s)`);
       } else {
           toast.error(`Error saving: ${data.error}`);
+          console.error("Save error details:", data);
       }
     } catch (err: any) {
       toast.error(`Scanning error: ${err.message}`);
+      console.error("Scan processing error:", err);
     } finally {
       setIsScanning(false);
     }

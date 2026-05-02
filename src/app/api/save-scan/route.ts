@@ -4,33 +4,43 @@ import path from 'path';
 
 export async function POST(req: Request) {
     try {
-        const { images, saveDir } = await req.json();
+        const formData = await req.formData();
+        const saveDir = formData.get('saveDir') as string;
+        const files = formData.getAll('files') as File[];
 
-        if (!saveDir || !images || !Array.isArray(images)) {
-            return NextResponse.json({ error: 'Missing saveDir or images array' }, { status: 400 });
+        if (!saveDir || !files || files.length === 0) {
+            return NextResponse.json({ error: 'Missing saveDir or files' }, { status: 400 });
         }
 
         // Ensure directory exists
         if (!fs.existsSync(saveDir)) {
-            fs.mkdirSync(saveDir, { recursive: true });
+            try {
+                fs.mkdirSync(saveDir, { recursive: true });
+            } catch (err: any) {
+                return NextResponse.json({ error: `Failed to create directory: ${err.message}` }, { status: 500 });
+            }
         }
 
         const savedPaths = [];
 
-        for (const img of images) {
-            const { base64, filename } = img;
+        for (const file of files) {
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const targetPath = path.join(saveDir, file.name);
             
-            // Remove the data URI prefix (e.g., "data:image/jpeg;base64,")
-            const base64Data = base64.replace(/^data:image\/\w+;base64,/, "");
-            const buffer = Buffer.from(base64Data, 'base64');
-            const targetPath = path.join(saveDir, filename);
-            
-            fs.writeFileSync(targetPath, buffer);
-            savedPaths.push(targetPath);
+            try {
+                fs.writeFileSync(targetPath, buffer);
+                savedPaths.push(targetPath);
+            } catch (err: any) {
+                return NextResponse.json({ error: `Failed to write file ${file.name}: ${err.message}` }, { status: 500 });
+            }
         }
 
         return NextResponse.json({ success: true, savedPaths });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Save Scan Error:', error);
+        return NextResponse.json({ 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }, { status: 500 });
     }
 }
