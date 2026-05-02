@@ -219,7 +219,8 @@ export function HardwareScannerTab() {
       let offset = 2;
       while (offset < uint8Array.length) {
         if (uint8Array[offset] === 0xFF && uint8Array[offset + 1] === 0xE0) {
-          const identifier = String.fromCharCode(...uint8Array.slice(offset + 4, offset + 8));
+          const slice = uint8Array.slice(offset + 4, offset + 8);
+          const identifier = String.fromCharCode(slice[0], slice[1], slice[2], slice[3]);
           if (identifier === 'JFIF') {
             uint8Array[offset + 11] = 1; // 1 = dots per inch
             dataView.setUint16(offset + 12, dpi, false); // X density
