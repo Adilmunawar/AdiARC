@@ -127,8 +127,8 @@ export function HardwareScannerTab() {
       const constraints = {
         video: {
           deviceId: { exact: selectedDevice },
-          width: { ideal: 4096 },
-          height: { ideal: 2160 }
+          width: { ideal: 8192 },
+          height: { ideal: 8192 }
         }
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -207,6 +207,34 @@ export function HardwareScannerTab() {
     await writable.close();
   };
 
+  const setDPI = async (blob: Blob, dpi: number = 300): Promise<Blob> => {
+    if (blob.type !== 'image/jpeg') return blob;
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const dataView = new DataView(arrayBuffer);
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      if (uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8) return blob;
+
+      let offset = 2;
+      while (offset < uint8Array.length) {
+        if (uint8Array[offset] === 0xFF && uint8Array[offset + 1] === 0xE0) {
+          const identifier = String.fromCharCode(...uint8Array.slice(offset + 4, offset + 8));
+          if (identifier === 'JFIF') {
+            uint8Array[offset + 11] = 1; // 1 = dots per inch
+            dataView.setUint16(offset + 12, dpi, false); // X density
+            dataView.setUint16(offset + 14, dpi, false); // Y density
+            return new Blob([arrayBuffer], { type: 'image/jpeg' });
+          }
+        }
+        offset += 2 + dataView.getUint16(offset + 2, false);
+      }
+    } catch (e) {
+      console.warn("Failed to set DPI:", e);
+    }
+    return blob;
+  };
+
   const incrementSequence = (current: string) => {
     const match = current.match(/(\d+)$/);
     if (!match) return current;
@@ -253,9 +281,24 @@ export function HardwareScannerTab() {
           if (supportedCapabilities?.sharpness) {
             await (track as any).applyConstraints({ advanced: [{ sharpness }] });
           }
-          const pb = await capturer.takePhoto();
-          photoBlob = pb;
-          rawImage = await createImageBitmap(pb);
+          
+          let photoSettings: any = {};
+          try {
+            const photoCaps = await capturer.getPhotoCapabilities();
+            if (photoCaps.imageWidth && photoCaps.imageWidth.max) {
+              photoSettings.imageWidth = photoCaps.imageWidth.max;
+            }
+            if (photoCaps.imageHeight && photoCaps.imageHeight.max) {
+              photoSettings.imageHeight = photoCaps.imageHeight.max;
+            }
+          } catch (e) {
+            console.warn("Could not get photo capabilities", e);
+          }
+
+          const pb = await capturer.takePhoto(photoSettings);
+          photoBlob = await setDPI(pb, 300); // Enforce 300 DPI for print
+          rawImage = await createImageBitmap(photoBlob);
+          
           if (resolution.includes('x') || resolution === "100") {
             actualWidth = rawImage.width;
             actualHeight = rawImage.height;
@@ -328,7 +371,8 @@ export function HardwareScannerTab() {
           }
           ctx.putImageData(imgData, 0, 0);
         }
-        return new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
+        const generatedBlob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, imageFormatMime, quality / 100));
+        return generatedBlob ? await setDPI(generatedBlob, 300) : null;
       };
 
       if (mode === "book") {
