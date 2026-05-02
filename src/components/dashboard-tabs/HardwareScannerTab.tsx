@@ -148,7 +148,8 @@ export function HardwareScannerTab() {
             label: track.label || "Scanner Device"
         });
         setSupportedCapabilities(caps);
-        if (caps.sharpness) setSharpness(caps.sharpness.min);
+        const anyCaps = caps as any;
+        if (anyCaps.sharpness) setSharpness(anyCaps.sharpness.min);
       } else {
         setHardwareDetails({ maxMP: 24, maxWidth: 5632, maxHeight: 4224, label: track?.label || "Scanner Device" });
       }
